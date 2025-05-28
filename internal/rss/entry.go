@@ -33,14 +33,22 @@ type Entry struct {
 	ID         string     `xml:"id" json:"id"`
 	Published  time.Time  `xml:"published" json:"published"`
 	Content    string     `xml:"content" json:"content"`
+	Author     Author     `xml:"author" json:"author"`
 	MediaGroup MediaGroup `xml:"http://search.yahoo.com/mrss/ group" json:"mediaGroup"` // Field to store media group information
+}
+
+// Author represents the author element in RSS feeds
+type Author struct {
+	Name string `xml:"name" json:"name"`
+	URI  string `xml:"uri" json:"uri"`
 }
 
 // MediaGroup represents the media:group element in RSS feeds
 type MediaGroup struct {
-	MediaThumbnail MediaThumbnail `xml:"http://search.yahoo.com/mrss/ thumbnail" json:"mediaThumbnail"`
-	MediaTitle     string         `xml:"http://search.yahoo.com/mrss/ title" json:"mediaTitle"`
-	MediaContent   MediaContent   `xml:"http://search.yahoo.com/mrss/ content" json:"mediaContent"`
+	MediaThumbnail   MediaThumbnail `xml:"http://search.yahoo.com/mrss/ thumbnail" json:"mediaThumbnail"`
+	MediaTitle       string         `xml:"http://search.yahoo.com/mrss/ title" json:"mediaTitle"`
+	MediaContent     MediaContent   `xml:"http://search.yahoo.com/mrss/ content" json:"mediaContent"`
+	MediaDescription string         `xml:"http://search.yahoo.com/mrss/ description" json:"mediaDescription"`
 }
 
 // MediaContent represents the media:content element

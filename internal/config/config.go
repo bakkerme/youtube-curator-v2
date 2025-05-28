@@ -28,9 +28,16 @@ func LoadConfig() *Config {
 	// This allows for configuration solely through environment variables in production
 	_ = godotenv.Load()
 
-	channelsStr := os.Getenv("CHANNELS")
-	if channelsStr == "" {
-		log.Fatal("CHANNELS environment variable is required")
+	channelsFile := os.Getenv("CHANNELS_FILE")
+	var channels []string
+	if channelsFile != "" {
+		var err error
+		channels, err = loadChannelsFromFile(channelsFile)
+		if err != nil {
+			log.Fatalf("Failed to load channels from file: %v", err)
+		}
+	} else {
+		log.Fatal("CHANNELS_FILE environment variable is required")
 	}
 
 	smtpServer := os.Getenv("SMTP_SERVER")
@@ -74,7 +81,7 @@ func LoadConfig() *Config {
 	debugSkipCron := strings.ToLower(debugSkipCronStr) == "true"
 
 	return &Config{
-		Channels:       parseChannels(channelsStr),
+		Channels:       channels,
 		SMTPServer:     smtpServer,
 		SMTPPort:       smtpPort,
 		SMTPUsername:   smtpUsername,
@@ -86,10 +93,19 @@ func LoadConfig() *Config {
 	}
 }
 
-func parseChannels(channelsStr string) []string {
-	channels := strings.Split(channelsStr, ",")
-	for i, ch := range channels {
-		channels[i] = strings.TrimSpace(ch)
+func loadChannelsFromFile(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
 	}
-	return channels
+	lines := strings.Split(string(data), "\n")
+	var channels []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		channels = append(channels, line)
+	}
+	return channels, nil
 }

@@ -89,6 +89,17 @@ func FormatNewVideosEmail(videos []rss.Entry) (string, error) {
 			// For MVP, this should be okay.
 			return rss.CleanContent(s, 300, false) // Using existing CleanContent
 		},
+		"truncateLines5": func(s string) string {
+			if s == "" {
+				return s
+			}
+			lines := strings.Split(s, "\n")
+			if len(lines) <= 5 {
+				return s
+			}
+			truncated := strings.Join(lines[:5], "\n")
+			return truncated + "..."
+		},
 	}
 
 	t, err := template.New("newVideosEmail").Funcs(funcMap).Parse(string(tmplContent))

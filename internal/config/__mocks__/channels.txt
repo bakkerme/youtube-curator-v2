@@ -1,0 +1,6 @@
+# Majuula
+channel1
+# Cybershell
+channel2
+# Everything's Been Done
+channel3
