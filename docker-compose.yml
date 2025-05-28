@@ -1,0 +1,27 @@
+services:
+  youtube-curator:
+    build: .
+    container_name: youtube-curator-v2
+    restart: unless-stopped
+    volumes:
+      # Mount database directory for persistence
+      - ./data/youtubecurator.db:/app/youtubecurator.db
+      # Mount feed mocks directory for debug mode (optional)
+      - ./data/feed_mocks:/app/feed_mocks
+      # Mount channels file
+      - ./channels.txt:/app/channels.txt:ro
+    environment:
+      # Required environment variables
+      - CHANNELS_FILE=/app/channels.txt
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - RECIPIENT_EMAIL=${RECIPIENT_EMAIL}
+      # Optional environment variables
+      - CHECK_INTERVAL=${CHECK_INTERVAL:-1h}
+      - DEBUG_MOCK_RSS=${DEBUG_MOCK_RSS:-false}
+      - DEBUG_SKIP_CRON=${DEBUG_SKIP_CRON:-false}
+    # Uncomment if you need to expose ports for future API endpoints
+    # ports:
+    #   - "8080:8080" 

@@ -11,6 +11,7 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
+	DBPath         string
 	Channels       []string
 	SMTPServer     string
 	SMTPPort       string
@@ -27,6 +28,11 @@ func LoadConfig() *Config {
 	// Attempt to load .env file, but don't error if it doesn't exist
 	// This allows for configuration solely through environment variables in production
 	_ = godotenv.Load()
+
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		log.Fatal("DB_PATH environment variable is required")
+	}
 
 	channelsFile := os.Getenv("CHANNELS_FILE")
 	var channels []string
@@ -81,6 +87,7 @@ func LoadConfig() *Config {
 	debugSkipCron := strings.ToLower(debugSkipCronStr) == "true"
 
 	return &Config{
+		DBPath:         dbPath,
 		Channels:       channels,
 		SMTPServer:     smtpServer,
 		SMTPPort:       smtpPort,

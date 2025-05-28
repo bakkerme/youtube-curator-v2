@@ -17,8 +17,6 @@ import (
 	"youtube-curator-v2/internal/store"
 )
 
-const dbPath = "./youtubecurator.db"
-
 func main() {
 	cfg := config.LoadConfig()
 
@@ -26,12 +24,12 @@ func main() {
 	fmt.Printf("Loaded configuration: %+v\n", cfg)
 	fmt.Printf("Checking for new videos every %s\n", cfg.CheckInterval)
 
-	dbDir := filepath.Dir(dbPath)
+	dbDir := filepath.Dir(cfg.DBPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		log.Fatalf("Failed to create database directory: %v", err)
 	}
 
-	db, err := store.NewStore(dbPath)
+	db, err := store.NewStore(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize store: %v", err)
 	}

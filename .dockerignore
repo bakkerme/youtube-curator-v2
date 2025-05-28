@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+planning/
+
+# IDE
+.vscode/
+.cursor/
+
+# Environment files (these should be passed as env vars)
+.env
+.envdebug
+
+# Database (will be mounted as volume)
+youtubecurator.db/
+
+# Build artifacts
+youtube-curator-v2
+
+# Test files
+*_test.go
+internal/*/test/
+
+# Mock data (can be mounted if needed)
+feed_mocks/
+
+# OS
+.DS_Store
+Thumbs.db 
