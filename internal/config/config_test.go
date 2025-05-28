@@ -11,7 +11,7 @@ func TestLoadConfig(t *testing.T) {
 	// Save original environment
 	originalEnv := make(map[string]string)
 	envVars := []string{
-		"CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
+		"DB_PATH", "CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
 		"SMTP_PASSWORD", "RECIPIENT_EMAIL", "CHECK_INTERVAL",
 		"DEBUG_MOCK_RSS", "DEBUG_SKIP_CRON",
 	}
@@ -38,6 +38,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		// Set required environment variables
+		os.Setenv("DB_PATH", "./youtubecurator.db")
 		os.Setenv("SMTP_SERVER", "smtp.example.com")
 		os.Setenv("SMTP_PORT", "587")
 		os.Setenv("SMTP_USERNAME", "user@example.com")
@@ -48,7 +49,10 @@ func TestLoadConfig(t *testing.T) {
 		os.Setenv("DEBUG_SKIP_CRON", "false")
 		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 
-		config := LoadConfig()
+		config, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
 		if config.SMTPServer != "smtp.example.com" {
 			t.Errorf("Expected SMTPServer to be 'smtp.example.com', got '%s'", config.SMTPServer)
@@ -83,6 +87,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		// Set required environment variables without CHECK_INTERVAL
+		os.Setenv("DB_PATH", "./youtubecurator.db")
 		os.Setenv("SMTP_SERVER", "smtp.example.com")
 		os.Setenv("SMTP_PORT", "587")
 		os.Setenv("SMTP_USERNAME", "user@example.com")
@@ -90,7 +95,10 @@ func TestLoadConfig(t *testing.T) {
 		os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
 		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 
-		config := LoadConfig()
+		config, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
 		if config.CheckInterval != time.Hour {
 			t.Errorf("Expected default CheckInterval to be 1h, got %v", config.CheckInterval)
@@ -104,6 +112,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		// Set required environment variables without debug flags
+		os.Setenv("DB_PATH", "./youtubecurator.db")
 		os.Setenv("SMTP_SERVER", "smtp.example.com")
 		os.Setenv("SMTP_PORT", "587")
 		os.Setenv("SMTP_USERNAME", "user@example.com")
@@ -111,7 +120,10 @@ func TestLoadConfig(t *testing.T) {
 		os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
 		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 
-		config := LoadConfig()
+		config, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
 		if config.DebugMockRSS {
 			t.Error("Expected DebugMockRSS to be false by default")
@@ -128,16 +140,21 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		// Set required environment variables with mixed case debug flags
+		os.Setenv("DB_PATH", "./youtubecurator.db")
 		os.Setenv("SMTP_SERVER", "smtp.example.com")
 		os.Setenv("SMTP_PORT", "587")
 		os.Setenv("SMTP_USERNAME", "user@example.com")
 		os.Setenv("SMTP_PASSWORD", "password123")
 		os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
+		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 		os.Setenv("DEBUG_MOCK_RSS", "TRUE")
 		os.Setenv("DEBUG_SKIP_CRON", "True")
 		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 
-		config := LoadConfig()
+		config, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
 		if !config.DebugMockRSS {
 			t.Error("Expected DebugMockRSS to be true with 'TRUE'")
@@ -163,6 +180,7 @@ func TestLoadConfig(t *testing.T) {
 		}
 
 		// Set required environment variables
+		os.Setenv("DB_PATH", "./youtubecurator.db")
 		os.Setenv("CHANNELS_FILE", channelsFile)
 		os.Setenv("SMTP_SERVER", "smtp.example.com")
 		os.Setenv("SMTP_PORT", "587")
@@ -171,7 +189,10 @@ func TestLoadConfig(t *testing.T) {
 		os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
 		os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
 
-		config := LoadConfig()
+		config, err := LoadConfig()
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
 
 		expectedChannels := []string{"channel1", "channel2", "channel3"}
 		if len(config.Channels) != len(expectedChannels) {
@@ -189,7 +210,7 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 	// Save original environment
 	originalEnv := make(map[string]string)
 	envVars := []string{
-		"CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
+		"DB_PATH", "CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
 		"SMTP_PASSWORD", "RECIPIENT_EMAIL", "CHECK_INTERVAL",
 		"DEBUG_MOCK_RSS", "DEBUG_SKIP_CRON",
 	}
@@ -218,6 +239,7 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 			name:       "MissingSMTPServer",
 			missingVar: "SMTP_SERVER",
 			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
 				os.Setenv("SMTP_PORT", "587")
 				os.Setenv("SMTP_USERNAME", "user@example.com")
 				os.Setenv("SMTP_PASSWORD", "password123")
@@ -229,6 +251,7 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 			name:       "MissingSMTPPort",
 			missingVar: "SMTP_PORT",
 			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
 				os.Setenv("SMTP_SERVER", "smtp.example.com")
 				os.Setenv("SMTP_USERNAME", "user@example.com")
 				os.Setenv("SMTP_PASSWORD", "password123")
@@ -240,6 +263,7 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 			name:       "MissingSMTPUsername",
 			missingVar: "SMTP_USERNAME",
 			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
 				os.Setenv("SMTP_SERVER", "smtp.example.com")
 				os.Setenv("SMTP_PORT", "587")
 				os.Setenv("SMTP_PASSWORD", "password123")
@@ -251,6 +275,7 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 			name:       "MissingSMTPPassword",
 			missingVar: "SMTP_PASSWORD",
 			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
 				os.Setenv("SMTP_SERVER", "smtp.example.com")
 				os.Setenv("SMTP_PORT", "587")
 				os.Setenv("SMTP_USERNAME", "user@example.com")
@@ -262,11 +287,66 @@ func TestLoadConfigMissingRequiredEnvVars(t *testing.T) {
 			name:       "MissingRecipientEmail",
 			missingVar: "RECIPIENT_EMAIL",
 			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
 				os.Setenv("SMTP_SERVER", "smtp.example.com")
 				os.Setenv("SMTP_PORT", "587")
 				os.Setenv("SMTP_USERNAME", "user@example.com")
 				os.Setenv("SMTP_PASSWORD", "password123")
 				os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
+			},
+		},
+		{
+			name:       "MissingChannelsFile",
+			missingVar: "CHANNELS_FILE",
+			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
+				os.Setenv("SMTP_SERVER", "smtp.example.com")
+				os.Setenv("SMTP_PORT", "587")
+				os.Setenv("SMTP_USERNAME", "user@example.com")
+				os.Setenv("SMTP_PASSWORD", "password123")
+				os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
+			},
+		},
+		{
+			name:       "MissingDebugMockRSS",
+			missingVar: "DEBUG_MOCK_RSS",
+			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
+				os.Setenv("SMTP_SERVER", "smtp.example.com")
+				os.Setenv("SMTP_PORT", "587")
+				os.Setenv("SMTP_USERNAME", "user@example.com")
+				os.Setenv("SMTP_PASSWORD", "password123")
+				os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
+				os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
+			},
+		},
+		{
+			name:       "MissingDebugSkipCron",
+			missingVar: "DEBUG_SKIP_CRON",
+			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
+				os.Setenv("SMTP_SERVER", "smtp.example.com")
+				os.Setenv("SMTP_PORT", "587")
+				os.Setenv("SMTP_USERNAME", "user@example.com")
+				os.Setenv("SMTP_PASSWORD", "password123")
+				os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
+				os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
+				os.Setenv("DEBUG_MOCK_RSS", "true")
+			},
+		},
+		{
+			name:       "MissingCheckInterval",
+			missingVar: "CHECK_INTERVAL",
+			setupEnv: func() {
+				os.Setenv("DB_PATH", "./youtubecurator.db")
+				os.Setenv("SMTP_SERVER", "smtp.example.com")
+				os.Setenv("SMTP_PORT", "587")
+				os.Setenv("SMTP_USERNAME", "user@example.com")
+				os.Setenv("SMTP_PASSWORD", "password123")
+				os.Setenv("RECIPIENT_EMAIL", "recipient@example.com")
+				os.Setenv("CHANNELS_FILE", "__mocks__/channels.txt")
+				os.Setenv("DEBUG_MOCK_RSS", "true")
+				os.Setenv("DEBUG_SKIP_CRON", "true")
 			},
 		},
 	}
@@ -293,7 +373,7 @@ func TestLoadConfigInvalidCheckInterval(t *testing.T) {
 	// Save original environment
 	originalEnv := make(map[string]string)
 	envVars := []string{
-		"CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
+		"DB_PATH", "CHANNELS_FILE", "SMTP_SERVER", "SMTP_PORT", "SMTP_USERNAME",
 		"SMTP_PASSWORD", "RECIPIENT_EMAIL", "CHECK_INTERVAL",
 		"DEBUG_MOCK_RSS", "DEBUG_SKIP_CRON",
 	}
@@ -319,6 +399,7 @@ func TestLoadConfigInvalidCheckInterval(t *testing.T) {
 	}
 
 	// Set required environment variables with invalid CHECK_INTERVAL
+	os.Setenv("DB_PATH", "./youtubecurator.db")
 	os.Setenv("SMTP_SERVER", "smtp.example.com")
 	os.Setenv("SMTP_PORT", "587")
 	os.Setenv("SMTP_USERNAME", "user@example.com")

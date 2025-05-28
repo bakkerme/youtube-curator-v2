@@ -18,7 +18,10 @@ import (
 )
 
 func main() {
-	cfg := config.LoadConfig()
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
 
 	fmt.Println("YouTube Curator v2 Starting...")
 	fmt.Printf("Loaded configuration: %+v\n", cfg)

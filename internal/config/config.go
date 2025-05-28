@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -24,14 +24,14 @@ type Config struct {
 }
 
 // LoadConfig loads configuration from environment variables
-func LoadConfig() *Config {
+func LoadConfig() (*Config, error) {
 	// Attempt to load .env file, but don't error if it doesn't exist
 	// This allows for configuration solely through environment variables in production
 	_ = godotenv.Load()
 
 	dbPath := os.Getenv("DB_PATH")
 	if dbPath == "" {
-		log.Fatal("DB_PATH environment variable is required")
+		return nil, fmt.Errorf("DB_PATH environment variable is required")
 	}
 
 	channelsFile := os.Getenv("CHANNELS_FILE")
@@ -40,35 +40,35 @@ func LoadConfig() *Config {
 		var err error
 		channels, err = loadChannelsFromFile(channelsFile)
 		if err != nil {
-			log.Fatalf("Failed to load channels from file: %v", err)
+			return nil, fmt.Errorf("failed to load channels from file: %v", err)
 		}
 	} else {
-		log.Fatal("CHANNELS_FILE environment variable is required")
+		return nil, fmt.Errorf("CHANNELS_FILE environment variable is required")
 	}
 
 	smtpServer := os.Getenv("SMTP_SERVER")
 	if smtpServer == "" {
-		log.Fatal("SMTP_SERVER environment variable is required")
+		return nil, fmt.Errorf("SMTP_SERVER environment variable is required")
 	}
 
 	smtpPort := os.Getenv("SMTP_PORT")
 	if smtpPort == "" {
-		log.Fatal("SMTP_PORT environment variable is required")
+		return nil, fmt.Errorf("SMTP_PORT environment variable is required")
 	}
 
 	smtpUsername := os.Getenv("SMTP_USERNAME")
 	if smtpUsername == "" {
-		log.Fatal("SMTP_USERNAME environment variable is required")
+		return nil, fmt.Errorf("SMTP_USERNAME environment variable is required")
 	}
 
 	smtpPassword := os.Getenv("SMTP_PASSWORD")
 	if smtpPassword == "" {
-		log.Fatal("SMTP_PASSWORD environment variable is required")
+		return nil, fmt.Errorf("SMTP_PASSWORD environment variable is required")
 	}
 
 	recipientEmail := os.Getenv("RECIPIENT_EMAIL")
 	if recipientEmail == "" {
-		log.Fatal("RECIPIENT_EMAIL environment variable is required")
+		return nil, fmt.Errorf("RECIPIENT_EMAIL environment variable is required")
 	}
 
 	checkIntervalStr := os.Getenv("CHECK_INTERVAL")
@@ -77,7 +77,7 @@ func LoadConfig() *Config {
 	}
 	checkInterval, err := time.ParseDuration(checkIntervalStr)
 	if err != nil {
-		log.Fatalf("Invalid CHECK_INTERVAL: %v", err)
+		return nil, fmt.Errorf("invalid CHECK_INTERVAL: %v", err)
 	}
 
 	debugMockRSSStr := os.Getenv("DEBUG_MOCK_RSS")
@@ -97,7 +97,7 @@ func LoadConfig() *Config {
 		CheckInterval:  checkInterval,
 		DebugMockRSS:   debugMockRSS,
 		DebugSkipCron:  debugSkipCron,
-	}
+	}, nil
 }
 
 func loadChannelsFromFile(path string) ([]string, error) {
