@@ -23,6 +23,12 @@ type EmailSender struct {
 	SMTPPassword string
 }
 
+// EmailSenderInterface defines the interface for sending emails
+// This allows for mocking in tests and easier dependency injection
+type EmailSenderInterface interface {
+	Send(recipient string, subject string, htmlContent string) error
+}
+
 // NewEmailSender creates a new EmailSender instance
 func NewEmailSender(server, port, username, password string) *EmailSender {
 	return &EmailSender{

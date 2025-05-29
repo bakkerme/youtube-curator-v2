@@ -4,7 +4,7 @@
 
 This document outlines an agile-style plan for the development of Youtube Curator v2, focusing on delivering functionality in iterations, starting with a Minimum Viable Product (MVP).
 
-## 2. Minimum Viable Product (MVP) - Iteration 1
+## 2. Minimum Viable Product (MVP) - Iteration 1 (DONE)
 
 The goal of the MVP is to create a functional core system that can fetch videos from a predefined set of channels and send email notifications, demonstrating the end-to-end data flow.
 
@@ -30,11 +30,11 @@ The goal of the MVP is to create a functional core system that can fetch videos 
 *   Refactor fetching, parsing, and email sending into a scheduled job (using Go's timer).
 *   Ensure the application runs correctly when configured via environment variables.
 
-## 3. Iteration 2: Dockerization and Deployment (MVP)
+## 3. Iteration 2: Dockerization and Deployment (MVP) (DONE)
 
 The goal of this iteration is to package the MVP into a Docker container for easy self-hosting and initial testing.
 
-**Definition of Done for Iteration 2:**
+**Definition of Done for Iteration 2:** 
 
 *   A Dockerfile is created to build a container for the Go backend (MVP logic).
 *   The Docker container is configured to run the MVP application.

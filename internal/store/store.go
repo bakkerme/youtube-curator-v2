@@ -7,28 +7,44 @@ import (
 	badger "github.com/dgraph-io/badger/v3"
 )
 
-// Store handles database operations
-type Store struct {
+// Package store provides a Store interface for database operations, with both a BadgerDB-backed implementation (BadgerStore)
+// and an in-memory mock implementation (MockStore) for testing. Use dependency injection to pass the Store interface
+// to components, enabling easy unit testing without a real database.
+
+// Store defines the interface for storage operations
+// (You can use mockgen or write your own mock)
+//
+//go:generate mockgen -destination=store_mock.go -package=store . Store
+type Store interface {
+	Close() error
+	GetLastCheckedVideoID(channelID string) (string, error)
+	SetLastCheckedVideoID(channelID, videoID string) error
+	GetLastCheckedTimestamp(channelID string) (time.Time, error)
+	SetLastCheckedTimestamp(channelID string, timestamp time.Time) error
+}
+
+// BadgerStore handles database operations
+type BadgerStore struct {
 	db *badger.DB
 }
 
-// NewStore creates a new Store instance
-func NewStore(dbPath string) (*Store, error) {
+// NewStore creates a new Store (BadgerStore) instance
+func NewStore(dbPath string) (Store, error) {
 	opts := badger.DefaultOptions(dbPath)
 	db, err := badger.Open(opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open badger database: %w", err)
 	}
-	return &Store{db: db}, nil
+	return &BadgerStore{db: db}, nil
 }
 
 // Close closes the database connection
-func (s *Store) Close() error {
+func (s *BadgerStore) Close() error {
 	return s.db.Close()
 }
 
 // GetLastCheckedVideoID retrieves the ID of the last checked video for a channel
-func (s *Store) GetLastCheckedVideoID(channelID string) (string, error) {
+func (s *BadgerStore) GetLastCheckedVideoID(channelID string) (string, error) {
 	var videoID string
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get([]byte(channelID))
@@ -47,7 +63,7 @@ func (s *Store) GetLastCheckedVideoID(channelID string) (string, error) {
 }
 
 // SetLastCheckedVideoID stores the ID of the last checked video for a channel
-func (s *Store) SetLastCheckedVideoID(channelID, videoID string) error {
+func (s *BadgerStore) SetLastCheckedVideoID(channelID, videoID string) error {
 	return s.db.Update(func(txn *badger.Txn) error {
 		return txn.Set([]byte(channelID), []byte(videoID))
 	})
@@ -55,7 +71,7 @@ func (s *Store) SetLastCheckedVideoID(channelID, videoID string) error {
 
 // GetLastCheckedTimestamp retrieves the timestamp of the last video check for a channel
 // This can be used as an alternative or in conjunction with VideoID
-func (s *Store) GetLastCheckedTimestamp(channelID string) (time.Time, error) {
+func (s *BadgerStore) GetLastCheckedTimestamp(channelID string) (time.Time, error) {
 	var lastChecked time.Time
 	key := []byte(channelID) // Use channel ID directly as key
 
@@ -75,7 +91,7 @@ func (s *Store) GetLastCheckedTimestamp(channelID string) (time.Time, error) {
 }
 
 // SetLastCheckedTimestamp stores the timestamp of the last video check for a channel
-func (s *Store) SetLastCheckedTimestamp(channelID string, timestamp time.Time) error {
+func (s *BadgerStore) SetLastCheckedTimestamp(channelID string, timestamp time.Time) error {
 	key := []byte(channelID) // Use channel ID directly as key
 	return s.db.Update(func(txn *badger.Txn) error {
 		val, err := timestamp.MarshalBinary()

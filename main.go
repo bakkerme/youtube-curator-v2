@@ -78,7 +78,7 @@ func main() {
 	}
 }
 
-func checkForNewVideos(cfg *config.Config, db *store.Store, emailSender *email.EmailSender, feedProvider rss.FeedProvider) {
+func checkForNewVideos(cfg *config.Config, db store.Store, emailSender email.EmailSenderInterface, feedProvider rss.FeedProvider) {
 	log.Println("Checking for new videos...")
 	ctx := context.Background()
 
