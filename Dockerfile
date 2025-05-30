@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN GOOS=linux go build -a -o youtube-curator-v2 .
+RUN GOOS=linux go build -o /app/main .
 
 # Runtime stage
 FROM alpine:latest
@@ -29,7 +29,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /app
 
 # Copy the binary from builder stage
-COPY --from=builder /app/youtube-curator-v2 .
+COPY --from=builder /app/main .
 
 # Create directory for database
 RUN mkdir -p /app/youtubecurator.db
@@ -37,8 +37,10 @@ RUN mkdir -p /app/youtubecurator.db
 # Create directory for feed mocks (for debug mode)
 RUN mkdir -p /app/feed_mocks
 
+COPY build/init.sh /app/init.sh
+
 # Expose any ports if needed (not required for this MVP but good practice)
 # EXPOSE 8080
 
 # Run the application
-CMD ["./youtube-curator-v2"] 
+CMD ["sh", "/app/init.sh"] 

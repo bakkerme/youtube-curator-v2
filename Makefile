@@ -13,20 +13,6 @@ test:
 clean-db:
 	rm -rf youtubecurator.db/
 
-docker-build:
-	docker build -t youtube-curator-v2 .
-
-docker-up:
-	docker compose up -d
-
-docker-down:
-	docker compose down
-
-docker-logs:
-	docker compose logs -f
-
-docker-restart: docker-down docker-up
-
 clean: clean-db
 	rm -f youtube-curator-v2
 	docker compose down || true

@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sort"
-	"syscall"
-	"time"
 
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
+	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
 )
@@ -50,87 +48,39 @@ func main() {
 		feedProvider = rss.NewFeedProvider()
 	}
 
+	// Create the channel processor
+	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider)
+
 	// Run the check immediately on startup
-	checkForNewVideos(cfg, db, emailSender, feedProvider)
+	checkForNewVideos(cfg, emailSender, channelProcessor)
 
 	// If DebugSkipCron is set, skip the cron/ticker feature
 	if cfg.DebugSkipCron {
 		fmt.Println("DEBUG_SKIP_CRON is set: Skipping cron/ticker feature. Exiting after one check.")
 		return
 	}
-
-	// Then run on the configured interval
-	ticker := time.NewTicker(cfg.CheckInterval)
-	defer ticker.Stop()
-
-	// Handle graceful shutdown
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	for {
-		select {
-		case <-ticker.C:
-			checkForNewVideos(cfg, db, emailSender, feedProvider)
-		case <-sigChan:
-			fmt.Println("Shutting down YouTube Curator v2...")
-			return
-		}
-	}
 }
 
-func checkForNewVideos(cfg *config.Config, db store.Store, emailSender email.EmailSenderInterface, feedProvider rss.FeedProvider) {
+func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProcessor processor.ChannelProcessor) {
 	log.Println("Checking for new videos...")
 	ctx := context.Background()
 
 	// Map to store the latest new video for each channel
 	latestNewVideoPerChannel := make(map[string]rss.Entry)
 
+	// Process each channel using the channel processor
 	for _, channelID := range cfg.Channels {
-		fmt.Printf("\nFetching RSS feed for channel ID: %s\n", channelID)
-		feed, err := feedProvider.FetchFeed(ctx, channelID)
-		if err != nil {
-			log.Printf("Error fetching feed for channel ID %s: %v\n", channelID, err)
+		result := channelProcessor.ProcessChannel(ctx, channelID)
+
+		// Skip channels that had errors
+		if result.Error != nil {
+			log.Printf("Error processing channel %s: %v\n", channelID, result.Error)
 			continue
 		}
 
-		lastCheckedTimestamp, err := db.GetLastCheckedTimestamp(channelID)
-		if err != nil {
-			log.Printf("Error getting last checked timestamp for channel ID %s: %v\n", channelID, err)
-			// If there's an error getting the timestamp, treat it as if no previous check occurred.
-			lastCheckedTimestamp = time.Time{}
-		}
-
-		var latestVideoThisChannel *rss.Entry          // Pointer to keep track of the latest new video for the current channel
-		latestTimestampThisRun := lastCheckedTimestamp // Keep track of the latest timestamp for DB update
-
-		for _, entry := range feed.Entries {
-			// Check if the video is newer than the last checked timestamp
-			if entry.Published.After(lastCheckedTimestamp) {
-				// If this is the first new video found for this channel, or it's newer than the current latest
-				if latestVideoThisChannel == nil || entry.Published.After(latestVideoThisChannel.Published) {
-					latestVideoThisChannel = &entry
-				}
-				// Always update latest timestamp for DB, regardless of whether it's the video we email
-				if entry.Published.After(latestTimestampThisRun) {
-					latestTimestampThisRun = entry.Published
-				}
-			}
-		}
-
-		// If a new video was found for this channel, add the latest one to the overall map
-		if latestVideoThisChannel != nil {
-			latestNewVideoPerChannel[channelID] = *latestVideoThisChannel
-			fmt.Printf("Found 1 new video to potentially email from channel ID %s (latest: %s)\n", channelID, latestVideoThisChannel.Title)
-		}
-
-		// Always update the last checked timestamp for the channel in the database
-		if !latestTimestampThisRun.Equal(lastCheckedTimestamp) {
-			if err := db.SetLastCheckedTimestamp(channelID, latestTimestampThisRun); err != nil {
-				log.Printf("Error setting last checked timestamp for channel ID %s: %v\n", channelID, err)
-			}
-			fmt.Printf("Updated last checked timestamp for channel ID %s to %s\n", channelID, latestTimestampThisRun.Format(time.RFC3339))
-		} else {
-			fmt.Printf("No new videos found or timestamp unchanged for channel ID %s since last check (%s)\n", channelID, lastCheckedTimestamp.Format(time.RFC3339))
+		// If a new video was found, add it to our map
+		if result.NewVideo != nil {
+			latestNewVideoPerChannel[channelID] = *result.NewVideo
 		}
 	}
 

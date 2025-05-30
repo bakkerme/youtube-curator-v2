@@ -23,9 +23,9 @@ type EmailSender struct {
 	SMTPPassword string
 }
 
-// EmailSenderInterface defines the interface for sending emails
+// Sender defines the interface for sending emails
 // This allows for mocking in tests and easier dependency injection
-type EmailSenderInterface interface {
+type Sender interface {
 	Send(recipient string, subject string, htmlContent string) error
 }
 

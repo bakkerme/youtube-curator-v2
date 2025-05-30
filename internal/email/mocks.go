@@ -3,7 +3,7 @@ package email
 // MockEmailSender is a mock implementation of EmailSenderInterface for testing
 // It stores sent emails in a slice for inspection
 
-type MockEmailSender struct {
+type MockSender struct {
 	SentEmails []SentEmail
 }
 
@@ -13,7 +13,7 @@ type SentEmail struct {
 	Body      string
 }
 
-func (m *MockEmailSender) Send(recipient, subject, htmlContent string) error {
+func (m *MockSender) Send(recipient, subject, htmlContent string) error {
 	m.SentEmails = append(m.SentEmails, SentEmail{
 		Recipient: recipient,
 		Subject:   subject,
