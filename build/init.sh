@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Initialising AI News Processor"
+echo "Initialising YouTube Curator v2"
 
 if [ "$DEBUG_SKIP_CRON" = "true" ]; then
     echo "Debug mode: Skipping cron setup and running main directly"
