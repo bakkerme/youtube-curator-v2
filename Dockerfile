@@ -37,6 +37,7 @@ RUN mkdir -p /app/youtubecurator.db
 # Create directory for feed mocks (for debug mode)
 RUN mkdir -p /app/feed_mocks
 
+COPY build/crontab /etc/cron.d/appcron
 COPY build/init.sh /app/init.sh
 
 # Expose any ports if needed (not required for this MVP but good practice)
