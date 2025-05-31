@@ -136,7 +136,9 @@ make docker-restart
 | `SMTP_USERNAME` | Yes | - | SMTP username |
 | `SMTP_PASSWORD` | Yes | - | SMTP password |
 | `RECIPIENT_EMAIL` | Yes | - | Email address to send notifications to |
-| `CHECK_INTERVAL` | No | `1h` | How often to check for new videos |
+| `CHECK_INTERVAL` | No | `1h` | How often to check for new videos (used in interval mode) |
+| `SCHEDULE_MODE` | No | `interval` | 'interval' (default, uses CHECK_INTERVAL) or 'daily' (uses DAILY_RUN_TIME) |
+| `DAILY_RUN_TIME` | No | `07:00` | Time of day to run in 'daily' mode (24h format, e.g. 07:00) |
 | `DEBUG_MOCK_RSS` | No | `false` | Use mock RSS feeds for testing |
 | `DEBUG_SKIP_CRON` | No | `false` | Run once and exit (no scheduling) |
 
@@ -208,3 +210,19 @@ go build -o youtube-curator-v2
 ```bash
 go test ./...
 ```
+
+### Scheduling Modes
+
+You can control when the app checks for new videos using two modes:
+
+- **Interval mode** (default):
+  - Set `SCHEDULE_MODE=interval` (or leave unset)
+  - Set `CHECK_INTERVAL` to the desired interval (e.g., `1h`, `30m`)
+  - The app will check for new videos at the specified interval.
+
+- **Daily mode**:
+  - Set `SCHEDULE_MODE=daily`
+  - Set `DAILY_RUN_TIME` to the desired time of day in 24-hour format (e.g., `07:00` for 7 AM)
+  - The app will check for new videos once per day at the specified time.
+
+If you change scheduling mode, restart the app for changes to take effect.

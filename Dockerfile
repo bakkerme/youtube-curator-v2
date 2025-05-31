@@ -40,8 +40,8 @@ RUN mkdir -p /app/feed_mocks
 COPY build/crontab /etc/cron.d/appcron
 COPY build/init.sh /app/init.sh
 
-# Expose any ports if needed (not required for this MVP but good practice)
-# EXPOSE 8080
+# Expose the API port
+EXPOSE 8080
 
 # Run the application
 CMD ["sh", "/app/init.sh"] 

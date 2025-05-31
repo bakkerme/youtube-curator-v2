@@ -7,56 +7,10 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/store"
+
+	"go.uber.org/mock/gomock"
 )
-
-// MockStore is a mock implementation of store.Store for testing
-type MockStore struct {
-	lastCheckedTimestamps map[string]time.Time
-	lastCheckedVideoIDs   map[string]string
-	getError              error
-	setError              error
-}
-
-func NewMockStore() *MockStore {
-	return &MockStore{
-		lastCheckedTimestamps: make(map[string]time.Time),
-		lastCheckedVideoIDs:   make(map[string]string),
-	}
-}
-
-func (m *MockStore) GetLastCheckedTimestamp(channelID string) (time.Time, error) {
-	if m.getError != nil {
-		return time.Time{}, m.getError
-	}
-	return m.lastCheckedTimestamps[channelID], nil
-}
-
-func (m *MockStore) SetLastCheckedTimestamp(channelID string, timestamp time.Time) error {
-	if m.setError != nil {
-		return m.setError
-	}
-	m.lastCheckedTimestamps[channelID] = timestamp
-	return nil
-}
-
-func (m *MockStore) GetLastCheckedVideoID(channelID string) (string, error) {
-	if m.getError != nil {
-		return "", m.getError
-	}
-	return m.lastCheckedVideoIDs[channelID], nil
-}
-
-func (m *MockStore) SetLastCheckedVideoID(channelID, videoID string) error {
-	if m.setError != nil {
-		return m.setError
-	}
-	m.lastCheckedVideoIDs[channelID] = videoID
-	return nil
-}
-
-func (m *MockStore) Close() error {
-	return nil
-}
 
 // MockFeedProvider is a mock implementation of rss.FeedProvider for testing
 type MockFeedProvider struct {
@@ -82,14 +36,14 @@ func (m *MockFeedProvider) FetchFeed(ctx context.Context, channelID string) (*rs
 }
 
 func TestProcessChannel_NoNewVideos(t *testing.T) {
-	// Setup
-	mockStore := NewMockStore()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
 	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
 
 	channelID := "test-channel-1"
 	lastChecked := time.Now().Add(-24 * time.Hour)
-	mockStore.lastCheckedTimestamps[channelID] = lastChecked
 
 	// Create a feed with videos older than last checked
 	mockFeedProvider.feeds[channelID] = &rss.Feed{
@@ -104,6 +58,10 @@ func TestProcessChannel_NoNewVideos(t *testing.T) {
 			},
 		},
 	}
+
+	// Set up expectations for the mock
+	mockStore.EXPECT().GetLastCheckedTimestamp(channelID).Return(lastChecked, nil)
+	// SetLastCheckedTimestamp should not be called when there are no new videos
 
 	// Execute
 	result := processor.ProcessChannel(context.Background(), channelID)
@@ -121,14 +79,14 @@ func TestProcessChannel_NoNewVideos(t *testing.T) {
 }
 
 func TestProcessChannel_WithNewVideos(t *testing.T) {
-	// Setup
-	mockStore := NewMockStore()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
 	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
 
 	channelID := "test-channel-2"
 	lastChecked := time.Now().Add(-24 * time.Hour)
-	mockStore.lastCheckedTimestamps[channelID] = lastChecked
 
 	// Create a feed with new videos
 	newestVideoTime := time.Now().Add(-1 * time.Hour)
@@ -152,6 +110,13 @@ func TestProcessChannel_WithNewVideos(t *testing.T) {
 		},
 	}
 
+	// Set up expectations for the mock
+	var capturedTimestamp time.Time
+	mockStore.EXPECT().GetLastCheckedTimestamp(channelID).Return(lastChecked, nil)
+	mockStore.EXPECT().SetLastCheckedTimestamp(channelID, gomock.Any()).Do(func(channelID string, timestamp time.Time) {
+		capturedTimestamp = timestamp
+	})
+
 	// Execute
 	result := processor.ProcessChannel(context.Background(), channelID)
 
@@ -166,21 +131,24 @@ func TestProcessChannel_WithNewVideos(t *testing.T) {
 		t.Errorf("Expected newest video title 'Newest Video', but got '%s'", result.NewVideo.Title)
 	}
 
-	// Verify timestamp was updated
-	storedTimestamp, _ := mockStore.GetLastCheckedTimestamp(channelID)
-	if !storedTimestamp.Equal(newestVideoTime) {
-		t.Errorf("Expected timestamp to be updated to %v, but got %v", newestVideoTime, storedTimestamp)
+	// Verify timestamp was updated to the newest video time
+	if !capturedTimestamp.Equal(newestVideoTime) {
+		t.Errorf("Expected timestamp to be updated to %v, but got %v", newestVideoTime, capturedTimestamp)
 	}
 }
 
 func TestProcessChannel_FeedProviderError(t *testing.T) {
-	// Setup
-	mockStore := NewMockStore()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
 	mockFeedProvider.err = errors.New("network error")
 	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
 
 	channelID := "test-channel-3"
+
+	// Set up expectations for the mock
+	// When there's an error fetching the feed, we don't expect any store calls
 
 	// Execute
 	result := processor.ProcessChannel(context.Background(), channelID)
@@ -195,8 +163,9 @@ func TestProcessChannel_FeedProviderError(t *testing.T) {
 }
 
 func TestProcessChannel_FirstTimeCheck(t *testing.T) {
-	// Setup - channel has never been checked before
-	mockStore := NewMockStore()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
 	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
 
@@ -220,6 +189,13 @@ func TestProcessChannel_FirstTimeCheck(t *testing.T) {
 		},
 	}
 
+	// Set up expectations for the mock
+	var capturedTimestamp time.Time
+	mockStore.EXPECT().GetLastCheckedTimestamp(channelID).Return(time.Time{}, nil)
+	mockStore.EXPECT().SetLastCheckedTimestamp(channelID, gomock.Any()).Do(func(channelID string, timestamp time.Time) {
+		capturedTimestamp = timestamp
+	})
+
 	// Execute
 	result := processor.ProcessChannel(context.Background(), channelID)
 
@@ -234,9 +210,8 @@ func TestProcessChannel_FirstTimeCheck(t *testing.T) {
 		t.Errorf("Expected newest video title 'Recent Video', but got '%s'", result.NewVideo.Title)
 	}
 
-	// Verify timestamp was set
-	storedTimestamp, _ := mockStore.GetLastCheckedTimestamp(channelID)
-	if !storedTimestamp.Equal(newestVideoTime) {
-		t.Errorf("Expected timestamp to be set to %v, but got %v", newestVideoTime, storedTimestamp)
+	// Verify timestamp was set to the newest video time
+	if !capturedTimestamp.Equal(newestVideoTime) {
+		t.Errorf("Expected timestamp to be set to %v, but got %v", newestVideoTime, capturedTimestamp)
 	}
 }

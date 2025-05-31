@@ -12,7 +12,7 @@ import (
 // Config holds all configuration for the application
 type Config struct {
 	DBPath         string
-	Channels       []string
+	Channels       []string // This will be deprecated in favor of database storage
 	SMTPServer     string
 	SMTPPort       string
 	SMTPUsername   string
@@ -21,6 +21,11 @@ type Config struct {
 	CheckInterval  time.Duration
 	DebugMockRSS   bool
 	DebugSkipCron  bool
+	APIPort        string // Port for the API server
+	EnableAPI      bool   // Whether to enable the API server
+	ScheduleMode   string // 'interval' or 'daily'
+	DailyRunTime   string // e.g. '07:00' for 7:00 AM
+	CronSchedule   string // e.g. '0 0 * * *' for daily at midnight
 }
 
 // LoadConfig loads configuration from environment variables
@@ -80,11 +85,29 @@ func LoadConfig() (*Config, error) {
 		return nil, fmt.Errorf("invalid CHECK_INTERVAL: %v", err)
 	}
 
+	scheduleMode := os.Getenv("SCHEDULE_MODE")
+	if scheduleMode == "" {
+		scheduleMode = "interval"
+	}
+	dailyRunTime := os.Getenv("DAILY_RUN_TIME") // e.g. '07:00'
+
 	debugMockRSSStr := os.Getenv("DEBUG_MOCK_RSS")
 	debugMockRSS := strings.ToLower(debugMockRSSStr) == "true"
 
 	debugSkipCronStr := os.Getenv("DEBUG_SKIP_CRON")
 	debugSkipCron := strings.ToLower(debugSkipCronStr) == "true"
+
+	cronSchedule := os.Getenv("CRON_SCHEDULE")
+	if cronSchedule == "" {
+		cronSchedule = "0 0 * * *" // Default to daily at midnight
+	}
+
+	apiPort := os.Getenv("API_PORT")
+	if apiPort == "" {
+		apiPort = "8080" // Default API port
+	}
+
+	enableAPI := strings.ToLower(os.Getenv("ENABLE_API")) == "true"
 
 	return &Config{
 		DBPath:         dbPath,
@@ -97,6 +120,11 @@ func LoadConfig() (*Config, error) {
 		CheckInterval:  checkInterval,
 		DebugMockRSS:   debugMockRSS,
 		DebugSkipCron:  debugSkipCron,
+		APIPort:        apiPort,
+		EnableAPI:      enableAPI,
+		ScheduleMode:   scheduleMode,
+		DailyRunTime:   dailyRunTime,
+		CronSchedule:   cronSchedule,
 	}, nil
 }
 

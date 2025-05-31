@@ -22,6 +22,7 @@ services:
       - CHECK_INTERVAL=${CHECK_INTERVAL:-1h}
       - DEBUG_MOCK_RSS=${DEBUG_MOCK_RSS:-false}
       - DEBUG_SKIP_CRON=${DEBUG_SKIP_CRON:-false}
-    # Uncomment if you need to expose ports for future API endpoints
-    # ports:
-    #   - "8080:8080" 
+      - ENABLE_API=${ENABLE_API:-true}
+      - API_PORT=${API_PORT:-8080}
+    ports:
+      - "8080:8080" 

@@ -8,11 +8,14 @@ import (
 	"path/filepath"
 	"sort"
 
+	"youtube-curator-v2/internal/api"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -23,7 +26,8 @@ func main() {
 
 	fmt.Println("YouTube Curator v2 Starting...")
 	fmt.Printf("Loaded configuration: %+v\n", cfg)
-	fmt.Printf("Checking for new videos every %s\n", cfg.CheckInterval)
+	// fmt.Printf("Checking for new videos every %s\n", cfg.CheckInterval)
+	fmt.Printf("Checking for new videos on schedule %s\n", cfg.CronSchedule)
 
 	dbDir := filepath.Dir(cfg.DBPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
@@ -36,7 +40,15 @@ func main() {
 	}
 	defer db.Close()
 
-	emailSender := email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
+	// Migration: Import channels from config file to database if needed
+	// if len(cfg.Channels) > 0 {
+	// 	fmt.Println("Migrating channels from config file to database...")
+	// 	for _, channelID := range cfg.Channels {
+	// 		if err := db.AddChannel(channelID); err != nil {
+	// 			log.Printf("Failed to migrate channel %s: %v", channelID, err)
+	// 		}
+	// 	}
+	// }
 
 	var feedProvider rss.FeedProvider
 	if cfg.DebugMockRSS {
@@ -51,36 +63,73 @@ func main() {
 	// Create the channel processor
 	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider)
 
-	// Run the check immediately on startup
-	checkForNewVideos(cfg, emailSender, channelProcessor)
+	// Start API server if enabled
+	if cfg.EnableAPI {
+		go func() {
+			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
+			e := api.SetupRouter(db, feedProvider)
+			if err := e.Start(":" + cfg.APIPort); err != nil {
+				log.Printf("API server error: %v", err)
+			}
+		}()
+	}
 
-	// If DebugSkipCron is set, skip the cron/ticker feature
+	emailSender := email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
+
+	// Run the check immediately on startup
+	// checkForNewVideos(cfg, emailSender, channelProcessor, db)
+
+	// If DebugSkipCron is set, skip the scheduler feature
 	if cfg.DebugSkipCron {
-		fmt.Println("DEBUG_SKIP_CRON is set: Skipping cron/ticker feature. Exiting after one check.")
+		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler. Exiting after one check.")
 		return
 	}
+
+	// Use robfig/cron for scheduling if CronSchedule is set
+	fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
+	c := cron.New()
+	_, err = c.AddFunc(cfg.CronSchedule, func() {
+		checkForNewVideos(cfg, emailSender, channelProcessor, db)
+	})
+	if err != nil {
+		log.Fatalf("Failed to add cron job: %v", err)
+	}
+	c.Start()
+	select {} // Block forever
 }
 
-func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProcessor processor.ChannelProcessor) {
+func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProcessor processor.ChannelProcessor, db store.Store) {
 	log.Println("Checking for new videos...")
 	ctx := context.Background()
+
+	// Get channels from database instead of config
+	channels, err := db.GetChannels()
+	if err != nil {
+		log.Printf("Error getting channels from database: %v", err)
+		return
+	}
+
+	if len(channels) == 0 {
+		fmt.Println("No channels configured. Use the API to add channels.")
+		return
+	}
 
 	// Map to store the latest new video for each channel
 	latestNewVideoPerChannel := make(map[string]rss.Entry)
 
 	// Process each channel using the channel processor
-	for _, channelID := range cfg.Channels {
-		result := channelProcessor.ProcessChannel(ctx, channelID)
+	for _, channel := range channels {
+		result := channelProcessor.ProcessChannel(ctx, channel.ID)
 
 		// Skip channels that had errors
 		if result.Error != nil {
-			log.Printf("Error processing channel %s: %v\n", channelID, result.Error)
+			log.Printf("Error processing channel %s: %v\n", channel.ID, result.Error)
 			continue
 		}
 
 		// If a new video was found, add it to our map
 		if result.NewVideo != nil {
-			latestNewVideoPerChannel[channelID] = *result.NewVideo
+			latestNewVideoPerChannel[channel.ID] = *result.NewVideo
 		}
 	}
 

@@ -8,6 +8,9 @@ import (
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/store"
+
+	"go.uber.org/mock/gomock"
 )
 
 // MockChannelProcessor is a mock implementation of processor.ChannelProcessor for testing
@@ -61,15 +64,26 @@ func (m *MockEmailSender) Send(recipient string, subject string, htmlContent str
 func TestCheckForNewVideos_NoNewVideos(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
-		Channels:       []string{"channel-1", "channel-2", "channel-3"},
+		Channels:       []string{"channel-1", "channel-2", "channel-3"}, // Legacy field
 		RecipientEmail: "test@example.com",
 	}
 
 	mockEmailSender := NewMockEmailSender()
 	mockProcessor := NewMockChannelProcessor()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
+
+	// Set up expectations for the mock store
+	channels := []store.Channel{
+		{ID: "channel-1", Title: "Channel 1"},
+		{ID: "channel-2", Title: "Channel 2"},
+		{ID: "channel-3", Title: "Channel 3"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil)
 
 	// All channels return no new videos
-	for _, channelID := range cfg.Channels {
+	for _, channelID := range []string{"channel-1", "channel-2", "channel-3"} {
 		mockProcessor.results[channelID] = processor.ChannelResult{
 			ChannelID: channelID,
 			NewVideo:  nil,
@@ -78,7 +92,7 @@ func TestCheckForNewVideos_NoNewVideos(t *testing.T) {
 	}
 
 	// Execute
-	checkForNewVideos(cfg, mockEmailSender, mockProcessor)
+	checkForNewVideos(cfg, mockEmailSender, mockProcessor, mockStore)
 
 	// Verify - no emails should be sent
 	if len(mockEmailSender.sentEmails) != 0 {
@@ -89,12 +103,23 @@ func TestCheckForNewVideos_NoNewVideos(t *testing.T) {
 func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
-		Channels:       []string{"channel-1", "channel-2", "channel-3"},
+		Channels:       []string{"channel-1", "channel-2", "channel-3"}, // Legacy field
 		RecipientEmail: "test@example.com",
 	}
 
 	mockEmailSender := NewMockEmailSender()
 	mockProcessor := NewMockChannelProcessor()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
+
+	// Set up expectations for the mock store
+	channels := []store.Channel{
+		{ID: "channel-1", Title: "Channel 1"},
+		{ID: "channel-2", Title: "Channel 2"},
+		{ID: "channel-3", Title: "Channel 3"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil)
 
 	// Channel 1 has a new video
 	video1 := &rss.Entry{
@@ -130,7 +155,7 @@ func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 	}
 
 	// Execute
-	checkForNewVideos(cfg, mockEmailSender, mockProcessor)
+	checkForNewVideos(cfg, mockEmailSender, mockProcessor, mockStore)
 
 	// Verify
 	if len(mockEmailSender.sentEmails) != 1 {
@@ -157,12 +182,23 @@ func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 func TestCheckForNewVideos_MixedResults(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
-		Channels:       []string{"channel-1", "channel-2", "channel-3"},
+		Channels:       []string{"channel-1", "channel-2", "channel-3"}, // Legacy field
 		RecipientEmail: "test@example.com",
 	}
 
 	mockEmailSender := NewMockEmailSender()
 	mockProcessor := NewMockChannelProcessor()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
+
+	// Set up expectations for the mock store
+	channels := []store.Channel{
+		{ID: "channel-1", Title: "Channel 1"},
+		{ID: "channel-2", Title: "Channel 2"},
+		{ID: "channel-3", Title: "Channel 3"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil)
 
 	// Channel 1 has an error
 	mockProcessor.results["channel-1"] = processor.ChannelResult{
@@ -192,7 +228,7 @@ func TestCheckForNewVideos_MixedResults(t *testing.T) {
 	}
 
 	// Execute
-	checkForNewVideos(cfg, mockEmailSender, mockProcessor)
+	checkForNewVideos(cfg, mockEmailSender, mockProcessor, mockStore)
 
 	// Verify - should still send email with the one successful video
 	if len(mockEmailSender.sentEmails) != 1 {

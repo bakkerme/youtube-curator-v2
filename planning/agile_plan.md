@@ -68,20 +68,22 @@ The goal of this iteration is to enable users to configure channels and the chec
 *   Docker configuration updated to allow communication between frontend and backend containers.
 
 **Key Tasks for Iteration 3:**
-
-*   Set up the basic Next.js project structure.
-*   Define and implement backend API routes using Echo for channel management and interval settings.
+*** Back End ***
+*   Define and implement backend API routes using Echo for channel management and interval settings. Create an OpenAPI doc representing the API
 *   Update BadgerDB access methods to handle dynamic channel lists and interval storage.
 *   Develop the Next.js frontend pages/components for channel listing, adding, and removing.
-*   Implement frontend logic to interact with the backend channel APIs.
-*   Develop the Next.js frontend page/component for interval configuration.
-*   Implement frontend logic to interact with the backend interval API.
 *   Modify the scheduler to retrieve the interval from BadgerDB on startup and updates.
 *   Implement logic in the backend to extract channel ID from various YouTube URLs provided by the user.
 *   Update Dockerfile for the Go backend to expose the API port.
+
+*** Front End ***
+*   Implement frontend logic to interact with the backend channel APIs.
+*   Develop the Next.js frontend page/component for interval configuration.
+*   Implement frontend logic to interact with the backend interval API.
+*   Set up the basic Next.js project structure.
 *   Create a Dockerfile for the Next.js frontend.
-*   Develop/update a Docker Compose file to manage both backend and frontend containers.
 *   Configure networking in Docker Compose for inter-container communication.
+*   Develop/update a Docker Compose file to manage both backend and frontend containers.
 
 ## 5. Iteration 4: User Configuration & Basic SMTP UI
 
