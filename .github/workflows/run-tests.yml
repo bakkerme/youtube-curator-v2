@@ -2,14 +2,19 @@ name: Run Tests
 
 on:
   push:
-    branches: [ '*' ]
+    branches: [ 'main' ]
   pull_request:
-    branches: [ '*' ]
+    branches: [ 'main' ]
+
+
 
 jobs:
   test:
     name: Run Go Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
     
     steps:
     - name: Checkout code
