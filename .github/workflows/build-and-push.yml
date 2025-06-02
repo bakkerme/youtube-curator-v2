@@ -2,8 +2,8 @@ name: Build and Push Docker Images
 
 on:
   workflow_dispatch:  # This enables manual triggering
-  workflow_run:
-    branches: [main]
+  # workflow_run:
+  #   branches: [main]
     # workflows: ["Run Tests"]
     # types:
     #   - completed
