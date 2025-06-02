@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UCAYF6ZY9gWBR1GW3R7PX7yw"/>
+ <id>yt:channel:AYF6ZY9gWBR1GW3R7PX7yw</id>
+ <yt:channelId>AYF6ZY9gWBR1GW3R7PX7yw</yt:channelId>
+ <title>Majuular</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw"/>
+ <author>
+  <name>Majuular</name>
+  <uri>https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw</uri>
+ </author>
+ <published>2022-03-11T22:21:31+00:00</published>
+ <entry>
+  <id>yt:video:-krIPfk2OIA</id>
+  <yt:videoId>-krIPfk2OIA</yt:videoId>
+  <yt:channelId>UCAYF6ZY9gWBR1GW3R7PX7yw</yt:channelId>
+  <title>William Shatner's TekWar: A Forgotten Franchise in Retrospect</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=-krIPfk2OIA"/>
+  <author>
+   <name>Majuular</name>
+   <uri>https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw</uri>
+  </author>
+  <published>2025-05-15T00:43:16+00:00</published>
+  <updated>2025-05-18T08:58:06+00:00</updated>
+  <media:group>
+   <media:title>William Shatner's TekWar: A Forgotten Franchise in Retrospect</media:title>
+   <media:content url="https://www.youtube.com/v/-krIPfk2OIA?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/-krIPfk2OIA/hqdefault.jpg" width="480" height="360"/>
+   <media:description>The 1980s was a glorious time for sci-fi. With Cyberpunk at the cutting edge of fiction and Star Trek's popularity resurging thanks to The Next Generation, the beloved Captain Kirk himself dipped his feet into the world of pulp literature.</media:description>
+   <media:community>
+    <media:starRating count="9859" average="5.00" min="1" max="5"/>
+    <media:statistics views="254775"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:0NyaGRNH2zE</id>
+  <yt:videoId>0NyaGRNH2zE</yt:videoId>
+  <yt:channelId>UCAYF6ZY9gWBR1GW3R7PX7yw</yt:channelId>
+  <title>Ultima VII: The Black Gate Retrospective | Peak of the Golden Age</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=0NyaGRNH2zE"/>
+  <author>
+   <name>Majuular</name>
+   <uri>https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw</uri>
+  </author>
+  <published>2025-03-29T01:09:11+00:00</published>
+  <updated>2025-03-30T16:50:54+00:00</updated>
+  <media:group>
+   <media:title>Ultima VII: The Black Gate Retrospective | Peak of the Golden Age</media:title>
+   <media:content url="https://www.youtube.com/v/0NyaGRNH2zE?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/0NyaGRNH2zE/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Following the lousy performance of two Ultima spinoff titles, 1991 had been a lean year for Origin Systems, which had stayed afloat thanks to the success of Wing Commander.</media:description>
+   <media:community>
+    <media:starRating count="11772" average="5.00" min="1" max="5"/>
+    <media:statistics views="414111"/>
+   </media:community>
+  </media:group>
+ </entry>
+</feed> 

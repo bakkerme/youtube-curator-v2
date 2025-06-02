@@ -1,19 +1,14 @@
-.PHONY: run clean-db build docker-build docker-up docker-down docker-logs validate test
+.PHONY: run clean-db build test
 
 # Development commands
 run:
 	go run main.go
 
 build:
-	go build -o youtube-curator-v2 .
+	go build -o youtube-curator-v2 ./backend
 
 test:
 	go test ./...
 
 clean-db:
-	rm -rf youtubecurator.db/
-
-clean: clean-db
-	rm -f youtube-curator-v2
-	docker compose down || true
-	docker rmi youtube-curator-v2 || true 
+	rm -rf ./backend/youtubecurator.db/

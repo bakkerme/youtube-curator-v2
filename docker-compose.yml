@@ -1,18 +1,18 @@
 services:
   youtube-curator:
-    build: .
+    build: ./backend
     container_name: youtube-curator-v2
     restart: unless-stopped
     volumes:
       # Mount database directory for persistence
-      - ./data/youtubecurator.db:/app/youtubecurator.db
+      - ./backend/data/youtubecurator.db:/app/youtubecurator.db
       # Mount feed mocks directory for debug mode (optional)
-      - ./data/feed_mocks:/app/feed_mocks
+      - ./backend/data/feed_mocks:/app/feed_mocks
       # Mount channels file
-      - ./channels.txt:/app/channels.txt:ro
+      - ./backend/channels.json:/app/channels.json:ro
     environment:
       # Required environment variables
-      - CHANNELS_FILE=/app/channels.txt
+      - CHANNELS_FILE=/app/channels.json
       - SMTP_SERVER=${SMTP_SERVER}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USERNAME=${SMTP_USERNAME}
@@ -24,5 +24,30 @@ services:
       - DEBUG_SKIP_CRON=${DEBUG_SKIP_CRON:-false}
       - ENABLE_API=${ENABLE_API:-true}
       - API_PORT=${API_PORT:-8080}
+      - DB_PATH=${DB_PATH:-/app/youtubecurator.db}
     ports:
-      - "8080:8080" 
+      - "8080:8080"
+    networks:
+      - youtube-curator-network
+    
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+    container_name: youtube-curator-frontend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - youtube-curator
+    networks:
+      - youtube-curator-network
+
+networks:
+  youtube-curator-network:
+    driver: bridge 

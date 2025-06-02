@@ -28,3 +28,13 @@ go.work.sum
 youtubecurator.db
 
 feed_mocks/
+
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/public/
+frontend/package-lock.json
+frontend/package.json
+frontend/tsconfig.json
