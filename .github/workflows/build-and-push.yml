@@ -2,11 +2,11 @@ name: Build and Push Docker Images
 
 on:
   workflow_dispatch:  # This enables manual triggering
-  # workflow_run:
-  #   branches: [main]
-    # workflows: ["Run Tests"]
-    # types:
-    #   - completed
+  workflow_run:
+    branches: [main]
+    workflows: ["Run Tests"]
+    types:
+      - completed
 
 env:
   REGISTRY: ghcr.io
@@ -14,43 +14,44 @@ env:
   FRONTEND_IMAGE_NAME: ${{ github.repository }}-ui
 
 jobs:
-  # build-and-push-backend:
-  #   runs-on: ubuntu-latest
-  #   # Only run if the tests passed
-  #   if: ${{ github.event.workflow_run.conclusion == 'success' }}
-  #   permissions:
-  #     contents: read
-  #     packages: write
+  build-and-push-backend:
+    runs-on: ubuntu-latest
+    # Only run if the tests passed
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      packages: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     - name: Log in to the Container registry
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ${{ env.REGISTRY }}
-  #         username: ${{ github.actor }}
-  #         password: ${{ secrets.GH_PAT }}
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_PAT }}
 
-  #     - name: Extract metadata (tags, labels) for Backend Docker
-  #       id: meta
-  #       uses: docker/metadata-action@v5
-  #       with:
-  #         images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
-  #         tags: |
-  #           type=ref,event=branch
-  #           type=ref,event=tag
-  #           type=sha
-  #           type=raw,value=latest
+      - name: Extract metadata (tags, labels) for Backend Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest
 
-  #     - name: Build and push Backend Docker image
-  #       uses: docker/build-push-action@v6
-  #       with:
-  #         context: ./backend
-  #         push: true
-  #         tags: ${{ steps.meta.outputs.tags }}
-  #         labels: ${{ steps.meta.outputs.labels }}
+      - name: Build and push Backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
   build-and-push-frontend:
     runs-on: ubuntu-latest
     # Only run if the tests passed (or manual trigger)
