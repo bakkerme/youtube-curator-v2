@@ -1,8 +1,8 @@
 version: '3.8'
 
 services:
-  youtube-curator:
-    build: ./backend
+  youtube-curator-api:
+    image: ghcr.io/bakkerme/youtube-curator-v2:latest
     container_name: youtube-curator-v2
     restart: unless-stopped
     volumes:
@@ -19,8 +19,7 @@ services:
       # Channels file configuration
       - CHANNELS_FILE=/app/channels.json
       
-      # SMTP Configuration (REQUIRED - Set these in Portainer environment)
-      # You must set these values in Portainer for the application to work
+      # SMTP Configuration
       - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USERNAME=${SMTP_USERNAME:-your-email@example.com}
@@ -44,12 +43,8 @@ services:
       retries: 3
       start_period: 30s
 
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+  youtube-curator-frontend:
+    image: ghcr.io/bakkerme/youtube-curator-v2-ui:latest
     container_name: youtube-curator-frontend
     restart: unless-stopped
     environment:
