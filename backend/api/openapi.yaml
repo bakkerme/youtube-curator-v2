@@ -262,6 +262,62 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /newsletter/run:
+    post:
+      summary: Manually trigger the newsletter run
+      description: |
+        This endpoint triggers the process that checks for new videos and sends the newsletter. 
+        Optionally, a `channelId` can be provided in the request body to trigger the run only 
+        for that specific channel, useful for debugging.
+      tags:
+        - Newsletter
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                channelId:
+                  type: string
+                  description: Optional YouTube channel ID to trigger the newsletter run for a specific channel.
+                  pattern: '^UC[a-zA-Z0-9_-]{22}$'
+                  example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+      responses:
+        '200':
+          description: Newsletter run triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Newsletter run completed"
+                  channelsProcessed:
+                    type: integer
+                    example: 5
+                  channelsWithError:
+                    type: integer
+                    example: 0
+                  newVideosFound:
+                    type: integer
+                    example: 3
+                  emailSent:
+                    type: boolean
+                    example: true
+        '400':
+          description: Bad request - invalid channel ID format if provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -386,3 +442,5 @@ tags:
     description: Operations for managing YouTube channel subscriptions
   - name: Configuration
     description: Operations for configuring the monitoring settings 
+  - name: Newsletter
+    description: Operations for managing and triggering newsletter functions 

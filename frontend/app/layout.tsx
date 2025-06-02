@@ -42,7 +42,7 @@ export default function RootLayout({
                       </Link>
                       <Link href="/notifications" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Settings className="w-4 h-4" />
-                        <span>Notifications</span>
+                        <span>Settings</span>
                       </Link>
                     </div>
                   </div>

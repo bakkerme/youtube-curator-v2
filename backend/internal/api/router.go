@@ -1,6 +1,9 @@
 package api
 
 import (
+	"youtube-curator-v2/internal/config"
+	"youtube-curator-v2/internal/email"
+	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
 
@@ -9,7 +12,7 @@ import (
 )
 
 // SetupRouter creates and configures the Echo router with all API endpoints
-func SetupRouter(store store.Store, feedProvider rss.FeedProvider) *echo.Echo {
+func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -18,7 +21,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider) *echo.Echo {
 	e.Use(middleware.CORS())
 
 	// Create handlers
-	handlers := NewHandlers(store, feedProvider)
+	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor)
 
 	// API routes
 	api := e.Group("/api")
@@ -32,6 +35,9 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider) *echo.Echo {
 	// Configuration endpoints
 	api.GET("/config/interval", handlers.GetCheckInterval)
 	api.PUT("/config/interval", handlers.SetCheckInterval)
+
+	// Newsletter endpoints
+	api.POST("/newsletter/run", handlers.RunNewsletter)
 
 	return e
 }

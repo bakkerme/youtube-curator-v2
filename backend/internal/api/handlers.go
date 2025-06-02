@@ -3,8 +3,12 @@ package api
 import (
 	"context"
 	"net/http"
+	"sort"
 	"time"
 
+	"youtube-curator-v2/internal/config"
+	"youtube-curator-v2/internal/email"
+	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
 
@@ -15,13 +19,19 @@ import (
 type Handlers struct {
 	store        store.Store
 	feedProvider rss.FeedProvider
+	emailSender  email.Sender
+	config       *config.Config
+	processor    processor.ChannelProcessor
 }
 
 // NewHandlers creates a new instance of API handlers
-func NewHandlers(store store.Store, feedProvider rss.FeedProvider) *Handlers {
+func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor) *Handlers {
 	return &Handlers{
 		store:        store,
 		feedProvider: feedProvider,
+		emailSender:  emailSender,
+		config:       cfg,
+		processor:    processor,
 	}
 }
 
@@ -262,4 +272,108 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 	}
 
 	return c.JSON(statusCode, response)
+}
+
+// RunNewsletterRequest represents a request to manually trigger newsletter run
+type RunNewsletterRequest struct {
+	ChannelID string `json:"channelId,omitempty"`
+}
+
+// RunNewsletter handles POST /api/newsletter/run
+func (h *Handlers) RunNewsletter(c echo.Context) error {
+	var req RunNewsletterRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	// If channelID is provided, validate it
+	if req.ChannelID != "" {
+		if err := rss.ValidateChannelID(req.ChannelID); err != nil {
+			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+		}
+	}
+
+	ctx := context.Background()
+	var channels []store.Channel
+	var err error
+
+	if req.ChannelID != "" {
+		// Get specific channel
+		allChannels, err := h.store.GetChannels()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve channels")
+		}
+
+		// Find the specific channel
+		found := false
+		for _, ch := range allChannels {
+			if ch.ID == req.ChannelID {
+				channels = append(channels, ch)
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return echo.NewHTTPError(http.StatusBadRequest, "Channel not found")
+		}
+	} else {
+		// Get all channels
+		channels, err = h.store.GetChannels()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve channels")
+		}
+	}
+
+	if len(channels) == 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "No channels configured")
+	}
+
+	// Process channels and collect new videos
+	var allNewVideos []rss.Entry
+	processedCount := 0
+	errorCount := 0
+
+	for _, channel := range channels {
+		result := h.processor.ProcessChannel(ctx, channel.ID)
+
+		if result.Error != nil {
+			errorCount++
+			continue
+		}
+
+		processedCount++
+		if result.NewVideo != nil {
+			allNewVideos = append(allNewVideos, *result.NewVideo)
+		}
+	}
+
+	// Sort videos by published date
+	sort.Slice(allNewVideos, func(i, j int) bool {
+		return allNewVideos[i].Published.Before(allNewVideos[j].Published)
+	})
+
+	// Send email if there are new videos
+	if len(allNewVideos) > 0 {
+		emailBody, err := email.FormatNewVideosEmail(allNewVideos)
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to format email: "+err.Error())
+		}
+
+		subject := "New YouTube Videos Update"
+		if err := h.emailSender.Send(h.config.RecipientEmail, subject, emailBody); err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to send email: "+err.Error())
+		}
+	}
+
+	// Return response with stats
+	response := map[string]interface{}{
+		"message":           "Newsletter run completed",
+		"channelsProcessed": processedCount,
+		"channelsWithError": errorCount,
+		"newVideosFound":    len(allNewVideos),
+		"emailSent":         len(allNewVideos) > 0,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }

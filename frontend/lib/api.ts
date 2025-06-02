@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, ChannelRequest, ConfigInterval } from './types';
+import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse } from './types';
 
 // Configure axios with base URL
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
@@ -46,6 +46,11 @@ export const channelAPI = {
   remove: async (channelId: string): Promise<void> => {
     await api.delete(`/channels/${channelId}`);
   },
+
+  import: async (request: ImportChannelsRequest): Promise<ImportChannelsResponse> => {
+    const { data } = await api.post('/channels/import', request);
+    return data;
+  },
 };
 
 // Configuration APIs
@@ -57,6 +62,14 @@ export const configAPI = {
 
   setInterval: async (interval: string): Promise<ConfigInterval> => {
     const { data } = await api.put('/config/interval', { interval });
+    return data;
+  },
+};
+
+// Newsletter APIs
+export const newsletterAPI = {
+  run: async (request?: RunNewsletterRequest): Promise<RunNewsletterResponse> => {
+    const { data } = await api.post('/newsletter/run', request || {});
     return data;
   },
 };

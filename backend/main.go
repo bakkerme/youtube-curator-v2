@@ -52,18 +52,19 @@ func main() {
 	// Create the channel processor
 	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider)
 
+	// Create email sender
+	emailSender := email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
+
 	// Start API server if enabled
 	if cfg.EnableAPI {
 		go func() {
 			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
-			e := api.SetupRouter(db, feedProvider)
+			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor)
 			if err := e.Start(":" + cfg.APIPort); err != nil {
 				log.Printf("API server error: %v", err)
 			}
 		}()
 	}
-
-	emailSender := email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
 
 	// Run the check immediately on startup
 	// checkForNewVideos(cfg, emailSender, channelProcessor, db)
