@@ -125,8 +125,8 @@ func TestLoadConfig(t *testing.T) {
 		if config.APIPort != "8080" {
 			t.Errorf("Expected default APIPort to be '8080', got '%s'", config.APIPort)
 		}
-		if config.EnableAPI {
-			t.Error("Expected EnableAPI to be false by default")
+		if !config.EnableAPI {
+			t.Error("Expected EnableAPI to be true by default")
 		}
 		if config.CronSchedule != "0 0 * * *" {
 			t.Errorf("Expected default CronSchedule to be '0 0 * * *', got '%s'", config.CronSchedule)
