@@ -5,19 +5,9 @@ services:
     image: ghcr.io/bakkerme/youtube-curator-v2:latest
     container_name: youtube-curator-v2
     restart: unless-stopped
-    volumes:
-      # Mount database directory for persistence
-      - ./backend/data/youtubecurator.db:/app/youtubecurator.db
-      # Mount feed mocks directory for debug mode (optional)
-      - ./backend/data/feed_mocks:/app/feed_mocks
-      # Mount channels file (included in repo)
-      - ./backend/channels.json:/app/channels.json:ro
     environment:
       # Database configuration
       - DB_PATH=/app/youtubecurator.db
-      
-      # Channels file configuration
-      - CHANNELS_FILE=/app/channels.json
       
       # SMTP Configuration
       - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
@@ -52,7 +42,7 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      youtube-curator:
+      youtube-curator-api:
         condition: service_healthy
     networks:
       - youtube-curator-network
