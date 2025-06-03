@@ -32,6 +32,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    volumes:
+      - ./backend/data/youtubecurator.db:/app/youtubecurator.db
 
   youtube-curator-frontend:
     image: ghcr.io/bakkerme/youtube-curator-v2-ui:latest
