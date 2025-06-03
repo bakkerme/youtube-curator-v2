@@ -1,8 +1,12 @@
 import axios from 'axios';
+import getConfig from 'next/config';
 import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse } from './types';
 
-// Configure axios with base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+// Get runtime configuration
+const { publicRuntimeConfig } = getConfig();
+
+// Configure axios with base URL from runtime config
+const API_BASE_URL = publicRuntimeConfig?.apiUrl || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

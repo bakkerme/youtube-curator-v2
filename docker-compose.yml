@@ -48,12 +48,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
     container_name: youtube-curator-frontend
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://youtube-curator:8080/api}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
