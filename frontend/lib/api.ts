@@ -1,19 +1,38 @@
 import axios from 'axios';
-import getConfig from 'next/config';
 import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse } from './types';
+import { getRuntimeConfig } from './config';
 
-// Get runtime configuration
-const { publicRuntimeConfig } = getConfig();
-
-// Configure axios with base URL from runtime config
-const API_BASE_URL = publicRuntimeConfig?.apiUrl || process.env.API_URL || 'http://localhost:8080/api';
-
+// Create axios instance that will be configured with runtime config
 const api = axios.create({
-  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Flag to track if API has been initialized
+let isInitialized = false;
+
+// Initialize API client with runtime configuration
+async function initializeAPI() {
+  if (isInitialized) return;
+  
+  try {
+    const config = await getRuntimeConfig();
+    api.defaults.baseURL = config.apiUrl;
+    isInitialized = true;
+  } catch (error) {
+    console.error('Failed to initialize API client:', error);
+    // Fallback to default URL if config fails
+    api.defaults.baseURL = 'http://localhost:8080/api';
+    isInitialized = true;
+  }
+}
+
+// Wrapper function to ensure API is initialized before making requests
+async function makeRequest<T>(requestFn: () => Promise<T>): Promise<T> {
+  await initializeAPI();
+  return requestFn();
+}
 
 // Add response interceptor for error handling
 api.interceptors.response.use(
@@ -38,43 +57,57 @@ api.interceptors.response.use(
 // Channel APIs
 export const channelAPI = {
   getAll: async (): Promise<Channel[]> => {
-    const { data } = await api.get('/channels');
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.get('/channels');
+      return data;
+    });
   },
 
   add: async (request: ChannelRequest): Promise<Channel> => {
-    const { data } = await api.post('/channels', request);
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.post('/channels', request);
+      return data;
+    });
   },
 
   remove: async (channelId: string): Promise<void> => {
-    await api.delete(`/channels/${channelId}`);
+    return makeRequest(async () => {
+      await api.delete(`/channels/${channelId}`);
+    });
   },
 
   import: async (request: ImportChannelsRequest): Promise<ImportChannelsResponse> => {
-    const { data } = await api.post('/channels/import', request);
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.post('/channels/import', request);
+      return data;
+    });
   },
 };
 
 // Configuration APIs
 export const configAPI = {
   getInterval: async (): Promise<ConfigInterval> => {
-    const { data } = await api.get('/config/interval');
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.get('/config/interval');
+      return data;
+    });
   },
 
   setInterval: async (interval: string): Promise<ConfigInterval> => {
-    const { data } = await api.put('/config/interval', { interval });
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.put('/config/interval', { interval });
+      return data;
+    });
   },
 };
 
 // Newsletter APIs
 export const newsletterAPI = {
   run: async (request?: RunNewsletterRequest): Promise<RunNewsletterResponse> => {
-    const { data } = await api.post('/newsletter/run', request || {});
-    return data;
+    return makeRequest(async () => {
+      const { data } = await api.post('/newsletter/run', request || {});
+      return data;
+    });
   },
 };
 
