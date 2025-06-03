@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   // Enable runtime configuration for environment variables
   publicRuntimeConfig: {
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api',
+    apiUrl: process.env.API_URL || 'http://localhost:8080/api',
   },
   serverRuntimeConfig: {
     // Server-side only environment variables

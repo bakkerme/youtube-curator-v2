@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://youtube-curator-api:8080/api}
+      - API_URL=${API_URL:-http://youtube-curator-api:8080/api}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

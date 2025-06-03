@@ -26,7 +26,7 @@ This is the Next.js frontend for YouTube Curator v2, providing a web interface t
 
 2. Create a `.env.local` file:
    ```bash
-   NEXT_PUBLIC_API_URL=http://localhost:8080/api
+   API_URL=http://localhost:8080/api
    ```
 
 3. Run the development server:
@@ -62,7 +62,7 @@ npm start
 
 The frontend requires the following environment variable:
 
-- `NEXT_PUBLIC_API_URL`: The URL of the backend API (default: `http://localhost:8080/api`)
+- `API_URL`: The URL of the backend API (default: `http://localhost:8080/api`)
 
 When running in Docker, this is automatically configured to communicate with the backend container.
 
