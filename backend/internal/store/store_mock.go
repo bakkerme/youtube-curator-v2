@@ -151,7 +151,7 @@ func (m *MockStore) SetCheckInterval(interval time.Duration) error {
 }
 
 // SetCheckInterval indicates an expected call of SetCheckInterval.
-func (mr *MockStoreMockRecorder) SetCheckInterval(interval any) *gomock.Call {
+func (mr *MockStoreMockRecorder) SetCheckInterval(interval interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetCheckInterval", reflect.TypeOf((*MockStore)(nil).SetCheckInterval), interval)
 }
@@ -182,4 +182,33 @@ func (m *MockStore) SetLastCheckedVideoID(channelID, videoID string) error {
 func (mr *MockStoreMockRecorder) SetLastCheckedVideoID(channelID, videoID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLastCheckedVideoID", reflect.TypeOf((*MockStore)(nil).SetLastCheckedVideoID), channelID, videoID)
+}
+
+// GetSMTPConfig mocks base method.
+func (m *MockStore) GetSMTPConfig() (*SMTPConfig, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSMTPConfig")
+	ret0, _ := ret[0].(*SMTPConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSMTPConfig indicates an expected call of GetSMTPConfig.
+func (mr *MockStoreMockRecorder) GetSMTPConfig() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSMTPConfig", reflect.TypeOf((*MockStore)(nil).GetSMTPConfig))
+}
+
+// SetSMTPConfig mocks base method.
+func (m *MockStore) SetSMTPConfig(config *SMTPConfig) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetSMTPConfig", config)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetSMTPConfig indicates an expected call of SetSMTPConfig.
+func (mr *MockStoreMockRecorder) SetSMTPConfig(config interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetSMTPConfig", reflect.TypeOf((*MockStore)(nil).SetSMTPConfig), config)
 }

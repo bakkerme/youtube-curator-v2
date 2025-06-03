@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { newsletterAPI, channelAPI } from '@/lib/api';
-import { Channel } from '@/lib/types';
+import { newsletterAPI, channelAPI, configAPI } from '@/lib/api';
+import { Channel, SMTPConfigRequest, SMTPConfigResponse } from '@/lib/types';
 
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -10,9 +10,22 @@ export default function NotificationsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [result, setResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  
+  // SMTP Configuration State
+  const [smtpConfig, setSMTPConfig] = useState<SMTPConfigRequest>({
+    server: '',
+    port: '',
+    username: '',
+    password: '',
+    recipientEmail: ''
+  });
+  const [isLoadingSMTP, setIsLoadingSMTP] = useState(true);
+  const [isSavingSMTP, setIsSavingSMTP] = useState(false);
+  const [smtpResult, setSMTPResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
   useEffect(() => {
     loadChannels();
+    loadSMTPConfig();
   }, []);
 
   const loadChannels = async () => {
@@ -23,6 +36,23 @@ export default function NotificationsPage() {
       console.error('Failed to load channels:', error);
     } finally {
       setIsLoadingChannels(false);
+    }
+  };
+
+  const loadSMTPConfig = async () => {
+    try {
+      const data = await configAPI.getSMTP();
+      setSMTPConfig({
+        server: data.server || '',
+        port: data.port || '',
+        username: data.username || '',
+        password: '', // Password is never returned from API
+        recipientEmail: data.recipientEmail || ''
+      });
+    } catch (error) {
+      console.error('Failed to load SMTP configuration:', error);
+    } finally {
+      setIsLoadingSMTP(false);
     }
   };
 
@@ -44,6 +74,24 @@ export default function NotificationsPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleSaveSMTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSMTP(true);
+    setSMTPResult(null);
+
+    try {
+      await configAPI.setSMTP(smtpConfig);
+      setSMTPResult({ type: 'success', message: 'SMTP configuration saved successfully!' });
+    } catch (error: any) {
+      setSMTPResult({ 
+        type: 'error', 
+        message: error.message || 'Failed to save SMTP configuration' 
+      });
+    } finally {
+      setIsSavingSMTP(false);
     }
   };
 
@@ -149,9 +197,166 @@ export default function NotificationsPage() {
         </div>
       </div>
       
-      <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4">
+      {/* SMTP Configuration */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold mb-2">SMTP Configuration</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Configure your email server settings for sending newsletters.
+          </p>
+        </div>
+        <div className="p-6">
+          {isLoadingSMTP ? (
+            <div className="flex justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveSMTP} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="smtp-server" className="block text-sm font-medium mb-2">
+                    SMTP Server
+                  </label>
+                  <input
+                    id="smtp-server"
+                    type="text"
+                    value={smtpConfig.server}
+                    onChange={(e) => setSMTPConfig({ ...smtpConfig, server: e.target.value })}
+                    placeholder="smtp.gmail.com"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="smtp-port" className="block text-sm font-medium mb-2">
+                    SMTP Port
+                  </label>
+                  <input
+                    id="smtp-port"
+                    type="text"
+                    value={smtpConfig.port}
+                    onChange={(e) => setSMTPConfig({ ...smtpConfig, port: e.target.value })}
+                    placeholder="587"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="smtp-username" className="block text-sm font-medium mb-2">
+                    Username
+                  </label>
+                  <input
+                    id="smtp-username"
+                    type="text"
+                    value={smtpConfig.username}
+                    onChange={(e) => setSMTPConfig({ ...smtpConfig, username: e.target.value })}
+                    placeholder="your-email@example.com"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="smtp-password" className="block text-sm font-medium mb-2">
+                    Password
+                  </label>
+                  <input
+                    id="smtp-password"
+                    type="password"
+                    value={smtpConfig.password}
+                    onChange={(e) => setSMTPConfig({ ...smtpConfig, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    For Gmail, use an app-specific password
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="recipient-email" className="block text-sm font-medium mb-2">
+                  Recipient Email
+                </label>
+                <input
+                  id="recipient-email"
+                  type="email"
+                  value={smtpConfig.recipientEmail}
+                  onChange={(e) => setSMTPConfig({ ...smtpConfig, recipientEmail: e.target.value })}
+                  placeholder="recipient@example.com"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Email address where newsletters will be sent
+                </p>
+              </div>
+
+              {smtpResult && (
+                <div className={`p-4 rounded-md border ${
+                  smtpResult.type === 'success' 
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {smtpResult.type === 'success' ? (
+                      <svg className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                    )}
+                    <div>
+                      <p className={`${
+                        smtpResult.type === 'success' 
+                          ? 'text-green-700 dark:text-green-300' 
+                          : 'text-red-700 dark:text-red-300'
+                      }`}>
+                        {smtpResult.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSavingSMTP}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {isSavingSMTP ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Configuration'
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+      
+      <div className="mt-6 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4">
         <p className="text-yellow-800 dark:text-yellow-200">
-          Additional features like SMTP configuration and interval settings will be available here soon.
+          Additional features like check interval settings will be available here soon.
         </p>
       </div>
     </div>

@@ -31,6 +31,22 @@ export interface ConfigInterval {
   interval: string;
 }
 
+export interface SMTPConfigRequest {
+  server: string;
+  port: string;
+  username: string;
+  password: string;
+  recipientEmail: string;
+}
+
+export interface SMTPConfigResponse {
+  server: string;
+  port: string;
+  username: string;
+  recipientEmail: string;
+  passwordSet: boolean;
+}
+
 export interface ApiError {
   message: string;
 }

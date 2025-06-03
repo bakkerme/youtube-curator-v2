@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"youtube-curator-v2/internal/config"
@@ -51,6 +52,24 @@ type ChannelRequest struct {
 // ConfigInterval represents the check interval configuration
 type ConfigInterval struct {
 	Interval string `json:"interval"`
+}
+
+// SMTPConfigRequest represents a request to update SMTP configuration
+type SMTPConfigRequest struct {
+	Server         string `json:"server" validate:"required"`
+	Port           string `json:"port" validate:"required"`
+	Username       string `json:"username" validate:"required"`
+	Password       string `json:"password" validate:"required"`
+	RecipientEmail string `json:"recipientEmail" validate:"required,email"`
+}
+
+// SMTPConfigResponse represents SMTP configuration in API responses (without password)
+type SMTPConfigResponse struct {
+	Server         string `json:"server"`
+	Port           string `json:"port"`
+	Username       string `json:"username"`
+	RecipientEmail string `json:"recipientEmail"`
+	PasswordSet    bool   `json:"passwordSet"`
 }
 
 // ImportChannelsRequest represents a request to import multiple channels
@@ -190,6 +209,87 @@ func (h *Handlers) SetCheckInterval(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, ConfigInterval{Interval: duration.String()})
+}
+
+// GetSMTPConfig handles GET /api/config/smtp
+func (h *Handlers) GetSMTPConfig(c echo.Context) error {
+	config, err := h.store.GetSMTPConfig()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve SMTP configuration")
+	}
+
+	// If no config exists, return empty response
+	if config == nil {
+		return c.JSON(http.StatusOK, SMTPConfigResponse{
+			PasswordSet: false,
+		})
+	}
+
+	// Return config without password
+	response := SMTPConfigResponse{
+		Server:         config.Server,
+		Port:           config.Port,
+		Username:       config.Username,
+		RecipientEmail: config.RecipientEmail,
+		PasswordSet:    config.Password != "",
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// SetSMTPConfig handles PUT /api/config/smtp
+func (h *Handlers) SetSMTPConfig(c echo.Context) error {
+	var req SMTPConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	// Validate required fields
+	if req.Server == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Server is required")
+	}
+	if req.Port == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Port is required")
+	}
+	if req.Username == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Username is required")
+	}
+	if req.Password == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Password is required")
+	}
+	if req.RecipientEmail == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Recipient email is required")
+	}
+
+	// Basic email validation
+	if !strings.Contains(req.RecipientEmail, "@") {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid recipient email format")
+	}
+
+	// Create SMTP config
+	smtpConfig := &store.SMTPConfig{
+		Server:         req.Server,
+		Port:           req.Port,
+		Username:       req.Username,
+		Password:       req.Password,
+		RecipientEmail: req.RecipientEmail,
+	}
+
+	// Save to store
+	if err := h.store.SetSMTPConfig(smtpConfig); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save SMTP configuration")
+	}
+
+	// Return response without password
+	response := SMTPConfigResponse{
+		Server:         req.Server,
+		Port:           req.Port,
+		Username:       req.Username,
+		RecipientEmail: req.RecipientEmail,
+		PasswordSet:    true,
+	}
+
+	return c.JSON(http.StatusOK, response)
 }
 
 // ImportChannels handles POST /api/channels/import
@@ -360,8 +460,17 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to format email: "+err.Error())
 		}
 
+		// Get SMTP config from database
+		smtpConfig, err := h.store.GetSMTPConfig()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve SMTP configuration: "+err.Error())
+		}
+		if smtpConfig == nil || smtpConfig.RecipientEmail == "" {
+			return echo.NewHTTPError(http.StatusInternalServerError, "SMTP configuration not set")
+		}
+
 		subject := "New YouTube Videos Update"
-		if err := h.emailSender.Send(h.config.RecipientEmail, subject, emailBody); err != nil {
+		if err := h.emailSender.Send(smtpConfig.RecipientEmail, subject, emailBody); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to send email: "+err.Error())
 		}
 	}

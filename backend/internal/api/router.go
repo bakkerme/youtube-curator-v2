@@ -35,6 +35,8 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	// Configuration endpoints
 	api.GET("/config/interval", handlers.GetCheckInterval)
 	api.PUT("/config/interval", handlers.SetCheckInterval)
+	api.GET("/config/smtp", handlers.GetSMTPConfig)
+	api.PUT("/config/smtp", handlers.SetSMTPConfig)
 
 	// Newsletter endpoints
 	api.POST("/newsletter/run", handlers.RunNewsletter)

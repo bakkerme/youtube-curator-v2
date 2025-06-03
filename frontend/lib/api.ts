@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse } from './types';
+import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse } from './types';
 import { getRuntimeConfig } from './config';
 
 // Create axios instance that will be configured with runtime config
@@ -96,6 +96,20 @@ export const configAPI = {
   setInterval: async (interval: string): Promise<ConfigInterval> => {
     return makeRequest(async () => {
       const { data } = await api.put('/config/interval', { interval });
+      return data;
+    });
+  },
+
+  getSMTP: async (): Promise<SMTPConfigResponse> => {
+    return makeRequest(async () => {
+      const { data } = await api.get('/config/smtp');
+      return data;
+    });
+  },
+
+  setSMTP: async (config: SMTPConfigRequest): Promise<SMTPConfigResponse> => {
+    return makeRequest(async () => {
+      const { data } = await api.put('/config/smtp', config);
       return data;
     });
   },

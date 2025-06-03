@@ -36,6 +36,19 @@ type Store interface {
 	// Configuration methods
 	GetCheckInterval() (time.Duration, error)
 	SetCheckInterval(interval time.Duration) error
+
+	// SMTP configuration methods
+	GetSMTPConfig() (*SMTPConfig, error)
+	SetSMTPConfig(config *SMTPConfig) error
+}
+
+// SMTPConfig holds SMTP configuration
+type SMTPConfig struct {
+	Server         string `json:"server"`
+	Port           string `json:"port"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	RecipientEmail string `json:"recipient_email"`
 }
 
 // BadgerStore handles database operations
@@ -244,5 +257,37 @@ func (s *BadgerStore) SetCheckInterval(interval time.Duration) error {
 	key := []byte("check_interval")
 	return s.db.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, []byte(interval.String()))
+	})
+}
+
+// GetSMTPConfig retrieves the SMTP configuration
+func (s *BadgerStore) GetSMTPConfig() (*SMTPConfig, error) {
+	var config SMTPConfig
+	key := []byte("smtp_config")
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			return nil // No configuration yet
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get SMTP configuration: %w", err)
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &config)
+		})
+	})
+	return &config, err
+}
+
+// SetSMTPConfig stores the SMTP configuration
+func (s *BadgerStore) SetSMTPConfig(config *SMTPConfig) error {
+	key := []byte("smtp_config")
+	return s.db.Update(func(txn *badger.Txn) error {
+		configBytes, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal SMTP configuration: %w", err)
+		}
+		return txn.Set(key, configBytes)
 	})
 }

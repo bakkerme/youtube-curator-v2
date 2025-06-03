@@ -54,7 +54,7 @@ The goal of this iteration is to package the MVP into a Docker container for eas
 
 The goal of this iteration is to enable users to configure channels and the check interval via a basic web UI, persisting these settings.
 
-**Definition of Done for Iteration 3:**
+**Definition of Done for Iteration 3:** (DONE)
 
 *   Backend API endpoints exist for adding, listing, and removing channels.
 *   Backend API endpoints exist for setting and retrieving the check interval.
@@ -67,47 +67,27 @@ The goal of this iteration is to enable users to configure channels and the chec
 *   Docker Compose file updated to include the Next.js frontend service.
 *   Docker configuration updated to allow communication between frontend and backend containers.
 
-**Key Tasks for Iteration 3:**
-*** Back End ***
-*   Define and implement backend API routes using Echo for channel management and interval settings. Create an OpenAPI doc representing the API
-*   Update BadgerDB access methods to handle dynamic channel lists and interval storage.
-*   Develop the Next.js frontend pages/components for channel listing, adding, and removing.
-*   Modify the scheduler to retrieve the interval from BadgerDB on startup and updates.
-*   Implement logic in the backend to extract channel ID from various YouTube URLs provided by the user.
-*   Update Dockerfile for the Go backend to expose the API port.
+## 4. Iteration 4: User Configuration & Basic SMTP UI (DONE)
 
-*** Front End ***
-*   Implement frontend logic to interact with the backend channel APIs.
-*   Develop the Next.js frontend page/component for interval configuration.
-*   Implement frontend logic to interact with the backend interval API.
-*   Set up the basic Next.js project structure.
-*   Create a Dockerfile for the Next.js frontend.
-*   Configure networking in Docker Compose for inter-container communication.
-*   Develop/update a Docker Compose file to manage both backend and frontend containers.
-
-## 5. Iteration 4: User Configuration & Basic SMTP UI
-
-This iteration focuses on adding the UI and backend logic for users to configure their SMTP details securely.
+This iteration focuses on adding the UI and backend logic for users to configure their SMTP details.
 
 **Definition of Done for Iteration 4:**
 
 *   Backend API endpoints exist for setting and retrieving SMTP configuration.
-*   BadgerDB schema updated to store SMTP settings securely.
+*   BadgerDB schema updated to store SMTP settings.
 *   Frontend page/component created for inputting and saving SMTP details (server, port, username, password, recipient email).
 *   Frontend communicates with backend APIs to manage SMTP settings.
 *   The email sender uses the configured SMTP details from the database.
-*   Docker configuration updated to handle sensitive SMTP credentials securely.
 
 **Key Tasks for Iteration 4:**
 
 *   Define and implement backend API routes using Echo for SMTP configuration.
-*   Implement secure storage mechanism for sensitive SMTP credentials in BadgerDB (e.g., encryption or relying on filesystem permissions if applicable in Docker).
+*   Implement storage mechanism for SMTP credentials in BadgerDB
 *   Develop the Next.js frontend page/component for SMTP configuration.
 *   Implement frontend logic to interact with the backend SMTP API.
 *   Modify the email sender module to read SMTP details from BadgerDB.
-*   Update Docker configuration (e.g., using environment variables or Docker secrets) for passing SMTP credentials securely.
 
-## 6. Iteration 5: Robustness, Error Handling, and Initial Sync
+## 5. Iteration 5: Robustness, Error Handling, and Initial Sync
 
 Improve the system's reliability, add necessary logging and monitoring, and define/implement the initial sync behavior for new channels.
 
@@ -128,7 +108,7 @@ Improve the system's reliability, add necessary logging and monitoring, and defi
 *   Modify the video identification logic to respect the initial sync strategy.
 *   Implement retry logic with exponential backoff for RSS feed fetching errors.
 
-## 7. Future Iterations & Backlog
+## 6. Future Iterations & Backlog
 
 Features and improvements beyond the initial shippable product increments:
 

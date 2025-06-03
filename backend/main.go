@@ -52,8 +52,19 @@ func main() {
 	// Create the channel processor
 	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider)
 
-	// Create email sender
-	emailSender := email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
+	// Create email sender with SMTP settings from database
+	smtpConfig, err := db.GetSMTPConfig()
+	if err != nil {
+		log.Printf("Warning: Failed to get SMTP configuration: %v", err)
+	}
+
+	var emailSender email.Sender
+	if smtpConfig != nil && smtpConfig.Server != "" {
+		emailSender = email.NewEmailSender(smtpConfig.Server, smtpConfig.Port, smtpConfig.Username, smtpConfig.Password)
+	} else {
+		// Fall back to environment variables for backward compatibility
+		emailSender = email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
+	}
 
 	// Start API server if enabled
 	if cfg.EnableAPI {
@@ -142,11 +153,28 @@ func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProc
 		if err != nil {
 			log.Printf("Error formatting combined email: %v\n", err)
 		} else {
-			subject := "New YouTube Videos Update"
-			if err := emailSender.Send(cfg.RecipientEmail, subject, emailBody); err != nil {
-				log.Printf("Error sending combined email: %v\n", err)
+			// Get SMTP config from database for recipient email
+			smtpConfig, err := db.GetSMTPConfig()
+			if err != nil || smtpConfig == nil || smtpConfig.RecipientEmail == "" {
+				// Fall back to environment variable
+				recipientEmail := cfg.RecipientEmail
+				if recipientEmail == "" {
+					log.Printf("Error: No recipient email configured\n")
+					return
+				}
+				subject := "New YouTube Videos Update"
+				if err := emailSender.Send(recipientEmail, subject, emailBody); err != nil {
+					log.Printf("Error sending combined email: %v\n", err)
+				} else {
+					fmt.Printf("Combined email sent successfully to %s\n", recipientEmail)
+				}
 			} else {
-				fmt.Printf("Combined email sent successfully to %s\n", cfg.RecipientEmail)
+				subject := "New YouTube Videos Update"
+				if err := emailSender.Send(smtpConfig.RecipientEmail, subject, emailBody); err != nil {
+					log.Printf("Error sending combined email: %v\n", err)
+				} else {
+					fmt.Printf("Combined email sent successfully to %s\n", smtpConfig.RecipientEmail)
+				}
 			}
 		}
 	} else {
