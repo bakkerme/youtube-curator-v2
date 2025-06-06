@@ -1,8 +1,14 @@
 .PHONY: run clean-db build test
 
 # Development commands
-run:
-	go run main.go
+run-backend:
+	cd backend && go run main.go
+
+run-backend-air:
+	cd backend && air .
+
+run-frontend:
+	cd frontend && npm run dev
 
 build:
 	go build -o youtube-curator-v2 ./backend

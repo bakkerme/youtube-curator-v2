@@ -119,6 +119,16 @@ func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 	}
 	mockStore.EXPECT().GetChannels().Return(channels, nil)
 
+	// Mock SMTP config retrieval - return a valid config
+	smtpConfig := &store.SMTPConfig{
+		Server:         "smtp.example.com",
+		Port:           "587",
+		Username:       "test@example.com",
+		Password:       "password",
+		RecipientEmail: "recipient@example.com",
+	}
+	mockStore.EXPECT().GetSMTPConfig().Return(smtpConfig, nil)
+
 	// Channel 1 has a new video
 	video1 := &rss.Entry{
 		Title:     "New Video from Channel 1",
@@ -161,8 +171,8 @@ func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 	}
 
 	sentEmail := mockEmailSender.sentEmails[0]
-	if sentEmail.Recipient != cfg.RecipientEmail {
-		t.Errorf("Expected email recipient to be %s, but got %s", cfg.RecipientEmail, sentEmail.Recipient)
+	if sentEmail.Recipient != smtpConfig.RecipientEmail {
+		t.Errorf("Expected email recipient to be %s, but got %s", smtpConfig.RecipientEmail, sentEmail.Recipient)
 	}
 	if sentEmail.Subject != "New YouTube Videos Update" {
 		t.Errorf("Expected email subject to be 'New YouTube Videos Update', but got '%s'", sentEmail.Subject)
@@ -196,6 +206,16 @@ func TestCheckForNewVideos_MixedResults(t *testing.T) {
 		{ID: "channel-3", Title: "Channel 3"},
 	}
 	mockStore.EXPECT().GetChannels().Return(channels, nil)
+
+	// Mock SMTP config retrieval - return a valid config
+	smtpConfig := &store.SMTPConfig{
+		Server:         "smtp.example.com",
+		Port:           "587",
+		Username:       "test@example.com",
+		Password:       "password",
+		RecipientEmail: "recipient@example.com",
+	}
+	mockStore.EXPECT().GetSMTPConfig().Return(smtpConfig, nil)
 
 	// Channel 1 has an error
 	mockProcessor.results["channel-1"] = processor.ChannelResult{
@@ -241,4 +261,52 @@ func TestCheckForNewVideos_MixedResults(t *testing.T) {
 // Helper function to check if a string contains a substring
 func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
+}
+
+func TestCheckForNewVideos_FallbackToConfigEmail(t *testing.T) {
+	// Setup
+	cfg := &config.Config{
+		RecipientEmail: "fallback@example.com",
+	}
+
+	mockEmailSender := NewMockEmailSender()
+	mockProcessor := NewMockChannelProcessor()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockStore := store.NewMockStore(ctrl)
+
+	// Set up expectations for the mock store
+	channels := []store.Channel{
+		{ID: "channel-1", Title: "Channel 1"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil)
+
+	// Mock SMTP config retrieval - return nil (no config in database)
+	mockStore.EXPECT().GetSMTPConfig().Return(nil, nil)
+
+	// Channel 1 has a new video
+	video1 := &rss.Entry{
+		Title:     "New Video from Channel 1",
+		Published: time.Now().Add(-2 * time.Hour),
+		ID:        "video-1",
+		Link:      rss.Link{Href: "https://youtube.com/watch?v=1"},
+	}
+	mockProcessor.results["channel-1"] = processor.ChannelResult{
+		ChannelID: "channel-1",
+		NewVideo:  video1,
+		Error:     nil,
+	}
+
+	// Execute
+	checkForNewVideos(cfg, mockEmailSender, mockProcessor, mockStore)
+
+	// Verify - should fallback to config.RecipientEmail
+	if len(mockEmailSender.sentEmails) != 1 {
+		t.Fatalf("Expected 1 email to be sent, but got %d", len(mockEmailSender.sentEmails))
+	}
+
+	sentEmail := mockEmailSender.sentEmails[0]
+	if sentEmail.Recipient != cfg.RecipientEmail {
+		t.Errorf("Expected email recipient to be %s (fallback), but got %s", cfg.RecipientEmail, sentEmail.Recipient)
+	}
 }

@@ -33,7 +33,7 @@ services:
       retries: 3
       start_period: 30s
     volumes:
-      - ./backend/data/youtubecurator.db:/app/youtubecurator.db
+      - youtube-curator-db-data:/app/youtubecurator.db
 
   youtube-curator-frontend:
     image: ghcr.io/bakkerme/youtube-curator-v2-ui:latest
@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - API_URL=${API_URL:-http://youtube-curator-api:8080/api}
+      - API_URL=${API_URL}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
@@ -59,3 +59,6 @@ services:
 networks:
   youtube-curator-network:
     driver: bridge 
+
+volumes:
+  youtube-curator-db-data: 
