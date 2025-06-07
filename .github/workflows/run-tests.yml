@@ -31,6 +31,17 @@ jobs:
 
     - name: Run tests
       run: go test -v ./... 
+  
+  test-frontend:
+    name: Run Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run: 
+        working-directory: ./frontend
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
