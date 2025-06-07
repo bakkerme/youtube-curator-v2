@@ -2,6 +2,7 @@ package ytdlp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,55 @@ import (
 
 	"youtube-curator-v2/internal/rss"
 )
+
+// MockCommandExecutor is a mock implementation of CommandExecutor for testing
+type MockCommandExecutor struct {
+	ShouldFail    bool
+	ShouldTimeout bool
+	ReturnData    *YtdlpOutput
+	Error         error
+	ExecuteFunc   func(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
+// Execute implements CommandExecutor interface for testing
+func (m *MockCommandExecutor) Execute(ctx context.Context, name string, args ...string) ([]byte, error) {
+	// If a custom execute function is provided, use it
+	if m.ExecuteFunc != nil {
+		return m.ExecuteFunc(ctx, name, args...)
+	}
+
+	if m.ShouldTimeout {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
+
+	if m.ShouldFail {
+		if m.Error != nil {
+			return nil, m.Error
+		}
+		return nil, fmt.Errorf("mock command failed")
+	}
+
+	// Return mock JSON data
+	if m.ReturnData != nil {
+		return json.Marshal(m.ReturnData)
+	}
+
+	// Default mock data
+	mockData := YtdlpOutput{
+		Duration: 300,
+		Tags:     []string{"technology", "tutorial"},
+		Comments: []Comment{
+			{Text: "Great video!", Author: "User1", LikeCount: 10},
+			{Text: "Very helpful", Author: "User2", LikeCount: 5},
+		},
+		AutomaticCaptions: map[string][]SubtitleInfo{
+			"en": {{Ext: "vtt", URL: "https://example.com/subs.vtt"}},
+		},
+	}
+
+	return json.Marshal(mockData)
+}
 
 func TestExtractVideoID(t *testing.T) {
 	tests := []struct {
@@ -63,7 +113,8 @@ func TestExtractVideoID(t *testing.T) {
 }
 
 func TestEnrichEntry_InvalidVideoID(t *testing.T) {
-	enricher := NewDefaultEnricher()
+	mockExecutor := &MockCommandExecutor{}
+	enricher := NewDefaultEnricherWithExecutor(mockExecutor)
 
 	entry := &rss.Entry{
 		ID: "invalid:format",
@@ -79,11 +130,84 @@ func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 	}
 }
 
+func TestEnrichEntry_Success(t *testing.T) {
+	mockExecutor := &MockCommandExecutor{
+		ReturnData: &YtdlpOutput{
+			Duration: 420,
+			Tags:     []string{"programming", "golang", "testing"},
+			Comments: []Comment{
+				{Text: "Excellent tutorial!", Author: "Developer1", LikeCount: 25},
+				{Text: "Thanks for sharing", Author: "Developer2", LikeCount: 15},
+				{Text: "Very clear explanation", Author: "Developer3", LikeCount: 8},
+			},
+			AutomaticCaptions: map[string][]SubtitleInfo{
+				"en": {{Ext: "vtt", URL: "https://example.com/test-subs.vtt"}},
+			},
+		},
+	}
+
+	enricher := NewDefaultEnricherWithExecutor(mockExecutor)
+
+	entry := &rss.Entry{
+		ID: "yt:video:testVideoID",
+	}
+
+	err := enricher.EnrichEntry(context.Background(), entry)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	// Verify enrichment worked
+	if entry.Duration != 420 {
+		t.Errorf("Expected duration 420, got %d", entry.Duration)
+	}
+
+	expectedTags := []string{"programming", "golang", "testing"}
+	if len(entry.Tags) != len(expectedTags) {
+		t.Errorf("Expected %d tags, got %d", len(expectedTags), len(entry.Tags))
+	}
+
+	if len(entry.TopComments) != 3 {
+		t.Errorf("Expected 3 top comments, got %d", len(entry.TopComments))
+	}
+
+	if entry.AutoSubtitles != "https://example.com/test-subs.vtt" {
+		t.Errorf("Expected auto subtitles URL, got %s", entry.AutoSubtitles)
+	}
+}
+
+func TestEnrichEntry_CommandFailure(t *testing.T) {
+	mockExecutor := &MockCommandExecutor{
+		ShouldFail: true,
+		Error:      fmt.Errorf("command execution failed"),
+	}
+
+	enricher := NewDefaultEnricherWithExecutor(mockExecutor)
+
+	entry := &rss.Entry{
+		ID: "yt:video:dQw4w9WgXcQ",
+	}
+
+	err := enricher.EnrichEntry(context.Background(), entry)
+	if err == nil {
+		t.Error("Expected error for command failure")
+	}
+
+	if !strings.Contains(err.Error(), "yt-dlp command failed") {
+		t.Errorf("Expected yt-dlp command failed error, got: %v", err)
+	}
+}
+
 func TestEnrichEntry_Timeout(t *testing.T) {
-	// Create enricher with very short timeout and non-existent command
+	mockExecutor := &MockCommandExecutor{
+		ShouldTimeout: true,
+	}
+
 	enricher := &DefaultEnricher{
-		ytdlpPath: "nonexistent-command", // Command that doesn't exist to trigger error
-		timeout:   100 * time.Millisecond,
+		ytdlpPath:  "yt-dlp",
+		timeout:    100 * time.Millisecond,
+		maxRetries: 0, // No retries for this test
+		executor:   mockExecutor,
 	}
 
 	entry := &rss.Entry{
@@ -92,33 +216,93 @@ func TestEnrichEntry_Timeout(t *testing.T) {
 
 	err := enricher.EnrichEntry(context.Background(), entry)
 	if err == nil {
-		t.Error("Expected error for non-existent command")
+		t.Error("Expected error for timeout")
 	}
 
-	// Should get an error about the command failing
-	if !strings.Contains(err.Error(), "yt-dlp command failed") {
-		t.Errorf("Expected yt-dlp command failed error, got: %v", err)
+	if !strings.Contains(err.Error(), "timed out") {
+		t.Errorf("Expected timeout error, got: %v", err)
 	}
 }
 
 func TestEnrichEntry_RetryLogic(t *testing.T) {
-	// Test that retry logic is properly configured
-	enricher := NewDefaultEnricher()
+	// Test that retry logic works with retryable errors
+	callCount := 0
+	mockExecutor := &MockCommandExecutor{}
 
-	if enricher.maxRetries != 2 {
-		t.Errorf("Expected maxRetries 2, got %v", enricher.maxRetries)
+	// Set custom execute function to fail first two times, succeed on third
+	mockExecutor.ExecuteFunc = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		callCount++
+		if callCount <= 2 {
+			return nil, fmt.Errorf("network timeout occurred") // retryable error
+		}
+		// On third call, return success with default mock data
+		mockData := YtdlpOutput{
+			Duration: 300,
+			Tags:     []string{"technology", "tutorial"},
+			Comments: []Comment{
+				{Text: "Great video!", Author: "User1", LikeCount: 10},
+			},
+			AutomaticCaptions: map[string][]SubtitleInfo{
+				"en": {{Ext: "vtt", URL: "https://example.com/subs.vtt"}},
+			},
+		}
+		return json.Marshal(mockData)
 	}
 
-	// Test isRetryableError function with network-related errors
-	networkErr := fmt.Errorf("network timeout occurred")
-	if !isRetryableError(networkErr) {
-		t.Error("Expected network timeout to be retryable")
+	enricher := &DefaultEnricher{
+		ytdlpPath:  "yt-dlp",
+		timeout:    1 * time.Second,
+		maxRetries: 2,
+		executor:   mockExecutor,
 	}
 
-	// Test that non-retryable errors aren't retried
-	invalidErr := fmt.Errorf("invalid video format")
-	if isRetryableError(invalidErr) {
-		t.Error("Expected invalid format error to not be retryable")
+	entry := &rss.Entry{
+		ID: "yt:video:dQw4w9WgXcQ",
+	}
+
+	err := enricher.EnrichEntry(context.Background(), entry)
+	if err != nil {
+		t.Fatalf("Expected success after retries, got: %v", err)
+	}
+
+	if callCount != 3 {
+		t.Errorf("Expected 3 command executions (2 failures + 1 success), got %d", callCount)
+	}
+
+	// Verify enrichment worked
+	if entry.Duration == 0 {
+		t.Error("Expected duration to be set after successful retry")
+	}
+}
+
+func TestEnrichEntry_NonRetryableError(t *testing.T) {
+	callCount := 0
+	mockExecutor := &MockCommandExecutor{}
+
+	// Set custom execute function to always fail with non-retryable error
+	mockExecutor.ExecuteFunc = func(ctx context.Context, name string, args ...string) ([]byte, error) {
+		callCount++
+		return nil, fmt.Errorf("invalid video format") // non-retryable error
+	}
+
+	enricher := &DefaultEnricher{
+		ytdlpPath:  "yt-dlp",
+		timeout:    1 * time.Second,
+		maxRetries: 2,
+		executor:   mockExecutor,
+	}
+
+	entry := &rss.Entry{
+		ID: "yt:video:dQw4w9WgXcQ",
+	}
+
+	err := enricher.EnrichEntry(context.Background(), entry)
+	if err == nil {
+		t.Error("Expected error for non-retryable failure")
+	}
+
+	if callCount != 1 {
+		t.Errorf("Expected 1 command execution (no retries for non-retryable error), got %d", callCount)
 	}
 }
 
@@ -133,6 +317,10 @@ func TestNewDefaultEnricherWithTimeout(t *testing.T) {
 	if enricher.maxRetries != 2 {
 		t.Errorf("Expected maxRetries 2, got %v", enricher.maxRetries)
 	}
+
+	if enricher.executor == nil {
+		t.Error("Expected executor to be set")
+	}
 }
 
 func TestNewDefaultEnricherWithConfig(t *testing.T) {
@@ -146,6 +334,27 @@ func TestNewDefaultEnricherWithConfig(t *testing.T) {
 
 	if enricher.maxRetries != maxRetries {
 		t.Errorf("Expected maxRetries %v, got %v", maxRetries, enricher.maxRetries)
+	}
+
+	if enricher.executor == nil {
+		t.Error("Expected executor to be set")
+	}
+}
+
+func TestNewDefaultEnricherWithExecutor(t *testing.T) {
+	mockExecutor := &MockCommandExecutor{}
+	enricher := NewDefaultEnricherWithExecutor(mockExecutor)
+
+	if enricher.executor != mockExecutor {
+		t.Error("Expected custom executor to be set")
+	}
+
+	if enricher.timeout != 60*time.Second {
+		t.Errorf("Expected default timeout 60s, got %v", enricher.timeout)
+	}
+
+	if enricher.maxRetries != 2 {
+		t.Errorf("Expected default maxRetries 2, got %v", enricher.maxRetries)
 	}
 }
 

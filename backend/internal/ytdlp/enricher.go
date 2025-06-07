@@ -4,12 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os/exec"
 	"strings"
 	"time"
 
 	"youtube-curator-v2/internal/rss"
 )
+
+// CommandExecutor defines the interface for executing commands
+type CommandExecutor interface {
+	Execute(ctx context.Context, name string, args ...string) ([]byte, error)
+}
+
+// DefaultCommandExecutor implements CommandExecutor using os/exec
+type DefaultCommandExecutor struct{}
+
+// Execute runs a command and returns its output
+func (e *DefaultCommandExecutor) Execute(ctx context.Context, name string, args ...string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	log.Println("Executing command:", cmd.String())
+	return cmd.Output()
+}
 
 // Enricher provides video enrichment using yt-dlp
 type Enricher interface {
@@ -21,6 +37,7 @@ type DefaultEnricher struct {
 	ytdlpPath  string
 	timeout    time.Duration
 	maxRetries int
+	executor   CommandExecutor
 }
 
 // NewDefaultEnricher creates a new yt-dlp enricher
@@ -29,6 +46,7 @@ func NewDefaultEnricher() *DefaultEnricher {
 		ytdlpPath:  "yt-dlp",         // assumes yt-dlp is in PATH
 		timeout:    60 * time.Second, // Increased from 30s to 60s
 		maxRetries: 2,                // Allow 2 retries on failure
+		executor:   &DefaultCommandExecutor{},
 	}
 }
 
@@ -38,6 +56,7 @@ func NewDefaultEnricherWithTimeout(timeout time.Duration) *DefaultEnricher {
 		ytdlpPath:  "yt-dlp",
 		timeout:    timeout,
 		maxRetries: 2,
+		executor:   &DefaultCommandExecutor{},
 	}
 }
 
@@ -47,6 +66,17 @@ func NewDefaultEnricherWithConfig(timeout time.Duration, maxRetries int) *Defaul
 		ytdlpPath:  "yt-dlp",
 		timeout:    timeout,
 		maxRetries: maxRetries,
+		executor:   &DefaultCommandExecutor{},
+	}
+}
+
+// NewDefaultEnricherWithExecutor creates a new yt-dlp enricher with custom command executor (for testing)
+func NewDefaultEnricherWithExecutor(executor CommandExecutor) *DefaultEnricher {
+	return &DefaultEnricher{
+		ytdlpPath:  "yt-dlp",
+		timeout:    60 * time.Second,
+		maxRetries: 2,
+		executor:   executor,
 	}
 }
 
@@ -93,19 +123,18 @@ func (e *DefaultEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) err
 		// Create context with timeout for this attempt
 		attemptCtx, cancel := context.WithTimeout(ctx, e.timeout)
 
-		// Build yt-dlp command
-		cmd := exec.CommandContext(attemptCtx, e.ytdlpPath,
+		// Build yt-dlp command arguments
+		args := []string{
 			"--skip-download",
 			"--dump-json",
 			"--write-comments",
 			"--write-auto-subs",
 			"--sub-langs", "en",
 			fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID),
-		)
-		fmt.Println(cmd.String())
+		}
 
-		// Capture both stdout and stderr for better error reporting
-		output, err := cmd.Output()
+		// Execute command using the executor interface
+		output, err := e.executor.Execute(attemptCtx, e.ytdlpPath, args...)
 		cancel() // Clean up context immediately after command
 
 		if err != nil {
