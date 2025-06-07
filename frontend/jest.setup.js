@@ -1,20 +1,18 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
-// TODO: Re-enable MSW configuration once basic setup testing is complete.
-// The MSW (Mock Service Worker) setup is temporarily disabled to test the basic setup.
-// Uncomment the following lines to restore API mocking functionality when needed.
-// import { server } from './lib/mocks/server'
-// 
-// // Establish API mocking before all tests.
-// beforeAll(() => server.listen())
-// 
-// // Reset any request handlers that we may add during the tests,
-// // so they don't affect other tests.
-// afterEach(() => server.resetHandlers())
-// 
-// // Clean up after the tests are finished.
-// afterAll(() => server.close())
+// Enable MSW configuration for integration testing
+import { server } from './lib/mocks/server'
+
+// Establish API mocking before all tests.
+beforeAll(() => server.listen())
+
+// Reset any request handlers that we may add during the tests,
+// so they don't affect other tests.
+afterEach(() => server.resetHandlers())
+
+// Clean up after the tests are finished.
+afterAll(() => server.close())
 
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
