@@ -291,6 +291,7 @@ export default function VideosPage() {
         {/* Filter Controls Container */}
         <div className="flex flex-col sm:flex-row gap-2">
           <button
+            data-testid="filter-mode-button" // Added data-testid
             onClick={handleFilterModeChange}
             className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
               (filterMode === 'today' || filterMode === 'perDay')
@@ -309,6 +310,7 @@ export default function VideosPage() {
           {filterMode === 'perDay' && (
             <input
               type="date"
+              data-testid="date-filter-input" // Added data-testid
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"

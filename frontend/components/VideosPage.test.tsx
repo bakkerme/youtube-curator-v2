@@ -48,45 +48,79 @@ const mockVideos: VideoEntry[] = [
     entry: {
       id: 'video1',
       title: 'Video Today Channel One',
-      url: 'url1',
+      link: { Href: 'https://example.com/video1', Rel: 'alternate' },
       published: today.toISOString(),
-      duration: 60,
-      thumbnailUrl: 'thumb1',
+      content: 'Content for video 1',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { URL: 'https://images.example.com/thumb1.jpg', Width: '120', Height: '90' },
+        mediaTitle: 'Video Today Channel One',
+        mediaContent: { URL: 'https://videos.example.com/content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+        mediaDescription: 'Description for video 1',
+      }
+      // url, duration, thumbnailUrl are not part of the 'Entry' type directly,
+      // but were in previous mock. If VideoCard relies on them at top level of entry,
+      // they might need to be mapped or VideoCard adjusted.
+      // For now, assuming VideoCard uses mediaGroup.mediaThumbnail.URL for thumbnail
+      // and entry.link.Href for the main link.
     },
+    cachedAt: today.toISOString(), // Added cachedAt
   },
   { // Video 2 (Yesterday)
     channelId: 'channel1',
     entry: {
       id: 'video2',
       title: 'Video Yesterday Channel One',
-      url: 'url2',
+      link: { Href: 'https://example.com/video2', Rel: 'alternate' },
       published: yesterday.toISOString(),
-      duration: 120,
-      thumbnailUrl: 'thumb2',
+      content: 'Content for video 2',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { URL: 'https://images.example.com/thumb2.jpg', Width: '120', Height: '90' },
+        mediaTitle: 'Video Yesterday Channel One',
+        mediaContent: { URL: 'https://videos.example.com/content2.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+        mediaDescription: 'Description for video 2',
+      }
     },
+    cachedAt: today.toISOString(), // Added cachedAt
   },
   { // Video 3 (Specific Past Date)
     channelId: 'channel2',
     entry: {
       id: 'video3',
       title: 'Video Specific Date Channel Two',
-      url: 'url3',
+      link: { Href: 'https://example.com/video3', Rel: 'alternate' },
       published: specificPastDate.toISOString(),
-      duration: 180,
-      thumbnailUrl: 'thumb3',
+      content: 'Content for video 3',
+      author: { name: 'Channel Two', uri: 'uri_channel2' },
+      mediaGroup: {
+        mediaThumbnail: { URL: 'https://images.example.com/thumb3.jpg', Width: '120', Height: '90' },
+        mediaTitle: 'Video Specific Date Channel Two',
+        mediaContent: { URL: 'https://videos.example.com/content3.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+        mediaDescription: 'Description for video 3',
+      }
     },
+    cachedAt: today.toISOString(), // Added cachedAt
   },
   { // Video 4 (Today, different channel, for search testing)
     channelId: 'channel2',
     entry: {
       id: 'video4',
       title: 'Another Video Today Channel Two',
-      url: 'url4',
+      link: { Href: 'https://example.com/video4', Rel: 'alternate' },
       published: today.toISOString(),
-      duration: 240,
-      thumbnailUrl: 'thumb4',
+      content: 'Content for video 4',
+      author: { name: 'Channel Two', uri: 'uri_channel2' },
+      mediaGroup: {
+        mediaThumbnail: { URL: 'https://images.example.com/thumb4.jpg', Width: '120', Height: '90' },
+        mediaTitle: 'Another Video Today Channel Two',
+        mediaContent: { URL: 'https://videos.example.com/content4.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+        mediaDescription: 'Description for video 4',
+      }
     },
+    cachedAt: today.toISOString(), // Added cachedAt
   },
+  // Removed extra trailing comma and brace here that caused syntax error
 ];
 
 const mockVideoAPIResponse: VideosAPIResponse = {
@@ -121,7 +155,8 @@ describe('VideosPage', () => {
     expect(screen.queryByText('Video Specific Date Channel Two')).not.toBeInTheDocument();
 
     // Check filter button state
-    const filterButton = screen.getByRole('button', { name: /Today/i });
+    const filterButton = screen.getByTestId('filter-mode-button');
+    expect(filterButton).toHaveTextContent(/Today/i);
     expect(filterButton).toHaveClass('bg-red-600'); // Active state for today
   });
 
@@ -130,22 +165,25 @@ describe('VideosPage', () => {
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
     // Click filter button to cycle from "Today" to "Per Day"
-    const filterButton = screen.getByRole('button', { name: /Today/i });
+    const filterButton = screen.getByTestId('filter-mode-button');
+    expect(filterButton).toHaveTextContent(/Today/i); // Initial state check
     fireEvent.click(filterButton);
 
+    let dateInput: HTMLElement | null;
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Per Day/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /Per Day/i })).toHaveClass('bg-red-600');
+      expect(filterButton).toHaveTextContent(/Per Day/i);
+      expect(filterButton).toHaveClass('bg-red-600');
+      dateInput = screen.getByTestId('date-filter-input');
+      expect(dateInput).toBeVisible();
     });
 
-    // Date input should now be visible
-    const dateInput = screen.getByRole('textbox'); // type="date" is treated as textbox by testing-library in some setups or if not fully specified
-    expect(dateInput).toBeVisible();
+    // Date input should now be visible (re-fetch if needed, or use variable from waitFor scope)
+    dateInput = screen.getByTestId('date-filter-input');
 
     // Change the date to our specificPastDate ("2023-03-15")
     // The date input expects 'YYYY-MM-DD' format
     const specificPastDateString = specificPastDate.toISOString().split('T')[0];
-    fireEvent.change(dateInput, { target: { value: specificPastDateString } });
+    fireEvent.change(dateInput!, { target: { value: specificPastDateString } }); // Added non-null assertion
 
     // Wait for re-render and filtering
     await waitFor(() => {
@@ -161,17 +199,18 @@ describe('VideosPage', () => {
     render(<VideosPage />);
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
-    // Click filter button twice: "Today" -> "Per Day" -> "All"
-    const filterButtonToday = screen.getByRole('button', { name: /Today/i });
-    fireEvent.click(filterButtonToday);
+    const filterButton = screen.getByTestId('filter-mode-button');
+    expect(filterButton).toHaveTextContent(/Today/i);
 
-    await waitFor(() => expect(screen.getByRole('button', { name: /Per Day/i })).toBeInTheDocument());
-    const filterButtonPerDay = screen.getByRole('button', { name: /Per Day/i });
-    fireEvent.click(filterButtonPerDay);
+    // Click filter button twice: "Today" -> "Per Day" -> "All"
+    fireEvent.click(filterButton);
+
+    await waitFor(() => expect(filterButton).toHaveTextContent(/Per Day/i));
+    fireEvent.click(filterButton);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /All Videos/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /All Videos/i })).toHaveClass('bg-blue-600');
+      expect(filterButton).toHaveTextContent(/All Videos/i);
+      expect(filterButton).toHaveClass('bg-blue-600');
     });
 
     // All videos should be visible
@@ -185,67 +224,70 @@ describe('VideosPage', () => {
     render(<VideosPage />);
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
-    const filterButton = screen.getByRole('button', { name: /Today/i });
-    let dateInput = screen.queryByRole('textbox'); // Query because it might not exist initially
+    const filterButton = screen.getByTestId('filter-mode-button');
+    let dateInput = screen.queryByTestId('date-filter-input');
 
     // Initial state: Today
-    expect(filterButton).toHaveTextContent('Today');
+    expect(filterButton).toHaveTextContent(/Today/i);
     expect(filterButton).toHaveClass('bg-red-600');
     expect(dateInput).not.toBeInTheDocument(); // Date input hidden
 
     // Click 1: Today -> Per Day
     fireEvent.click(filterButton);
-    await waitFor(() => expect(screen.getByRole('button', { name: /Per Day/i })).toBeInTheDocument());
-    const perDayButton = screen.getByRole('button', { name: /Per Day/i });
-    dateInput = screen.getByRole('textbox'); // Should be visible now
-    expect(perDayButton).toHaveTextContent('Per Day');
-    expect(perDayButton).toHaveClass('bg-red-600');
-    expect(dateInput).toBeVisible();
+    await waitFor(() => {
+      expect(filterButton).toHaveTextContent(/Per Day/i);
+      expect(filterButton).toHaveClass('bg-red-600');
+      dateInput = screen.getByTestId('date-filter-input');
+      expect(dateInput).toBeVisible();
+    });
 
     // Click 2: Per Day -> All
-    fireEvent.click(perDayButton);
-    await waitFor(() => expect(screen.getByRole('button', { name: /All Videos/i })).toBeInTheDocument());
-    const allVideosButton = screen.getByRole('button', { name: /All Videos/i });
-    dateInput = screen.queryByRole('textbox'); // Query again
-    expect(allVideosButton).toHaveTextContent('All Videos');
-    expect(allVideosButton).toHaveClass('bg-blue-600');
-    expect(dateInput).not.toBeInTheDocument(); // Date input hidden
+    fireEvent.click(filterButton);
+    await waitFor(() => {
+      expect(filterButton).toHaveTextContent(/All Videos/i);
+      expect(filterButton).toHaveClass('bg-blue-600');
+      dateInput = screen.queryByTestId('date-filter-input');
+      expect(dateInput).not.toBeInTheDocument(); // Date input hidden
+    });
 
     // Click 3: All -> Today
-    fireEvent.click(allVideosButton);
-    await waitFor(() => expect(screen.getByRole('button', { name: /Today/i })).toBeInTheDocument());
-    const todayButtonAgain = screen.getByRole('button', { name: /Today/i });
-    dateInput = screen.queryByRole('textbox'); // Query again
-    expect(todayButtonAgain).toHaveTextContent('Today');
-    expect(todayButtonAgain).toHaveClass('bg-red-600');
-    expect(dateInput).not.toBeInTheDocument(); // Date input hidden
+    fireEvent.click(filterButton);
+    await waitFor(() => {
+      expect(filterButton).toHaveTextContent(/Today/i);
+      expect(filterButton).toHaveClass('bg-red-600');
+      dateInput = screen.queryByTestId('date-filter-input');
+      expect(dateInput).not.toBeInTheDocument(); // Date input hidden
+    });
   });
 
   describe('Search functionality with date filters', () => {
     const searchCases = [
-      { mode: 'today' as const, buttonClicks: 0, initialButtonName: /Today/i, expectedVideo: 'Video Today Channel One', searchFor: 'Channel One' },
-      { mode: 'perDay' as const, buttonClicks: 1, initialButtonName: /Today/i, expectedVideo: 'Video Specific Date Channel Two', searchFor: 'Specific Date', dateToSelect: specificPastDate.toISOString().split('T')[0] },
-      { mode: 'all' as const, buttonClicks: 2, initialButtonName: /Today/i, expectedVideo: 'Video Yesterday Channel One', searchFor: 'Yesterday' },
+      { mode: 'today' as const, buttonClicks: 0, expectedButtonText: /Today/i, expectedVideo: 'Video Today Channel One', searchFor: 'Channel One' },
+      { mode: 'perDay' as const, buttonClicks: 1, expectedButtonText: /Per Day/i, expectedVideo: 'Video Specific Date Channel Two', searchFor: 'Specific Date', dateToSelect: specificPastDate.toISOString().split('T')[0] },
+      { mode: 'all' as const, buttonClicks: 2, expectedButtonText: /All Videos/i, expectedVideo: 'Video Yesterday Channel One', searchFor: 'Yesterday' },
     ];
 
-    searchCases.forEach(({ mode, buttonClicks, initialButtonName, expectedVideo, searchFor, dateToSelect }) => {
+    searchCases.forEach(({ mode, buttonClicks, expectedButtonText, expectedVideo, searchFor, dateToSelect }) => {
       test(`works with ${mode} filter`, async () => {
         render(<VideosPage />);
         await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
-        let currentButton = screen.getByRole('button', { name: initialButtonName });
+        const filterButton = screen.getByTestId('filter-mode-button');
         for (let i = 0; i < buttonClicks; i++) {
-          fireEvent.click(currentButton);
+          fireEvent.click(filterButton);
           // Wait for the button text to change to ensure mode switch is complete
+          // This logic could be simplified if we always check against filterButton.toHaveTextContent for the *next* expected state.
           await waitFor(() => {
-            if (i === 0 && mode === 'perDay') expect(screen.getByRole('button', {name: /Per Day/i})).toBeInTheDocument();
-            else if (mode === 'all' && i === 1) expect(screen.getByRole('button', {name: /All Videos/i})).toBeInTheDocument();
+            if (i === 0 && mode === 'perDay') expect(filterButton).toHaveTextContent(/Per Day/i);
+            else if (mode === 'all' && i === 1) expect(filterButton).toHaveTextContent(/All Videos/i);
+            // Add other cases if buttonClicks > 2, or if initial state isn't "Today"
           });
-          currentButton = screen.getByRole('button', { name: (mode === 'perDay' && i===0) ? /Per Day/i : /All Videos/i });
         }
+        // Final check for button text after all clicks
+        await waitFor(() => expect(filterButton).toHaveTextContent(expectedButtonText));
 
         if (mode === 'perDay' && dateToSelect) {
-          const dateInput = screen.getByRole('textbox');
+          const dateInput = screen.getByTestId('date-filter-input');
           fireEvent.change(dateInput, { target: { value: dateToSelect } });
           // Wait for videos to filter based on new date
           await waitFor(() => expect(screen.queryByText(mockVideos[0].entry.title)).not.toBeInTheDocument());
