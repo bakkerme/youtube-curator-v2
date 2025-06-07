@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideoEntry } from './types';
+import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideoEntry, VideosAPIResponse } from './types';
 import { getRuntimeConfig } from './config';
 
 // Create axios instance that will be configured with runtime config
@@ -127,10 +127,10 @@ export const newsletterAPI = {
 
 // Video APIs
 export const videoAPI = {
-  getAll: async (refresh?: boolean): Promise<VideoEntry[]> => {
+  getAll: async (refresh?: boolean): Promise<VideosAPIResponse> => {
     return makeRequest(async () => {
       const url = refresh ? '/videos?refresh=true' : '/videos';
-      const { data } = await api.get(url);
+      const { data } = await api.get<VideosAPIResponse>(url);
       return data;
     });
   },

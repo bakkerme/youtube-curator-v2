@@ -16,6 +16,12 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+// VideosResponse represents the response for the GetVideos endpoint
+type VideosResponse struct {
+	Videos          []store.VideoEntry `json:"videos"`
+	LastRefreshedAt time.Time          `json:"lastRefreshedAt"`
+}
+
 // Handlers contains the API handlers
 type Handlers struct {
 	store        store.Store
@@ -542,5 +548,11 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 		return videos[i].Entry.Published.After(videos[j].Entry.Published)
 	})
 
-	return c.JSON(http.StatusOK, videos)
+	// Prepare response
+	response := VideosResponse{
+		Videos:          h.videoStore.GetAllVideos(), // Get potentially updated and sorted list
+		LastRefreshedAt: h.videoStore.GetLastRefreshedAt(),
+	}
+
+	return c.JSON(http.StatusOK, response)
 }

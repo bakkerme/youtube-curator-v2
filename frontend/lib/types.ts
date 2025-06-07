@@ -112,3 +112,8 @@ export interface VideoEntry {
   channelId: string;
   cachedAt: string;
 }
+
+export interface VideosAPIResponse {
+  videos: VideoEntry[];
+  lastRefreshedAt: string;
+}

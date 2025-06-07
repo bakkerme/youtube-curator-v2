@@ -15,16 +15,18 @@ type VideoEntry struct {
 
 // VideoStore provides in-memory storage for videos with TTL
 type VideoStore struct {
-	videos map[string]VideoEntry // key: video ID
-	mutex  sync.RWMutex
-	ttl    time.Duration
+	videos          map[string]VideoEntry // key: video ID
+	mutex           sync.RWMutex
+	ttl             time.Duration
+	lastRefreshedAt time.Time
 }
 
 // NewVideoStore creates a new in-memory video store with the specified TTL
 func NewVideoStore(ttl time.Duration) *VideoStore {
 	store := &VideoStore{
-		videos: make(map[string]VideoEntry),
-		ttl:    ttl,
+		videos:          make(map[string]VideoEntry),
+		ttl:             ttl,
+		lastRefreshedAt: time.Time{},
 	}
 
 	// Start cleanup goroutine
@@ -85,4 +87,18 @@ func (vs *VideoStore) GetVideoCount() int {
 	vs.mutex.RLock()
 	defer vs.mutex.RUnlock()
 	return len(vs.videos)
+}
+
+// SetLastRefreshedAt sets the last refreshed timestamp
+func (vs *VideoStore) SetLastRefreshedAt(t time.Time) {
+	vs.mutex.Lock()
+	defer vs.mutex.Unlock()
+	vs.lastRefreshedAt = t
+}
+
+// GetLastRefreshedAt returns the last refreshed timestamp
+func (vs *VideoStore) GetLastRefreshedAt() time.Time {
+	vs.mutex.RLock()
+	defer vs.mutex.RUnlock()
+	return vs.lastRefreshedAt
 }
