@@ -48,7 +48,7 @@ export default function VideosPage() {
         // Keep existing videos in this case unless it's an initial load.
         // If it's an initial load and no videos, videos will be an empty array.
         if (videos.length > 0 && !loading) { // only clear if not initial load
-             // setVideos([]); // Or decide if you want to keep stale data on refresh error
+             // Keep stale data on refresh error
         } else {
             setVideos([]);
         }
