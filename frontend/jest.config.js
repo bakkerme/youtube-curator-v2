@@ -13,7 +13,7 @@ const customJestConfig = {
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
   
-  // Handle module aliases (this will be automatically configured for you soon)
+  // Handle module aliases
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
@@ -26,7 +26,7 @@ const customJestConfig = {
   // Module paths to ignore for Haste
   modulePathIgnorePatterns: ['<rootDir>/.next/'],
   
-  // Transform files
+  // Transform files with SWC
   transform: {
     '^.+\\.(js|jsx|ts|tsx)$': ['@swc/jest'],
   },
