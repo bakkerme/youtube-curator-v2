@@ -7,15 +7,23 @@ const createJestConfig = nextJest({
 
 // Add any custom config to be passed to Jest
 const customJestConfig = {
+  // Load polyfills before anything else
+  setupFiles: ['<rootDir>/jest.polyfills.js'],
+  
   // Add more setup options before each test is run
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   
   // if using TypeScript with a baseUrl set to the root directory then you need the below for alias' to work
   moduleDirectories: ['node_modules', '<rootDir>/'],
   
-  // Handle module aliases
+  // Handle module aliases with correct MSW v2 export paths
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // MSW v2 uses different export paths - use the actual exports
+    '^msw/node$': '<rootDir>/node_modules/msw/lib/node/index.js',
+    '^msw$': '<rootDir>/node_modules/msw/lib/core/index.js',
+    // Map interceptors
+    '^@mswjs/interceptors/ClientRequest$': '<rootDir>/node_modules/@mswjs/interceptors/lib/node/interceptors/ClientRequest/index.js',
   },
   
   testEnvironment: 'jest-environment-jsdom',
@@ -31,9 +39,9 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['@swc/jest'],
   },
   
-  // Handle ESM modules
+  // Handle ESM modules - updated for MSW v2
   transformIgnorePatterns: [
-    'node_modules/(?!(msw|@bundled-es-modules)/)',
+    'node_modules/(?!(msw|@mswjs|@bundled-es-modules)/)',
   ],
   
   // Coverage configuration
@@ -54,9 +62,6 @@ const customJestConfig = {
   
   // Module file extensions
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  
-  // Treat TypeScript files as ESM
-  extensionsToTreatAsEsm: ['.ts', '.tsx'],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

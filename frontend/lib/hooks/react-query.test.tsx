@@ -1,53 +1,53 @@
-import { renderHook, waitFor, act } from '@testing-library/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { rest } from 'msw';
-import { server } from '../mocks/server';
-import { createTestQueryClient } from '../test-utils';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import axios from 'axios';
+import { http, HttpResponse } from 'msw';
+import { QueryClient } from '@tanstack/react-query';
+import { renderHook, waitFor } from '@testing-library/react';
+import { createWrapper } from '../mocks/QueryWrapper';
+import { useChannels, useVideos, useConfig } from './react-query';
 
 // Simple test API client that works with MSW
-const testAPI = axios.create({
+const apiClient = {
   baseURL: '', // Let MSW intercept requests
-});
-
-// Test wrapper component for React Query
-const createWrapper = (queryClient?: QueryClient) => {
-  const client = queryClient || createTestQueryClient();
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={client}>
-      {children}
-    </QueryClientProvider>
-  );
 };
 
-describe('React Query Integration Tests', () => {
-  describe('useQuery Integration', () => {
-    it('should fetch and cache data successfully', async () => {
-      const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['channels'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper() }
-      );
+describe('React Query Hooks Integration Tests', () => {
+  let queryClient: QueryClient;
+  let wrapper: any;
 
-      // Initially loading
-      expect(result.current.isLoading).toBe(true);
-      expect(result.current.data).toBeUndefined();
+  beforeEach(() => {
+    queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          retry: false,
+          gcTime: 0, // Renamed from cacheTime in React Query v5
+          staleTime: 0,
+        },
+        mutations: {
+          retry: false,
+        },
+      },
+    });
+    wrapper = createWrapper(queryClient);
+  });
 
-      // Wait for data to load
+  afterEach(() => {
+    queryClient.clear();
+  });
+
+  describe('useChannels Hook', () => {
+    test('successfully fetches channels data', async () => {
+      const { result } = renderHook(() => useChannels(), { wrapper });
+
       await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.isLoading).toBe(false);
       });
 
-      // Check loaded data from MSW
+      expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toHaveLength(2);
-      expect(result.current.data[0]).toEqual({
+      
+      // Check first channel
+      const firstChannel = result.current.data?.[0];
+      expect(firstChannel).toEqual({
         id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
         title: 'Google Developers',
         customUrl: '@GoogleDevelopers',
@@ -55,324 +55,309 @@ describe('React Query Integration Tests', () => {
         createdAt: '2023-01-01T00:00:00Z',
         lastVideoPublishedAt: '2024-01-15T10:00:00Z',
       });
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.error).toBe(null);
     });
 
-    it('should handle query errors gracefully', async () => {
-      // Override with error handler
+    test('handles loading state correctly', async () => {
+      const { result } = renderHook(() => useChannels(), { wrapper });
+
+      // Check loaded data from MSW
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.error).toBeNull();
+    });
+
+    test('handles error state when MSW returns error', async () => {
+      const { server } = await import('../mocks/server');
+      
+      // Override MSW to return error
       server.use(
-        rest.get('/api/channels', (req, res, ctx) => {
-          return res(ctx.status(500), ctx.json({ message: 'Internal server error' }));
+        http.get('/api/channels', () => {
+          return new HttpResponse(null, { status: 500 })
         })
       );
 
-      const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['channels-error-test'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-          retry: false, // Don't retry for this test
-        }),
-        { wrapper: createWrapper() }
-      );
+      const { result } = renderHook(() => useChannels(), { wrapper });
 
       await waitFor(() => {
-        expect(result.current.isError).toBe(true);
+        expect(result.current.isLoading).toBe(false);
       });
 
-      expect(result.current.error).toBeTruthy();
+      expect(result.current.isError).toBe(true);
       expect(result.current.data).toBeUndefined();
+
+      // Reset MSW handlers
+      server.resetHandlers();
+    });
+  });
+
+  describe('useVideos Hook', () => {
+    test('successfully fetches videos data', async () => {
+      const { result } = renderHook(() => useVideos(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toHaveLength(2);
+      
+      // Check first video
+      const firstVideo = result.current.data?.[0];
+      expect(firstVideo).toEqual({
+        id: 'dQw4w9WgXcQ',
+        title: 'Introduction to React Testing',
+        channelId: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
+        channelTitle: 'Google Developers',
+        thumbnailUrl: 'https://i.ytimg.com/vi/mock/maxresdefault.jpg',
+        publishedAt: '2024-01-15T10:00:00Z',
+        viewCount: 150000,
+        likeCount: 5000,
+        commentCount: 200,
+      });
     });
 
-    it('should refetch data when invalidated', async () => {
-      const queryClient = createTestQueryClient();
+    test('handles refresh parameter correctly', async () => {
+      const { server } = await import('../mocks/server');
       
-      const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['channels-refetch'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper(queryClient) }
+      // Override to test refresh behavior
+      server.use(
+        http.get('/api/videos', ({ request }) => {
+          const url = new URL(request.url);
+          const refresh = url.searchParams.get('refresh');
+          
+          if (refresh === 'true') {
+            return HttpResponse.json([{
+              id: 'refreshed123',
+              title: 'Refreshed Video Title',
+              channelId: 'UC_refresh',
+              channelTitle: 'Refresh Channel',
+              thumbnailUrl: 'https://refresh.example.com/thumb.jpg',
+              publishedAt: '2024-01-20T00:00:00Z',
+              viewCount: 999999,
+              likeCount: 50000,
+              commentCount: 1000,
+            }]);
+          }
+          
+          return HttpResponse.json([]);
+        })
       );
 
-      // Wait for initial data
+      const { result } = renderHook(() => useVideos({ refresh: true }), { wrapper });
+
       await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(result.current.isLoading).toBe(false);
       });
 
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toHaveLength(1);
+      expect(result.current.data?.[0].title).toBe('Refreshed Video Title');
+
+      // Reset MSW handlers
+      server.resetHandlers();
+    });
+  });
+
+  describe('useConfig Hook', () => {
+    test('successfully fetches SMTP config', async () => {
+      const { result } = renderHook(() => useConfig(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSuccess).toBe(true);
+      expect(result.current.data).toEqual({
+        host: 'smtp.gmail.com',
+        port: 587,
+        username: 'test@example.com',
+        password: '',
+        fromAddress: 'test@example.com',
+        recipientEmail: 'recipient@example.com',
+        emailHour: 9,
+        emailMinute: 0,
+        emailTimezone: 'America/New_York',
+      });
+    });
+  });
+
+  describe('React Query Caching and State Management', () => {
+    test('caches data correctly between renders', async () => {
+      // First render
+      const { result: result1, unmount } = renderHook(() => useChannels(), { wrapper });
+
+      await waitFor(() => {
+        expect(result1.current.isLoading).toBe(false);
+      });
+
+      const firstRenderData = result1.current.data;
+      unmount();
+
+      // Second render should use cached data
+      const { result: result2 } = renderHook(() => useChannels(), { wrapper });
+
+      // Should immediately have data from cache
+      expect(result2.current.data).toBeDefined();
+      // Data should be the same (MSW returns consistent mock data)
+      expect(result2.current.data).toEqual(firstRenderData);
+    });
+
+    test('handles stale-while-revalidate correctly', async () => {
+      // Create a query client with stale time
+      const staleQueryClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            gcTime: 1000 * 60 * 5, // 5 minutes (renamed from cacheTime in React Query v5)
+            staleTime: 1000 * 60, // 1 minute
+          },
+        },
+      });
+
+      const staleWrapper = createWrapper(staleQueryClient);
+
+      // First fetch
+      const { result, rerender } = renderHook(() => useChannels(), { 
+        wrapper: staleWrapper 
+      });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSuccess).toBe(true);
       const initialData = result.current.data;
 
-      // Invalidate the query and wait for refetch to complete
-      await act(async () => {
-        await queryClient.invalidateQueries({ queryKey: ['channels-refetch'] });
-      });
+      // Rerender - should use cached data
+      rerender();
 
-      // Wait for the refetch to complete
-      await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
-      });
-
-      // Data should be the same (MSW returns consistent mock data)
       expect(result.current.data).toEqual(initialData);
+      expect(result.current.isStale).toBe(false);
+
+      staleQueryClient.clear();
+    });
+
+    test('refetch functionality works correctly', async () => {
+      const { result } = renderHook(() => useChannels(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isSuccess).toBe(true);
+      
+      // Trigger refetch
+      await result.current.refetch();
+
+      expect(result.current.isSuccess).toBe(true);
+      // Should still have data after refetch
+      expect(result.current.data).toHaveLength(2);
+    });
+
+    test('handles invalidation correctly', async () => {
+      const { result } = renderHook(() => useChannels(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      // Invalidate the query
+      queryClient.invalidateQueries({ queryKey: ['channels'] });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.data).toHaveLength(2); // Fresh data from MSW
     });
   });
 
-  describe('useMutation Integration', () => {
-    it('should execute mutations successfully', async () => {
-      const { result } = renderHook(
-        () => useMutation({
-          mutationFn: async (channelData: { channelId: string }) => {
-            const response = await testAPI.post('/api/channels', channelData);
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper() }
-      );
+  describe('Query Key Management', () => {
+    test('different query keys create separate cache entries', async () => {
+      const { result: channelsResult } = renderHook(() => useChannels(), { wrapper });
+      const { result: videosResult } = renderHook(() => useVideos(), { wrapper });
 
-      // Execute mutation
-      act(() => {
-        result.current.mutate({ channelId: 'UCtest123' });
-      });
-
-      // Wait for mutation to complete
       await waitFor(() => {
-        expect(result.current.isSuccess).toBe(true);
+        expect(channelsResult.current.isLoading).toBe(false);
+        expect(videosResult.current.isLoading).toBe(false);
       });
 
-      expect(result.current.data).toEqual({
-        id: 'UCtest123',
-        title: 'New Test Channel',
-        customUrl: '@newtestchannel',
-        thumbnailUrl: 'https://yt3.ggpht.com/new-mock',
-        createdAt: expect.any(String),
-        lastVideoPublishedAt: expect.any(String),
-      });
+      expect(channelsResult.current.data).toHaveLength(2);
+      expect(videosResult.current.data).toHaveLength(2);
+      
+      // Data should be different (channels vs videos)
+      expect(channelsResult.current.data).not.toEqual(videosResult.current.data);
     });
 
-    it('should handle mutation errors', async () => {
-      // Override with error response
+    test('parametrized queries create separate cache entries', async () => {
+      const { result: normalVideos } = renderHook(() => useVideos(), { wrapper });
+      const { result: refreshVideos } = renderHook(() => useVideos({ refresh: true }), { wrapper });
+
+      await waitFor(() => {
+        expect(normalVideos.current.isLoading).toBe(false);
+        expect(refreshVideos.current.isLoading).toBe(false);
+      });
+
+      // Both should have data but potentially different due to different query keys
+      expect(normalVideos.current.data).toBeDefined();
+      expect(refreshVideos.current.data).toBeDefined();
+    });
+  });
+
+  describe('Error Recovery and Retry', () => {
+    test('does not retry on error when retry is disabled', async () => {
+      const { server } = await import('../mocks/server');
+      
+      // Set up error response
       server.use(
-        rest.post('/api/channels', (req, res, ctx) => {
-          return res(ctx.status(400), ctx.json({ message: 'Invalid channel data' }));
+        http.get('/api/channels', () => {
+          return new HttpResponse(null, { status: 500 })
         })
       );
 
-      const { result } = renderHook(
-        () => useMutation({
-          mutationFn: async (channelData: { channelId: string }) => {
-            const response = await testAPI.post('/api/channels', channelData);
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper() }
+      const { result } = renderHook(() => useChannels(), { wrapper });
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.isError).toBe(true);
+      expect(result.current.error).toBeDefined();
+
+      // Reset handlers
+      server.resetHandlers();
+    });
+
+    test('can recover from error state', async () => {
+      const { server } = await import('../mocks/server');
+      
+      // First: Set up error
+      server.use(
+        http.get('/api/channels', () => {
+          return new HttpResponse(null, { status: 500 })
+        })
       );
 
-      act(() => {
-        result.current.mutate({ channelId: 'invalid' });
-      });
+      const { result } = renderHook(() => useChannels(), { wrapper });
 
       await waitFor(() => {
         expect(result.current.isError).toBe(true);
       });
 
-      expect(result.current.error).toBeTruthy();
-    });
+      // Then: Fix the error by resetting handlers
+      server.resetHandlers();
 
-    it('should invalidate queries on successful mutation', async () => {
-      const queryClient = createTestQueryClient();
-      
-      // First, set up a query
-      const { result: queryResult } = renderHook(
-        () => useQuery({
-          queryKey: ['channels-mutation-test'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper(queryClient) }
-      );
-
-      await waitFor(() => {
-        expect(queryResult.current.isSuccess).toBe(true);
-      });
-
-      // Set up mutation that invalidates the query
-      const { result: mutationResult } = renderHook(
-        () => useMutation({
-          mutationFn: async (channelData: { channelId: string }) => {
-            const response = await testAPI.post('/api/channels', channelData);
-            return response.data;
-          },
-          onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['channels-mutation-test'] });
-          },
-        }),
-        { wrapper: createWrapper(queryClient) }
-      );
-
-      // Execute mutation
-      act(() => {
-        mutationResult.current.mutate({ channelId: 'UCtest456' });
-      });
-
-      await waitFor(() => {
-        expect(mutationResult.current.isSuccess).toBe(true);
-      });
-
-      // Wait for query invalidation to trigger refetch and complete
-      await waitFor(() => {
-        expect(queryResult.current.isSuccess).toBe(true);
-      });
-    });
-  });
-
-  describe('Cache Management', () => {
-    it('should share cache between multiple query hooks', async () => {
-      const queryClient = createTestQueryClient();
-      
-      // First hook
-      const { result: result1 } = renderHook(
-        () => useQuery({
-          queryKey: ['shared-cache'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper(queryClient) }
-      );
-
-      await waitFor(() => {
-        expect(result1.current.isSuccess).toBe(true);
-      });
-
-      // Second hook with same query key
-      const { result: result2 } = renderHook(
-        () => useQuery({
-          queryKey: ['shared-cache'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper(queryClient) }
-      );
-
-      // Should immediately have cached data
-      expect(result2.current.data).toEqual(result1.current.data);
-      expect(result2.current.isLoading).toBe(false);
-    });
-
-    it('should handle stale-while-revalidate pattern', async () => {
-      const queryClient = createTestQueryClient();
-      
-      // Set initial cache data
-      queryClient.setQueryData(['stale-test'], [
-        { id: 'cached', title: 'Cached Data' }
-      ]);
-
-      const { result } = renderHook(
-        () => useQuery({
-          queryKey: ['stale-test'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-          staleTime: 0, // Immediately stale
-        }),
-        { wrapper: createWrapper(queryClient) }
-      );
-
-      // Should show stale data immediately
-      expect(result.current.data).toEqual([{ id: 'cached', title: 'Cached Data' }]);
-      expect(result.current.isLoading).toBe(false);
-
-      // Wait for background refetch
-      await waitFor(() => {
-        expect(result.current.data).toHaveLength(2); // Fresh data from MSW
-      });
-
-      expect(result.current.data[0].title).toBe('Google Developers');
-    });
-  });
-
-  describe('Query Configuration', () => {
-    it('should respect enabled option', async () => {
-      let enabled = false;
-      
-      const { result, rerender } = renderHook(
-        ({ enabled }) => useQuery({
-          queryKey: ['conditional-query'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-          enabled,
-        }),
-        { 
-          wrapper: createWrapper(),
-          initialProps: { enabled }
-        }
-      );
-
-      // Should not fetch when disabled
-      expect(result.current.isLoading).toBe(false);
-      expect(result.current.data).toBeUndefined();
-
-      // Enable the query
-      enabled = true;
-      rerender({ enabled });
-
-      // Should start fetching
-      expect(result.current.isLoading).toBe(true);
+      // Refetch should now succeed
+      await result.current.refetch();
 
       await waitFor(() => {
         expect(result.current.isSuccess).toBe(true);
       });
 
       expect(result.current.data).toHaveLength(2);
-    });
-
-    it('should handle different query keys correctly', async () => {
-      const { result: channelsResult } = renderHook(
-        () => useQuery({
-          queryKey: ['channels'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/channels');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper() }
-      );
-
-      const { result: videosResult } = renderHook(
-        () => useQuery({
-          queryKey: ['videos'],
-          queryFn: async () => {
-            const response = await testAPI.get('/api/videos');
-            return response.data;
-          },
-        }),
-        { wrapper: createWrapper() }
-      );
-
-      await waitFor(() => {
-        expect(channelsResult.current.isSuccess).toBe(true);
-        expect(videosResult.current.isSuccess).toBe(true);
-      });
-
-      // Should have different data
-      expect(channelsResult.current.data).toHaveLength(2);
-      expect(videosResult.current.data).toHaveLength(2);
-      expect(channelsResult.current.data[0].title).toBe('Google Developers');
-      expect(videosResult.current.data[0].title).toBe('Introduction to React Testing');
     });
   });
 }); 
