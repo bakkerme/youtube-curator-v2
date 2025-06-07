@@ -1,4 +1,4 @@
-import { rest } from 'msw'
+import { http, HttpResponse } from 'msw'
 
 // Mock data
 export const mockChannels = [
@@ -62,13 +62,17 @@ export const mockConfig = {
 // Define handlers
 export const handlers = [
   // Get all channels
-  rest.get('/api/channels', (req, res, ctx) => {
-    return res(ctx.json(mockChannels))
+  http.get('/api/channels', () => {
+    return HttpResponse.json(mockChannels, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
   }),
 
   // Add a channel
-  rest.post('/api/channels', async (req, res, ctx) => {
-    const body = await req.json() as { channelId: string }
+  http.post('/api/channels', async ({ request }) => {
+    const body = await request.json() as { channelId: string }
     const newChannel = {
       id: body.channelId,
       title: 'New Test Channel',
@@ -77,70 +81,70 @@ export const handlers = [
       createdAt: new Date().toISOString(),
       lastVideoPublishedAt: new Date().toISOString(),
     }
-    return res(ctx.status(201), ctx.json(newChannel))
+    return HttpResponse.json(newChannel, { status: 201 })
   }),
 
   // Delete a channel
-  rest.delete('/api/channels/:id', (req, res, ctx) => {
-    return res(ctx.status(204))
+  http.delete('/api/channels/:id', () => {
+    return new HttpResponse(null, { status: 204 })
   }),
 
   // Get videos
-  rest.get('/api/videos', (req, res, ctx) => {
-    const url = new URL(req.url)
+  http.get('/api/videos', ({ request }) => {
+    const url = new URL(request.url)
     const refresh = url.searchParams.get('refresh')
     
     // Simulate refresh behavior
     if (refresh === 'true') {
-      return res(ctx.json({
+      return HttpResponse.json({
         ...mockVideos[0],
         title: 'Refreshed: ' + mockVideos[0].title,
-      }))
+      })
     }
     
-    return res(ctx.json(mockVideos))
+    return HttpResponse.json(mockVideos)
   }),
 
   // Get channel by ID
-  rest.get('/api/channels/search/:id', (req, res, ctx) => {
-    const { id } = req.params
+  http.get('/api/channels/search/:id', ({ params }) => {
+    const { id } = params
     const channel = mockChannels.find(c => c.id === id)
     if (channel) {
-      return res(ctx.json(channel))
+      return HttpResponse.json(channel)
     }
-    return res(ctx.status(404))
+    return new HttpResponse(null, { status: 404 })
   }),
 
   // Import channels
-  rest.post('/api/channels/import', async (req, res, ctx) => {
-    const body = await req.json() as { channels: any[] }
-    return res(ctx.json({
+  http.post('/api/channels/import', async ({ request }) => {
+    const body = await request.json() as { channels: any[] }
+    return HttpResponse.json({
       imported: body.channels.length,
       skipped: 0,
       errors: [],
-    }))
+    })
   }),
 
   // Newsletter actions
-  rest.post('/api/newsletter/run', (req, res, ctx) => {
-    return res(ctx.json({ message: 'Newsletter job started' }))
+  http.post('/api/newsletter/run', () => {
+    return HttpResponse.json({ message: 'Newsletter job started' })
   }),
 
-  rest.post('/api/newsletter/test', (req, res, ctx) => {
-    return res(ctx.json({ message: 'Test email sent successfully' }))
+  http.post('/api/newsletter/test', () => {
+    return HttpResponse.json({ message: 'Test email sent successfully' })
   }),
 
   // Config endpoints
-  rest.get('/api/config/smtp', (req, res, ctx) => {
-    return res(ctx.json(mockConfig.smtp))
+  http.get('/api/config/smtp', () => {
+    return HttpResponse.json(mockConfig.smtp)
   }),
 
-  rest.post('/api/config/smtp', async (req, res, ctx) => {
-    const body = await req.json() as Record<string, any>
-    return res(ctx.json({ ...mockConfig.smtp, ...body }))
+  http.post('/api/config/smtp', async ({ request }) => {
+    const body = await request.json() as Record<string, any>
+    return HttpResponse.json({ ...mockConfig.smtp, ...body })
   }),
 
-  rest.post('/api/config/smtp/test', (req, res, ctx) => {
-    return res(ctx.json({ message: 'Test email sent successfully' }))
+  http.post('/api/config/smtp/test', () => {
+    return HttpResponse.json({ message: 'Test email sent successfully' })
   }),
 ] 
