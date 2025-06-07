@@ -34,3 +34,7 @@ feed_mocks/
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+backend/youtube-curator
+backend/youtube-curator-v2
+backend/tmp/build-errors.log
+backend/tmp/main
