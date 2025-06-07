@@ -22,8 +22,9 @@ RUN GOOS=linux go build -o /app/main .
 # Runtime stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates for HTTPS requests, python3, pip, and yt-dlp
+RUN apk --no-cache add ca-certificates python3 py3-pip ffmpeg && \
+    pip3 install --break-system-packages yt-dlp
 
 # Create app directory
 WORKDIR /app

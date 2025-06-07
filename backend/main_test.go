@@ -35,6 +35,12 @@ func (m *MockChannelProcessor) ProcessChannel(ctx context.Context, channelID str
 	}
 }
 
+func (m *MockChannelProcessor) ProcessChannelWithOptions(ctx context.Context, channelID string, ignoreLastChecked bool, maxItems int) processor.ChannelResult {
+	// For testing purposes, we can use the same logic as ProcessChannel
+	// In a real test, you might want to verify the ignoreLastChecked and maxItems parameters
+	return m.ProcessChannel(ctx, channelID)
+}
+
 // MockEmailSender is a mock implementation of email.Sender for testing
 type MockEmailSender struct {
 	sentEmails []SentEmail

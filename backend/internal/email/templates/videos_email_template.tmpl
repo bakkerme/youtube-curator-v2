@@ -105,6 +105,17 @@
             max-height: 7em; /* 5 lines * 1.4 line-height = 7em */
             overflow: hidden;
         }
+        .video-metadata {
+            color: #4a5568;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            padding: 6px 0;
+            border-top: 1px solid #e2e8f0;
+        }
+        .video-metadata .duration,
+        .video-metadata .tags {
+            font-weight: 500;
+        }
         .cta-button {
             display: inline-block;
             background-color: #e74c3c;
@@ -153,6 +164,13 @@
                 <div class="item-title"><a href="{{.Link.Href}}">{{.Title}}</a></div>
                 {{if .MediaGroup.MediaDescription}}
                     <div class="video-description">{{.MediaGroup.MediaDescription | truncateLines5}}</div>
+                {{end}}
+                {{if or (.Duration) (.Tags)}}
+                    <div class="video-metadata">
+                        {{if .Duration}}<span class="duration">⏱️ {{.Duration | formatDuration}}</span>{{end}}
+                        {{if and (.Duration) (.Tags)}} • {{end}}
+                        {{if .Tags}}<span class="tags">🏷️ {{.Tags | joinTags}}</span>{{end}}
+                    </div>
                 {{end}}
                 <div class="item-footer">
                     Published: {{.Published.Format "Jan 02, 2006 15:04 MST"}}

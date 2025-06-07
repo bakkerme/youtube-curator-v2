@@ -378,7 +378,9 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 
 // RunNewsletterRequest represents a request to manually trigger newsletter run
 type RunNewsletterRequest struct {
-	ChannelID string `json:"channelId,omitempty"`
+	ChannelID         string `json:"channelId,omitempty"`
+	IgnoreLastChecked bool   `json:"ignoreLastChecked,omitempty"`
+	MaxItems          int    `json:"maxItems,omitempty"`
 }
 
 // RunNewsletter handles POST /api/newsletter/run
@@ -393,6 +395,11 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 		if err := rss.ValidateChannelID(req.ChannelID); err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 		}
+	}
+
+	// Validate maxItems if provided
+	if req.MaxItems < 0 {
+		return echo.NewHTTPError(http.StatusBadRequest, "maxItems must be non-negative")
 	}
 
 	ctx := context.Background()
@@ -437,7 +444,7 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 	errorCount := 0
 
 	for _, channel := range channels {
-		result := h.processor.ProcessChannel(ctx, channel.ID)
+		result := h.processor.ProcessChannelWithOptions(ctx, channel.ID, req.IgnoreLastChecked, req.MaxItems)
 
 		if result.Error != nil {
 			errorCount++

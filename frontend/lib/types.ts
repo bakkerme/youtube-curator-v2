@@ -53,6 +53,8 @@ export interface ApiError {
 
 export interface RunNewsletterRequest {
   channelId?: string;
+  ignoreLastChecked?: boolean;
+  maxItems?: number;
 }
 
 export interface RunNewsletterResponse {

@@ -7,6 +7,8 @@ import { Channel, SMTPConfigRequest, SMTPConfigResponse } from '@/lib/types';
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>('all');
+  const [ignoreLastChecked, setIgnoreLastChecked] = useState<boolean>(false);
+  const [maxItems, setMaxItems] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
   const [result, setResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -61,7 +63,17 @@ export default function NotificationsPage() {
     setResult(null);
 
     try {
-      const request = selectedChannel === 'all' ? {} : { channelId: selectedChannel };
+      const request: any = {};
+      if (selectedChannel !== 'all') {
+        request.channelId = selectedChannel;
+      }
+      if (ignoreLastChecked) {
+        request.ignoreLastChecked = true;
+      }
+      if (maxItems > 0) {
+        request.maxItems = maxItems;
+      }
+      
       const response = await newsletterAPI.run(request);
       
       const successMessage = `Newsletter run completed successfully!\nProcessed ${response.channelsProcessed} channel(s), found ${response.newVideosFound} new video(s).\n${response.emailSent ? 'Email sent.' : 'No email sent (no new videos).'}`;
@@ -131,6 +143,21 @@ export default function NotificationsPage() {
                 ))}
               </select>
             </div>
+            <div className="w-32">
+              <label htmlFor="max-items" className="text-sm font-medium mb-2 block">
+                Max Items
+              </label>
+              <input
+                id="max-items"
+                type="number"
+                min="1"
+                value={maxItems}
+                onChange={(e) => setMaxItems(parseInt(e.target.value) || 0)}
+                disabled={isLoading || isLoadingChannels}
+                placeholder="0 (all)"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
             <button
               onClick={handleRunNewsletter}
               disabled={isLoading || isLoadingChannels}
@@ -154,6 +181,25 @@ export default function NotificationsPage() {
                 </>
               )}
             </button>
+            
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="ignore-last-checked"
+              type="checkbox"
+              checked={ignoreLastChecked}
+              onChange={(e) => setIgnoreLastChecked(e.target.checked)}
+              disabled={isLoading || isLoadingChannels}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <label htmlFor="ignore-last-checked" className="text-sm font-medium">
+              Ignore last checked
+            </label>
+          </div>
+
+          <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">
+            <p><strong>Ignore last checked:</strong> When enabled, this will process all videos in the RSS feed regardless of when they were last checked. This is useful for debugging and testing to see all available videos.</p>
+            <p><strong>Max Items:</strong> Limits the number of new videos to process per channel. Set to 0 to process all new videos. This can help reduce processing time for channels with many videos.</p>
           </div>
 
           {result && (

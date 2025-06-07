@@ -35,6 +35,12 @@ type Entry struct {
 	Content    string     `xml:"content" json:"content"`
 	Author     Author     `xml:"author" json:"author"`
 	MediaGroup MediaGroup `xml:"http://search.yahoo.com/mrss/ group" json:"mediaGroup"` // Field to store media group information
+
+	// Enhanced metadata from yt-dlp (optional fields)
+	Duration      int      `json:"duration,omitempty"`      // Duration in seconds
+	Tags          []string `json:"tags,omitempty"`          // Video tags
+	TopComments   []string `json:"topComments,omitempty"`   // Top comments
+	AutoSubtitles string   `json:"autoSubtitles,omitempty"` // Auto-generated English subtitles
 }
 
 // Author represents the author element in RSS feeds
