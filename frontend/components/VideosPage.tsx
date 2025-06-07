@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCw } from 'lucide-react';
 import { videoAPI, channelAPI } from '@/lib/api';
-import { VideoEntry, Channel } from '@/lib/types';
+import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
 import Pagination from '@/components/Pagination';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -21,6 +21,7 @@ export default function VideosPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showTodayOnly, setShowTodayOnly] = useState(true);
+  const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
@@ -39,16 +40,31 @@ export default function VideosPage() {
         channelAPI.getAll()
       ]);
 
-      if (videosData && videosData.length > 0) {
-          setVideos(videosData);
+      if (videosData && videosData.videos && videosData.videos.length > 0) {
+        setVideos(videosData.videos);
+      } else if (refresh) {
+        // If refreshing and no videos came back, it could be that all videos expired
+        // or there are genuinely no videos for any channel.
+        // Keep existing videos in this case unless it's an initial load.
+        // If it's an initial load and no videos, videos will be an empty array.
+        if (videos.length > 0 && !loading) { // only clear if not initial load
+             // Keep stale data on refresh error
+        } else {
+            setVideos([]);
+        }
       }
 
+
       if (channelsData && channelsData.length > 0) {
-          setChannels(channelsData);
+        setChannels(channelsData);
+      }
+
+      if (videosData && videosData.lastRefreshedAt) {
+        setLastApiRefreshTimestamp(videosData.lastRefreshedAt);
       }
       setError(null);
     } catch (err) {
-      console.error(err);
+      console.error("Error in loadData:",err);
       setError(err instanceof Error ? err.message : 'Failed to load videos');
     } finally {
       setLoading(false);
@@ -63,8 +79,79 @@ export default function VideosPage() {
 
   // Handle refresh button click
   const handleRefresh = () => {
+    // Clear lastApiRefreshTimestamp to ensure the refresh check logic
+    // doesn't immediately re-trigger if the day hasn't changed yet
+    // but we want a manual refresh.
+    // Or, more simply, loadData(true) will fetch new data and update it.
     loadData(true);
   };
+
+  // Auto-refresh logic
+  useEffect(() => {
+    const checkAndRefreshIfNeeded = () => {
+      if (loading || refreshing || !lastApiRefreshTimestamp) {
+        console.log('Auto-refresh check: Skipping due to loading, refreshing, or no timestamp.');
+        return;
+      }
+
+      try {
+        const lastRefreshDate = new Date(lastApiRefreshTimestamp);
+        const currentDate = new Date();
+
+        // Normalize to compare dates only (YYYY-MM-DD)
+        const lastRefreshDay = new Date(lastRefreshDate.getFullYear(), lastRefreshDate.getMonth(), lastRefreshDate.getDate());
+        const currentDay = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+
+        console.log(`Auto-refresh check: Last refresh on ${lastRefreshDay.toDateString()}, current day is ${currentDay.toDateString()}`);
+
+        if (currentDay.getTime() > lastRefreshDay.getTime()) {
+          console.log('Auto-refresh: Day has changed since last API refresh.');
+
+          const hasVideosForNewDay = videos.some(video => {
+            const videoPublishedDate = new Date(video.entry.published);
+            const videoDay = new Date(videoPublishedDate.getFullYear(), videoPublishedDate.getMonth(), videoPublishedDate.getDate());
+            return videoDay.getTime() === currentDay.getTime();
+          });
+
+          if (!hasVideosForNewDay) {
+            console.log('Auto-refresh: No videos found for the new current day. Triggering refresh.');
+            handleRefresh();
+          } else {
+            console.log('Auto-refresh: Videos already exist for the new current day. No refresh needed.');
+          }
+        } else {
+          console.log('Auto-refresh: Still the same day as last API refresh. No refresh needed based on day change.');
+        }
+      } catch (e) {
+        console.error("Error during auto-refresh check:", e);
+      }
+    };
+
+    // Initial check
+    checkAndRefreshIfNeeded();
+
+    // Check when tab becomes visible
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Auto-refresh: Tab became visible. Checking for refresh.');
+        checkAndRefreshIfNeeded();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Periodic check interval (e.g., every 1 minute)
+    const intervalId = setInterval(() => {
+      console.log('Auto-refresh: Interval check.');
+      checkAndRefreshIfNeeded();
+    }, 60 * 1000); // 1 minute
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(intervalId);
+      console.log('Auto-refresh: Cleaned up visibility listener and interval.');
+    };
+  }, [lastApiRefreshTimestamp, videos, loading, refreshing]); // Added loading and refreshing to deps
 
   // Filter videos based on search and today filter
   const filteredVideos = useMemo(() => {
