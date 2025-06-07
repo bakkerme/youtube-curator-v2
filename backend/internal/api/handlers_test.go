@@ -53,6 +53,10 @@ func (m *MockChannelProcessor) ProcessChannel(ctx context.Context, channelID str
 	return processor.ChannelResult{ChannelID: channelID}
 }
 
+func (m *MockChannelProcessor) ProcessChannelWithOptions(ctx context.Context, channelID string, ignoreLastChecked bool, maxItems int) processor.ChannelResult {
+	return processor.ChannelResult{ChannelID: channelID}
+}
+
 func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 	// Setup
 	ctrl := gomock.NewController(t)

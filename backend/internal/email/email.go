@@ -106,6 +106,30 @@ func FormatNewVideosEmail(videos []rss.Entry) (string, error) {
 			truncated := strings.Join(lines[:5], "\n")
 			return truncated + "..."
 		},
+		"formatDuration": func(seconds int) string {
+			if seconds <= 0 {
+				return ""
+			}
+			minutes := seconds / 60
+			remainingSeconds := seconds % 60
+			if minutes >= 60 {
+				hours := minutes / 60
+				minutes = minutes % 60
+				return fmt.Sprintf("%d:%02d:%02d", hours, minutes, remainingSeconds)
+			}
+			return fmt.Sprintf("%d:%02d", minutes, remainingSeconds)
+		},
+		"joinTags": func(tags []string) string {
+			if len(tags) == 0 {
+				return ""
+			}
+			// Limit to first 5 tags for email
+			displayTags := tags
+			if len(tags) > 5 {
+				displayTags = tags[:5]
+			}
+			return strings.Join(displayTags, ", ")
+		},
 	}
 
 	t, err := template.New("newVideosEmail").Funcs(funcMap).Parse(string(tmplContent))

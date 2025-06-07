@@ -283,6 +283,34 @@ paths:
                   description: Optional YouTube channel ID to trigger the newsletter run for a specific channel.
                   pattern: '^UC[a-zA-Z0-9_-]{22}$'
                   example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                ignoreLastChecked:
+                  type: boolean
+                  description: When true, ignores the last checked timestamp and processes all videos in the RSS feed. Useful for debugging and testing.
+                  default: false
+                  example: false
+                maxItems:
+                  type: integer
+                  description: Optional maximum number of new videos to process per channel. When set to 0 or omitted, all videos are processed. Values greater than 0 will stop processing once the limit is reached.
+                  minimum: 0
+                  default: 0
+                  example: 10
+            examples:
+              basic_run:
+                summary: Basic newsletter run
+                value: {}
+              specific_channel:
+                summary: Run for specific channel only
+                value:
+                  channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+              debug_mode:
+                summary: Debug mode - ignore last checked timestamps
+                value:
+                  ignoreLastChecked: true
+                  maxItems: 5
+              limited_processing:
+                summary: Limit processing to 10 new videos per channel
+                value:
+                  maxItems: 10
       responses:
         '200':
           description: Newsletter run triggered successfully

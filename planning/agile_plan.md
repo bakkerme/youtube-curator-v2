@@ -110,7 +110,7 @@ The goal of this iteration is to provide a user interface to view all fetched vi
 *   Create reusable React components for video cards, search input, and pagination controls, including the "Today" filter button.
 *   Implement frontend logic to interact with the backend video API, handling search queries and page changes.
 
-## 7.  Robustness, Error Handling, and Initial Sync (DONE)
+## 7. Iteration 6:  Robustness, Error Handling, and Initial Sync (DONE)
 
 Improve the system's reliability, add necessary logging and monitoring, and define/implement the initial sync behavior for new channels.
 
@@ -131,7 +131,7 @@ Improve the system's reliability, add necessary logging and monitoring, and defi
 *   Modify the video identification logic to respect the initial sync strategy.
 *   Implement retry logic with exponential backoff for RSS feed fetching errors.
 
-## 8. yt-dlp Integration for Enhanced Metadata and Comments
+## 8. Iteration 7: yt-dlp Integration for Enhanced Metadata and Comments
 
 Integrate yt-dlp to augment existing RSS feed data with richer video metadata, comments, and subtitles for future AI analysis.
 
