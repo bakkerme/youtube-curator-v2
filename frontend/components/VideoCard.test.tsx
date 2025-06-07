@@ -8,8 +8,10 @@ import { formatDistanceToNow } from 'date-fns'
 jest.mock('next/image', () => ({
   __esModule: true,
   default: (props: any) => {
+    // Filter out Next.js specific props that don't belong on img elements
+    const { fill, ...imgProps } = props
     // eslint-disable-next-line @next/next/no-img-element
-    return <img {...props} />
+    return <img {...imgProps} />
   },
 }))
 
