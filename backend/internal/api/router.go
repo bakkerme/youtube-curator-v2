@@ -12,7 +12,7 @@ import (
 )
 
 // SetupRouter creates and configures the Echo router with all API endpoints
-func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor) *echo.Echo {
+func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor, videoStore *store.VideoStore) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -21,7 +21,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	e.Use(middleware.CORS())
 
 	// Create handlers
-	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor)
+	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore)
 
 	// API routes
 	api := e.Group("/api")
@@ -40,6 +40,9 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 
 	// Newsletter endpoints
 	api.POST("/newsletter/run", handlers.RunNewsletter)
+
+	// Video endpoints
+	api.GET("/videos", handlers.GetVideos)
 
 	return e
 }

@@ -27,13 +27,15 @@ type ChannelProcessor interface {
 type DefaultChannelProcessor struct {
 	db           store.Store
 	feedProvider rss.FeedProvider
+	videoStore   *store.VideoStore
 }
 
 // NewDefaultChannelProcessor creates a new instance of DefaultChannelProcessor
-func NewDefaultChannelProcessor(db store.Store, feedProvider rss.FeedProvider) *DefaultChannelProcessor {
+func NewDefaultChannelProcessor(db store.Store, feedProvider rss.FeedProvider, videoStore *store.VideoStore) *DefaultChannelProcessor {
 	return &DefaultChannelProcessor{
 		db:           db,
 		feedProvider: feedProvider,
+		videoStore:   videoStore,
 	}
 }
 
@@ -61,6 +63,11 @@ func (p *DefaultChannelProcessor) ProcessChannel(ctx context.Context, channelID 
 	latestTimestampThisRun := lastCheckedTimestamp // Keep track of the latest timestamp for DB update
 
 	for _, entry := range feed.Entries {
+		// Store all videos in the video store (not just new ones)
+		if p.videoStore != nil {
+			p.videoStore.AddVideo(channelID, entry)
+		}
+
 		// Check if the video is newer than the last checked timestamp
 		if entry.Published.After(lastCheckedTimestamp) {
 			// If this is the first new video found for this channel, or it's newer than the current latest

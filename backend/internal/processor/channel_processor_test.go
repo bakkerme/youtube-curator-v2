@@ -40,7 +40,8 @@ func TestProcessChannel_NoNewVideos(t *testing.T) {
 	defer ctrl.Finish()
 	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
-	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
+	videoStore := store.NewVideoStore(1 * time.Hour)
+	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider, videoStore)
 
 	channelID := "test-channel-1"
 	lastChecked := time.Now().Add(-24 * time.Hour)
@@ -83,7 +84,8 @@ func TestProcessChannel_WithNewVideos(t *testing.T) {
 	defer ctrl.Finish()
 	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
-	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
+	videoStore := store.NewVideoStore(1 * time.Hour)
+	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider, videoStore)
 
 	channelID := "test-channel-2"
 	lastChecked := time.Now().Add(-24 * time.Hour)
@@ -143,7 +145,8 @@ func TestProcessChannel_FeedProviderError(t *testing.T) {
 	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
 	mockFeedProvider.err = errors.New("network error")
-	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
+	videoStore := store.NewVideoStore(1 * time.Hour)
+	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider, videoStore)
 
 	channelID := "test-channel-3"
 
@@ -167,7 +170,8 @@ func TestProcessChannel_FirstTimeCheck(t *testing.T) {
 	defer ctrl.Finish()
 	mockStore := store.NewMockStore(ctrl)
 	mockFeedProvider := NewMockFeedProvider()
-	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider)
+	videoStore := store.NewVideoStore(1 * time.Hour)
+	processor := NewDefaultChannelProcessor(mockStore, mockFeedProvider, videoStore)
 
 	channelID := "new-channel"
 	// Don't set any last checked timestamp - simulating first time

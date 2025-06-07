@@ -318,6 +318,68 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /videos:
+    get:
+      summary: Get all videos
+      description: |
+        Retrieve all videos from the video store. Videos are sorted by published date (newest first).
+        
+        By default, returns cached videos. Use the `refresh=true` query parameter to fetch the latest 
+        videos from all subscribed channels' RSS feeds.
+      tags:
+        - Videos
+      parameters:
+        - name: refresh
+          in: query
+          required: false
+          description: |
+            When set to true, fetches fresh video data from RSS feeds instead of returning cached data.
+            This will get the most recent video from each subscribed channel.
+          schema:
+            type: boolean
+            default: false
+          example: true
+      responses:
+        '200':
+          description: Successfully retrieved videos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VideoEntry'
+              example:
+                - entry:
+                    title: "Amazing Video Title"
+                    link:
+                      Href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                      Rel: "alternate"
+                    id: "yt:video:dQw4w9WgXcQ"
+                    published: "2024-01-15T10:30:00Z"
+                    content: "Video description content here"
+                    author:
+                      name: "Channel Name"
+                      uri: "https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw"
+                    mediaGroup:
+                      mediaThumbnail:
+                        URL: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+                        Width: "480"
+                        Height: "360"
+                      mediaTitle: "Amazing Video Title"
+                      mediaContent:
+                        URL: "https://www.youtube.com/v/dQw4w9WgXcQ?version=3"
+                        Type: "application/x-shockwave-flash"
+                        Width: "640"
+                        Height: "390"
+                      mediaDescription: "Video description content here"
+                  channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                  cachedAt: "2024-01-15T10:35:00Z"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
@@ -437,10 +499,163 @@ components:
           description: The reason the channel failed to import
           example: "invalid channel ID format"
 
+    VideoEntry:
+      type: object
+      required:
+        - entry
+        - channelId
+        - cachedAt
+      properties:
+        entry:
+          $ref: '#/components/schemas/Video'
+        channelId:
+          type: string
+          description: YouTube channel ID
+          pattern: '^UC[a-zA-Z0-9_-]{22}$'
+          example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+        cachedAt:
+          type: string
+          description: Timestamp when the video was cached
+          format: date-time
+          example: "2024-01-15T10:35:00Z"
+
+    Video:
+      type: object
+      required:
+        - title
+        - link
+        - id
+        - published
+        - content
+        - author
+        - mediaGroup
+      properties:
+        title:
+          type: string
+          description: Video title
+          example: "Amazing Video Title"
+        link:
+          $ref: '#/components/schemas/VideoLink'
+        id:
+          type: string
+          description: Video ID
+          example: "yt:video:dQw4w9WgXcQ"
+        published:
+          type: string
+          description: Video publication date
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+        content:
+          type: string
+          description: Video description content
+          example: "Video description content here"
+        author:
+          $ref: '#/components/schemas/VideoAuthor'
+        mediaGroup:
+          $ref: '#/components/schemas/VideoMediaGroup'
+
+    VideoLink:
+      type: object
+      required:
+        - Href
+        - Rel
+      properties:
+        Href:
+          type: string
+          description: Video URL
+          example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        Rel:
+          type: string
+          description: Link relation type
+          example: "alternate"
+
+    VideoAuthor:
+      type: object
+      required:
+        - name
+        - uri
+      properties:
+        name:
+          type: string
+          description: Video author name
+          example: "Channel Name"
+        uri:
+          type: string
+          description: Video author URI
+          example: "https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw"
+
+    VideoMediaGroup:
+      type: object
+      required:
+        - mediaThumbnail
+        - mediaTitle
+        - mediaContent
+        - mediaDescription
+      properties:
+        mediaThumbnail:
+          $ref: '#/components/schemas/VideoMediaThumbnail'
+        mediaTitle:
+          type: string
+          description: Video title
+          example: "Amazing Video Title"
+        mediaContent:
+          $ref: '#/components/schemas/VideoMediaContent'
+        mediaDescription:
+          type: string
+          description: Video description
+          example: "Video description content here"
+
+    VideoMediaThumbnail:
+      type: object
+      required:
+        - URL
+        - Width
+        - Height
+      properties:
+        URL:
+          type: string
+          description: Video thumbnail URL
+          example: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+        Width:
+          type: string
+          description: Video thumbnail width
+          example: "480"
+        Height:
+          type: string
+          description: Video thumbnail height
+          example: "360"
+
+    VideoMediaContent:
+      type: object
+      required:
+        - URL
+        - Type
+        - Width
+        - Height
+      properties:
+        URL:
+          type: string
+          description: Video content URL
+          example: "https://www.youtube.com/v/dQw4w9WgXcQ?version=3"
+        Type:
+          type: string
+          description: Video content type
+          example: "application/x-shockwave-flash"
+        Width:
+          type: string
+          description: Video content width
+          example: "640"
+        Height:
+          type: string
+          description: Video content height
+          example: "390"
+
 tags:
   - name: Channels
     description: Operations for managing YouTube channel subscriptions
   - name: Configuration
     description: Operations for configuring the monitoring settings 
   - name: Newsletter
-    description: Operations for managing and triggering newsletter functions 
+    description: Operations for managing and triggering newsletter functions
+  - name: Videos
+    description: Operations for managing and retrieving video data 

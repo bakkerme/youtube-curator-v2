@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"youtube-curator-v2/internal/api"
 	"youtube-curator-v2/internal/config"
@@ -49,8 +50,11 @@ func main() {
 		feedProvider = rss.NewFeedProvider()
 	}
 
+	// Create video store with 24 hour TTL
+	videoStore := store.NewVideoStore(24 * time.Hour)
+
 	// Create the channel processor
-	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider)
+	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider, videoStore)
 
 	// Create email sender with SMTP settings from database
 	smtpConfig, err := db.GetSMTPConfig()
@@ -70,7 +74,7 @@ func main() {
 	if cfg.EnableAPI {
 		go func() {
 			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
-			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor)
+			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore)
 			if err := e.Start(":" + cfg.APIPort); err != nil {
 				log.Printf("API server error: %v", err)
 			}

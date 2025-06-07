@@ -50,11 +50,11 @@ The goal of this iteration is to package the MVP into a Docker container for eas
 *   Write basic documentation for building and running the Docker container.
 *   Verify the MVP runs correctly within the Docker container.
 
-## 4. Iteration 3: User Configuration & Basic Channel UI
+## 4. Iteration 3: User Configuration & Basic Channel UI  (DONE)
 
 The goal of this iteration is to enable users to configure channels and the check interval via a basic web UI, persisting these settings.
 
-**Definition of Done for Iteration 3:** (DONE)
+**Definition of Done for Iteration 3:**
 
 *   Backend API endpoints exist for adding, listing, and removing channels.
 *   Backend API endpoints exist for setting and retrieving the check interval.
@@ -87,11 +87,33 @@ This iteration focuses on adding the UI and backend logic for users to configure
 *   Implement frontend logic to interact with the backend SMTP API.
 *   Modify the email sender module to read SMTP details from BadgerDB.
 
-## 5. Iteration 5: Robustness, Error Handling, and Initial Sync
+## 5. Iteration 5: Latest Videos UI and Search
+
+The goal of this iteration is to provide a user interface to view all fetched videos from subscribed channels, with search and pagination capabilities.
+
+**Definition of Done for Iteration 5:**
+
+*   Backend API endpoint exists to retrieve a paginated and searchable list of all videos from subscribed channels.
+*   BadgerDB schema updated to store video metadata (title, link, published date, channel) for display.
+*   Frontend page/component created to display a grid or list of videos, as per the provided UI concept.
+*   Frontend implements search functionality to filter videos by title or channel, and a filter for "Today" videos.
+*   Frontend implements pagination for navigating through the video list.
+*   Frontend communicates with the new backend API to fetch and display video metadata.
+
+**Key Tasks for Iteration 5:**
+
+*   Define and implement backend API routes using Echo for video metadata retrieval, including support for filtering by "Today" and pagination.
+*   Modify the RSS processing logic to persist comprehensive video metadata (including thumbnail URLs and descriptions) in BadgerDB.
+*   Implement search and pagination logic via the frontend
+*   Develop the Next.js frontend page/component for video display (e.g., `pages/videos.tsx`).
+*   Create reusable React components for video cards, search input, and pagination controls, including the "Today" filter button.
+*   Implement frontend logic to interact with the backend video API, handling search queries and page changes.
+
+## 6. Iteration 6: Robustness, Error Handling, and Initial Sync
 
 Improve the system's reliability, add necessary logging and monitoring, and define/implement the initial sync behavior for new channels.
 
-**Definition of Done for Iteration 5:**
+**Definition of Done for Iteration 6:**
 
 *   Comprehensive error handling implemented for RSS fetching, parsing, database operations, and email sending.
 *   Structured logging implemented throughout the application.
@@ -99,7 +121,7 @@ Improve the system's reliability, add necessary logging and monitoring, and defi
 *   Initial sync strategy for newly added channels is defined and implemented (e.g., only notify for videos *after* addition).
 *   Graceful handling of RSS feed limitations and potential rate limits implemented (e.g., retries, backoff).
 
-**Key Tasks for Iteration 5:**
+**Key Tasks for Iteration 6:**
 
 *   Add detailed error handling and propagation in backend modules.
 *   Integrate a structured logging library (if not using standard library) and add logs at key points.
@@ -108,7 +130,7 @@ Improve the system's reliability, add necessary logging and monitoring, and defi
 *   Modify the video identification logic to respect the initial sync strategy.
 *   Implement retry logic with exponential backoff for RSS feed fetching errors.
 
-## 6. Future Iterations & Backlog
+## 7. Future Iterations & Backlog
 
 Features and improvements beyond the initial shippable product increments:
 
@@ -117,4 +139,5 @@ Features and improvements beyond the initial shippable product increments:
 *   Email Content Customization.
 *   Import/Export Channel List.
 *   More advanced UI Enhancements (searching, filtering, grouping).
+*   Video Viewing Status Tracking (Continue Watching/Unwatched).
 *   Watch Page (embedding video into a web page). 

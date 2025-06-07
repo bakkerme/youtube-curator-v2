@@ -23,16 +23,18 @@ type Handlers struct {
 	emailSender  email.Sender
 	config       *config.Config
 	processor    processor.ChannelProcessor
+	videoStore   *store.VideoStore
 }
 
 // NewHandlers creates a new instance of API handlers
-func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor) *Handlers {
+func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore) *Handlers {
 	return &Handlers{
 		store:        store,
 		feedProvider: feedProvider,
 		emailSender:  emailSender,
 		config:       cfg,
 		processor:    processor,
+		videoStore:   videoStore,
 	}
 }
 
@@ -485,4 +487,53 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 	}
 
 	return c.JSON(http.StatusOK, response)
+}
+
+// GetVideos handles GET /api/videos - returns all videos from the video store
+func (h *Handlers) GetVideos(c echo.Context) error {
+	if h.videoStore == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Video store not initialized")
+	}
+
+	// Check for refresh parameter
+	refresh := c.QueryParam("refresh") == "true"
+
+	// Get current cached videos
+	videos := h.videoStore.GetAllVideos()
+
+	// If no cached videos or refresh requested, fetch from channels
+	if len(videos) == 0 || refresh {
+		ctx := context.Background()
+
+		// Get all channels
+		channels, err := h.store.GetChannels()
+		if err != nil {
+			return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve channels")
+		}
+
+		// Fetch most recent video from each channel
+		for _, channel := range channels {
+			feed, err := h.feedProvider.FetchFeed(ctx, channel.ID)
+			if err != nil {
+				// Continue with other channels if one fails
+				continue
+			}
+
+			// Get the most recent video (first entry)
+			if len(feed.Entries) > 0 {
+				mostRecentVideo := feed.Entries[0]
+				h.videoStore.AddVideo(channel.ID, mostRecentVideo)
+			}
+		}
+
+		// Get updated videos after fetching
+		videos = h.videoStore.GetAllVideos()
+	}
+
+	// Sort videos by published date (newest first)
+	sort.Slice(videos, func(i, j int) bool {
+		return videos[i].Entry.Published.After(videos[j].Entry.Published)
+	})
+
+	return c.JSON(http.StatusOK, videos)
 }
