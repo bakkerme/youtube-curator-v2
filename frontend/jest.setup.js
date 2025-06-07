@@ -1,7 +1,9 @@
 // Learn more: https://github.com/testing-library/jest-dom
 import '@testing-library/jest-dom'
 
-// Temporarily disable MSW to test basic setup
+// TODO: Re-enable MSW configuration once basic setup testing is complete.
+// The MSW (Mock Service Worker) setup is temporarily disabled to test the basic setup.
+// Uncomment the following lines to restore API mocking functionality when needed.
 // import { server } from './lib/mocks/server'
 // 
 // // Establish API mocking before all tests.
