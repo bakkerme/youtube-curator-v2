@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { newsletterAPI, channelAPI, configAPI } from '@/lib/api';
-import { Channel, SMTPConfigRequest, SMTPConfigResponse } from '@/lib/types';
+import { Channel, SMTPConfigRequest, SMTPConfigResponse, RunNewsletterRequest } from '@/lib/types';
 
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -63,7 +63,7 @@ export default function NotificationsPage() {
     setResult(null);
 
     try {
-      const request: any = {};
+      const request: RunNewsletterRequest = {};
       if (selectedChannel !== 'all') {
         request.channelId = selectedChannel;
       }
