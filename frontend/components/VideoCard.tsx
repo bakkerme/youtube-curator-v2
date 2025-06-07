@@ -9,8 +9,6 @@ interface VideoCardProps {
 
 export default function VideoCard({ video, channels }: VideoCardProps) {
   const { entry, channelId } = video;
-
-  console.log(video);
   
   // Find the channel title
   const channel = channels.find(c => c.id === channelId);
