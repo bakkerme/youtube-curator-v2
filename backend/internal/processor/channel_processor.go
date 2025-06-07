@@ -71,7 +71,7 @@ func (p *DefaultChannelProcessor) ProcessChannelWithOptions(ctx context.Context,
 
 	// If ignoreLastChecked is true, treat as if no previous check occurred
 	if ignoreLastChecked {
-		fmt.Printf("Ignoring last checked timestamp for channel ID %s (debug mode)\n", channelID)
+		log.Printf("Ignoring last checked timestamp for channel ID %s (debug mode)\n", channelID)
 		lastCheckedTimestamp = time.Time{}
 	}
 
