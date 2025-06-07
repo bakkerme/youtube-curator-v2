@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, RefreshCw } from 'lucide-react';
+import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
 import { videoAPI, channelAPI } from '@/lib/api';
 import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
@@ -20,11 +20,22 @@ export default function VideosPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showTodayOnly, setShowTodayOnly] = useState(true);
+  const [filterMode, setFilterMode] = useState<'all' | 'today' | 'perDay'>('today');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+
+  const handleFilterModeChange = () => {
+    if (filterMode === 'today') {
+      setFilterMode('perDay');
+    } else if (filterMode === 'perDay') {
+      setFilterMode('all');
+    } else {
+      setFilterMode('today');
+    }
+  };
 
   // Load data function
   const loadData = async (refresh = false) => {
@@ -155,12 +166,51 @@ export default function VideosPage() {
 
   // Filter videos based on search and today filter
   const filteredVideos = useMemo(() => {
-    let filtered = videos;
+    let dateFilteredVideos = videos;
 
+    const normalizeDate = (date: Date): Date => {
+      const newDate = new Date(date);
+      newDate.setHours(0, 0, 0, 0);
+      return newDate;
+    };
+
+    // Apply date filtering based on filterMode
+    if (filterMode === 'today') {
+      const todayNormalized = normalizeDate(new Date());
+      dateFilteredVideos = dateFilteredVideos.filter(video => {
+        const videoDate = new Date(video.entry.published);
+        return normalizeDate(videoDate).getTime() === todayNormalized.getTime();
+      });
+    } else if (filterMode === 'perDay') {
+      if (selectedDate) {
+        try {
+          // selectedDate is YYYY-MM-DD. Need to parse it correctly.
+          // Appending T00:00:00 to ensure it's parsed as local time, not UTC.
+          const perDayDate = new Date(selectedDate + 'T00:00:00');
+          if (isNaN(perDayDate.getTime())) {
+            // Handle invalid date string if necessary, though input type="date" helps
+            console.warn("Invalid selectedDate:", selectedDate);
+            // Potentially show all videos or an error state for this case
+          } else {
+            const perDayNormalized = normalizeDate(perDayDate);
+            dateFilteredVideos = dateFilteredVideos.filter(video => {
+              const videoDate = new Date(video.entry.published);
+              return normalizeDate(videoDate).getTime() === perDayNormalized.getTime();
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing selectedDate:", e);
+          // Fallback or error handling
+        }
+      }
+    }
+    // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'videos'.
+
+    let searchFilteredVideos = dateFilteredVideos;
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(video => {
+      searchFilteredVideos = dateFilteredVideos.filter(video => {
         const title = video.entry.title.toLowerCase();
         const channel = channels.find(c => c.id === video.channelId);
         const channelTitle = channel?.title.toLowerCase() || '';
@@ -168,23 +218,12 @@ export default function VideosPage() {
       });
     }
 
-    // Apply today filter
-    if (showTodayOnly) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(video => {
-        const videoDate = new Date(video.entry.published);
-        videoDate.setHours(0, 0, 0, 0);
-        return videoDate.getTime() === today.getTime();
-      });
-    }
-
-    if (!filtered || filtered.length === 0) {
+    if (!searchFilteredVideos || searchFilteredVideos.length === 0) {
         return [];
     }
 
-    return filtered;
-  }, [videos, channels, searchQuery, showTodayOnly]);
+    return searchFilteredVideos;
+  }, [videos, channels, searchQuery, filterMode, selectedDate]);
 
   // Calculate pagination
   const totalPages = filteredVideos.length > 0 ? Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE) : 1;
@@ -249,18 +288,35 @@ export default function VideosPage() {
           />
         </div>
 
-        {/* Today Filter */}
-        <button
-          onClick={() => setShowTodayOnly(!showTodayOnly)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-            showTodayOnly
-              ? 'bg-red-600 text-white border-red-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          Today
-        </button>
+        {/* Filter Controls Container */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={handleFilterModeChange}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
+              (filterMode === 'today' || filterMode === 'perDay')
+                ? 'bg-red-600 text-white border-red-600' // Active style for 'today' and 'perDay'
+                : filterMode === 'all'
+                  ? 'bg-blue-600 text-white border-blue-600' // Active style for 'all' (example: blue)
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700' // Default
+            }`}
+          >
+            {filterMode === 'today' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'perDay' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'all' && <List className="w-4 h-4" />}
+            {filterMode === 'today' ? 'Today' : filterMode === 'perDay' ? 'Per Day' : 'All Videos'}
+          </button>
+
+          {filterMode === 'perDay' && (
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              // Optional: Add max date to prevent selecting future dates if needed
+              // max={new Date().toISOString().split('T')[0]}
+            />
+          )}
+        </div>
 
         {/* Refresh Button */}
         <button
