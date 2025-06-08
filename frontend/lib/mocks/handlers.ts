@@ -117,7 +117,7 @@ export const handlers = [
 
   // Import channels
   http.post('/api/channels/import', async ({ request }) => {
-    const body = await request.json() as { channels: any[] }
+    const body = await request.json() as { channels: Array<{ id: string; title?: string }> }
     return HttpResponse.json({
       imported: body.channels.length,
       skipped: 0,
@@ -140,7 +140,7 @@ export const handlers = [
   }),
 
   http.post('/api/config/smtp', async ({ request }) => {
-    const body = await request.json() as Record<string, any>
+    const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({ ...mockConfig.smtp, ...body })
   }),
 

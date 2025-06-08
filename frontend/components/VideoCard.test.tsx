@@ -7,11 +7,12 @@ import { formatDistanceToNow } from 'date-fns'
 // Mock next/image since it has specific requirements in tests
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: any) => {
+  default: (props: { src: string; alt: string; width?: number; height?: number; className?: string; fill?: boolean }) => {
     // Filter out Next.js specific props that don't belong on img elements
-    const { fill, ...imgProps } = props
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { fill: _fill, ...imgProps } = props
     // eslint-disable-next-line @next/next/no-img-element
-    return <img {...imgProps} />
+    return <img {...imgProps} alt={props.alt || ''} />
   },
 }))
 

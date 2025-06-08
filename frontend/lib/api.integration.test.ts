@@ -15,7 +15,7 @@ const apiClient = {
     return { status: response.status, data };
   },
   
-  async post(url: string, body?: any) {
+  async post(url: string, body?: Record<string, unknown>) {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -170,7 +170,7 @@ describe('Error Handling', () => {
     try {
       await apiClient.get('/api/nonexistent-endpoint');
       fail('Should have thrown an error');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // With fetch, network errors will be different than axios
       expect(error).toBeDefined();
     }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { newsletterAPI, channelAPI, configAPI } from '@/lib/api';
-import { Channel, SMTPConfigRequest, SMTPConfigResponse, RunNewsletterRequest } from '@/lib/types';
+import { Channel, SMTPConfigRequest, RunNewsletterRequest } from '@/lib/types';
 
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -79,10 +79,10 @@ export default function NotificationsPage() {
       const successMessage = `Newsletter run completed successfully!\nProcessed ${response.channelsProcessed} channel(s), found ${response.newVideosFound} new video(s).\n${response.emailSent ? 'Email sent.' : 'No email sent (no new videos).'}`;
       
       setResult({ type: 'success', message: successMessage });
-    } catch (error: any) {
+    } catch (error) {
       setResult({ 
         type: 'error', 
-        message: error.message || 'Failed to run newsletter' 
+        message: error instanceof Error ? error.message : 'Failed to run newsletter' 
       });
     } finally {
       setIsLoading(false);
@@ -97,10 +97,10 @@ export default function NotificationsPage() {
     try {
       await configAPI.setSMTP(smtpConfig);
       setSMTPResult({ type: 'success', message: 'SMTP configuration saved successfully!' });
-    } catch (error: any) {
+    } catch (error) {
       setSMTPResult({ 
         type: 'error', 
-        message: error.message || 'Failed to save SMTP configuration' 
+        message: error instanceof Error ? error.message : 'Failed to save SMTP configuration' 
       });
     } finally {
       setIsSavingSMTP(false);

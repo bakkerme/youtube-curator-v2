@@ -1,4 +1,4 @@
-import { useQuery, UseQueryResult, useQueryClient } from '@tanstack/react-query';
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
 
 // Types for our API responses
 export interface Channel {

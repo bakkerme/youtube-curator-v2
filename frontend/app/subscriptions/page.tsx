@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { channelAPI } from '@/lib/api';
-import { Channel, ChannelRequest, ImportChannelsRequest, ChannelImport } from '@/lib/types';
+import { ChannelRequest, ImportChannelsRequest, ChannelImport, Channel } from '@/lib/types';
 import { X, Plus, Loader2, Upload, FileText } from 'lucide-react';
 
 export default function SubscriptionsPage() {
@@ -69,6 +69,7 @@ export default function SubscriptionsPage() {
     }
   };
 
+  // Parse JSON format: [{ "id": "UC...", "title": "..." }]
   const parseImportText = (text: string): ChannelImport[] => {
     if (!text || typeof text !== 'string') {
       return [];
@@ -76,38 +77,20 @@ export default function SubscriptionsPage() {
     
     const trimmedText = text.trim();
     
-    // Try to parse as JSON first
-    try {
-      const parsed = JSON.parse(trimmedText);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item: any): ChannelImport | null => {
-          if (typeof item === 'object' && item.id) {
-            // Handle JSON format: [{ "id": "UC...", "title": "..." }]
-            return {
-              url: item.id,
-              title: item.title || undefined
-            };
-          } else if (typeof item === 'string') {
-            // Handle JSON array of strings: ["UC...", "UC..."]
-            return { url: item };
-          }
-          return null;
-        }).filter((item): item is ChannelImport => item !== null);
-      }
-    } catch (e) {
-      // If JSON parsing fails, fall back to text parsing
+    const parsed = JSON.parse(trimmedText);
+    if (Array.isArray(parsed)) {
+      return parsed.map((item: Channel): ChannelImport | null => {
+        if (typeof item === 'object' && item.id) {
+          return {
+            url: item.id,
+            title: item.title || undefined
+          };
+        }
+        return null;
+      }).filter((item): item is ChannelImport => item !== null);
     }
-    
-    // Fall back to line-by-line parsing for manual input
-    const lines = trimmedText.split('\n').map(line => line.trim()).filter(line => line);
-    const channels: ChannelImport[] = [];
-    
-    for (const line of lines) {
-      // Handle simple format: one URL per line
-      channels.push({ url: line });
-    }
-    
-    return channels;
+
+    return [];
   };
 
   const handleImport = (e: React.FormEvent) => {
@@ -242,11 +225,7 @@ export default function SubscriptionsPage() {
             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
               <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Import Formats:</h4>
               <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                <li>• <strong>JSON format (recommended):</strong> <code>[{`{"id": "UC...", "title": "Channel Name"}`}]</code></li>
-                <li>• <strong>JSON array of IDs:</strong> <code>["UC123...", "UC456..."]</code></li>
-                <li>• One channel URL/ID per line</li>
-                <li>• Supports channel URLs, channel IDs, and @username formats</li>
-                <li>• Empty lines and whitespace are ignored</li>
+                <li><strong>JSON format:</strong> <code>[{`{&quot;id&quot;: &quot;UC...&quot;, &quot;title&quot;: &quot;Channel Name&quot;}`}]</code></li>
               </ul>
             </div>
           </div>

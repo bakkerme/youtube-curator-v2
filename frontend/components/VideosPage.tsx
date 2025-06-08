@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
 import { videoAPI, channelAPI } from '@/lib/api';
 import { VideoEntry, Channel } from '@/lib/types';
@@ -40,7 +40,7 @@ export default function VideosPage() {
   };
 
   // Load data function
-  const loadData = async (refresh = false) => {
+  const loadData = useCallback(async (refresh = false) => {
     try {
       if (refresh) {
         setRefreshing(true);
@@ -83,21 +83,21 @@ export default function VideosPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [allVideos.length, loading]);
 
   // Load data on component mount
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   // Handle refresh button click
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     // Clear lastApiRefreshTimestamp to ensure the refresh check logic
     // doesn't immediately re-trigger if the day hasn't changed yet
     // but we want a manual refresh.
     // Or, more simply, loadData(true) will fetch new data and update it.
     loadData(true);
-  };
+  }, [loadData]);
 
   // Auto-refresh logic
   useEffect(() => {
@@ -164,7 +164,7 @@ export default function VideosPage() {
       clearInterval(intervalId);
       console.log('Auto-refresh: Cleaned up visibility listener and interval.');
     };
-  }, [lastApiRefreshTimestamp, allVideos, loading, refreshing]); // Added loading and refreshing to deps
+  }, [lastApiRefreshTimestamp, allVideos, loading, refreshing, handleRefresh]); // Added handleRefresh to deps
 
   // Filter videos based on search and date filters, then separate into watched/unwatched
   const { unwatchedVideos, watchedVideos } = useMemo(() => {

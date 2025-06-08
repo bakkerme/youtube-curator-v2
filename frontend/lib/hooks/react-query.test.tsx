@@ -1,18 +1,12 @@
-import React from 'react';
 import { http, HttpResponse } from 'msw';
 import { QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { createWrapper } from '../mocks/QueryWrapper';
 import { useChannels, useVideos, useConfig } from './react-query';
 
-// Simple test API client that works with MSW
-const apiClient = {
-  baseURL: '', // Let MSW intercept requests
-};
-
 describe('React Query Hooks Integration Tests', () => {
   let queryClient: QueryClient;
-  let wrapper: any;
+  let wrapper: React.ComponentType<{ children: React.ReactNode }>;
 
   beforeEach(() => {
     queryClient = new QueryClient({
