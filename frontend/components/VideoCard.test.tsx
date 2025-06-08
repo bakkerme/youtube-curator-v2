@@ -347,6 +347,7 @@ describe('VideoCard', () => {
     // Assert - Find the main content container
     const title = screen.getByText('Test Video Title');
     const contentContainer = title.closest('div[class*="p-4"]');
+    expect(contentContainer).not.toBeNull(); // Ensure the container exists
     
     // Verify the content container has flexbox classes for bottom positioning
     expect(contentContainer).toHaveClass('flex', 'flex-col', 'justify-between', 'flex-1');
