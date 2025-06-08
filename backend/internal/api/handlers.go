@@ -252,10 +252,9 @@ func (h *Handlers) MarkVideoAsWatched(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
 
-	// Basic validation for video ID format (e.g., "yt:video:VIDEO_ID")
-	// This should align with the OpenAPI spec pattern.
-	if !strings.HasPrefix(videoID, "yt:video:") || len(videoID) < 19 { // "yt:video:" is 9 chars + 11 for ID = 20. Let's use 19 as a loose minimum.
-		return echo.NewHTTPError(http.StatusBadRequest, "Invalid video ID format. Expected format: yt:video:xxxxxxxxxxx")
+	// Validate video ID format using the dedicated validator
+	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
 	if h.videoStore == nil {
