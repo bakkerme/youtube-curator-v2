@@ -82,6 +82,12 @@ export const channelAPI = {
       return data;
     });
   },
+
+  markAsWatched: async (videoId: string): Promise<void> => {
+    return makeRequest(async () => {
+      await api.post(`/videos/${videoId}/watch`);
+    });
+  },
 };
 
 // Configuration APIs
