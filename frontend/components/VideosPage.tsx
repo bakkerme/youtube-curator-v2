@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
 import { videoAPI, channelAPI } from '@/lib/api';
 import { VideoEntry, Channel } from '@/lib/types';
@@ -24,6 +24,24 @@ export default function VideosPage() {
   const [filterMode, setFilterMode] = useState<'all' | 'today' | 'perDay'>('today');
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
+  
+  // Use refs to access current values in the auto-refresh effect
+  const allVideosRef = useRef<VideoEntry[]>([]);
+  const loadingRef = useRef(true);
+  const refreshingRef = useRef(false);
+  
+  // Update refs whenever state changes
+  useEffect(() => {
+    allVideosRef.current = allVideos;
+  }, [allVideos]);
+  
+  useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+  
+  useEffect(() => {
+    refreshingRef.current = refreshing;
+  }, [refreshing]);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
@@ -103,7 +121,7 @@ export default function VideosPage() {
   // Auto-refresh logic
   useEffect(() => {
     const checkAndRefreshIfNeeded = () => {
-      if (loading || refreshing || !lastApiRefreshTimestamp) {
+      if (loadingRef.current || refreshingRef.current || !lastApiRefreshTimestamp) {
         console.log('Auto-refresh check: Skipping due to loading, refreshing, or no timestamp.');
         return;
       }
@@ -121,7 +139,7 @@ export default function VideosPage() {
         if (currentDay.getTime() > lastRefreshDay.getTime()) {
           console.log('Auto-refresh: Day has changed since last API refresh.');
 
-          const hasVideosForNewDay = allVideos.some(video => {
+          const hasVideosForNewDay = allVideosRef.current.some(video => {
             const videoPublishedDate = new Date(video.published);
             const videoDay = new Date(videoPublishedDate.getFullYear(), videoPublishedDate.getMonth(), videoPublishedDate.getDate());
             return videoDay.getTime() === currentDay.getTime();
@@ -129,7 +147,7 @@ export default function VideosPage() {
 
           if (!hasVideosForNewDay) {
             console.log('Auto-refresh: No videos found for the new current day. Triggering refresh.');
-            handleRefresh();
+            loadData(true);
           } else {
             console.log('Auto-refresh: Videos already exist for the new current day. No refresh needed.');
           }
@@ -165,7 +183,7 @@ export default function VideosPage() {
       clearInterval(intervalId);
       console.log('Auto-refresh: Cleaned up visibility listener and interval.');
     };
-  }, [lastApiRefreshTimestamp, allVideos, loading, refreshing, handleRefresh]); // Added handleRefresh to deps
+  }, [lastApiRefreshTimestamp]); // Only depend on lastApiRefreshTimestamp
 
   // Filter videos based on search and date filters, then separate into watched/unwatched
   const { unwatchedVideos, watchedVideos } = useMemo(() => {

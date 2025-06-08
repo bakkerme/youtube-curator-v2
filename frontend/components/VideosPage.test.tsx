@@ -648,6 +648,9 @@ describe('VideosPage', () => {
 
     (videoAPI.getAll as jest.Mock).mockResolvedValue(videosResponse);
     (channelAPI.getAll as jest.Mock).mockResolvedValue([mockChannel]);
+    
+    // Clear any previous calls from other tests
+    (videoAPI.getAll as jest.Mock).mockClear();
 
     // Render component
     render(<VideosPage />);
