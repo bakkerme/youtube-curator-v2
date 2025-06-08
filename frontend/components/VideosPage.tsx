@@ -242,14 +242,14 @@ export default function VideosPage() {
 
   // Handle page change for unwatched videos
   const handleUnwatchedPageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     params.set('page', page.toString());
     router.push(`/?${params.toString()}`);
   };
 
   // Handle page change for watched videos
   const handleWatchedPageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     params.set('watched_page', page.toString());
     router.push(`/?${params.toString()}`);
   };
@@ -359,7 +359,7 @@ export default function VideosPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             {unwatchedVideos.length === 0 && allVideos.filter(v => !v.watched).length === 0
               ? 'No unwatched videos available. Great job!'
-              : 'No unwatched videos match your current filters.'}
+              : 'No videos match your current filters.'}
           </p>
           {searchQuery && (
             <button
