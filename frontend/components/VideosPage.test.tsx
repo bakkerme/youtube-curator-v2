@@ -181,6 +181,21 @@ describe('VideosPage', () => {
     jest.restoreAllMocks();
   });
 
+  test('does not call APIs multiple times on mount (prevents infinite re-render)', async () => {
+    render(<VideosPage />);
+
+    // Wait for loading to finish
+    await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
+
+    // Verify API was called only once during mount
+    expect(videoAPI.getAll).toHaveBeenCalledTimes(1);
+    expect(channelAPI.getAll).toHaveBeenCalledTimes(1);
+
+    // Verify videos are displayed properly
+    expect(screen.getByText('Video Today Channel One')).toBeInTheDocument();
+    expect(screen.getByText('Another Video Today Channel Two')).toBeInTheDocument();
+  });
+
   test('renders and initially filters videos for the current day (Today Mode)', async () => {
     render(<VideosPage />);
 
