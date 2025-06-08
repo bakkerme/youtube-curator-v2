@@ -308,4 +308,29 @@ describe('VideoCard', () => {
     expect(titleLink).toHaveAttribute('target', '_blank');
     expect(titleLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
+
+  it('should position watched checkbox next to Watch on YouTube button', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert - Find the container that has both the button and checkbox
+    const watchButton = screen.getByRole('link', { name: /watch on youtube/i });
+    const watchedCheckbox = screen.getByRole('checkbox');
+    
+    // Get the parent container that should contain both elements
+    const buttonContainer = watchButton.closest('div');
+    const checkboxContainer = watchedCheckbox.closest('div');
+    
+    // Both should be in the same container (the flex container)
+    expect(buttonContainer).toBe(checkboxContainer);
+    
+    // Verify the container has flex layout classes
+    expect(buttonContainer).toHaveClass('flex', 'items-center', 'justify-between');
+  });
 });
