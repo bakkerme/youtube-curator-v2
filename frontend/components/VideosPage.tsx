@@ -344,7 +344,7 @@ export default function VideosPage() {
           <button
             data-testid="filter-mode-button" // Added data-testid
             onClick={handleFilterModeChange}
-            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base cursor-pointer ${
               (filterMode === 'today' || filterMode === 'perDay')
                 ? 'bg-red-600 text-white border-red-600' // Active style for 'today' and 'perDay'
                 : filterMode === 'all'
@@ -378,7 +378,7 @@ export default function VideosPage() {
           className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
             refreshing
               ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500 dark:border-gray-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700'
+              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700 cursor-pointer'
           }`}
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
