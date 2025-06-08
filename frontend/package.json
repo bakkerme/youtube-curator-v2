@@ -10,7 +10,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:ci": "jest --ci --coverage --maxWorkers=2"
+    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:screenshots": "playwright test",
+    "test:screenshots:headed": "playwright test --headed",
+    "test:screenshots:ui": "playwright test --ui"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.79.0",
@@ -25,6 +28,7 @@
   "devDependencies": {
     "@jest/globals": "^29.7.0",
     "@mswjs/data": "^0.16.2",
+    "@playwright/test": "^1.52.0",
     "@swc/jest": "^0.2.38",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.6.3",

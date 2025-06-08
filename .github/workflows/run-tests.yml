@@ -58,3 +58,42 @@ jobs:
 
     - name: Run frontend tests
       run: npm run test:ci
+
+  ui-screenshots:
+    name: UI Screenshots (PR only)
+    runs-on: ubuntu-latest
+    # Only run on pull requests, not on pushes to main
+    if: github.event_name == 'pull_request'
+    defaults:
+      run: 
+        working-directory: ./frontend
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '22'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium --with-deps
+
+    - name: Run UI screenshot tests
+      run: npm run test:screenshots
+
+    - name: Upload screenshots as artifacts
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: ui-screenshots
+        path: |
+          frontend/test-results/
+          frontend/playwright-report/
+        retention-days: 14

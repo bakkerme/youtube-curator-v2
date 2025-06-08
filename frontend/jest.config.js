@@ -28,8 +28,8 @@ const customJestConfig = {
   
   testEnvironment: 'jest-environment-jsdom',
   
-  // Ignore .next and node_modules
-  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
+  // Ignore .next and node_modules and Playwright tests
+  testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/tests/ui-screenshots/'],
   
   // Module paths to ignore for Haste
   modulePathIgnorePatterns: ['<rootDir>/.next/'],
