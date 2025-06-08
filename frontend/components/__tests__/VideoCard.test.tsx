@@ -1,0 +1,282 @@
+import '@testing-library/jest-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import VideoCard from '../VideoCard';
+import { VideoEntry, Channel } from '@/lib/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+// Mock next/image
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: ({ src, alt, ...props }: { src: string; alt: string; [key: string]: unknown }) => <img src={src} alt={alt} {...props} />,
+}));
+
+// Mock the runtime config
+jest.mock('@/lib/config', () => ({
+  getRuntimeConfig: jest.fn().mockResolvedValue({
+    apiUrl: 'http://localhost:8080/api'
+  })
+}));
+
+// Create a separate test server for these specific tests
+const testServer = setupServer();
+
+// Setup and teardown for our test server
+beforeAll(() => testServer.listen({ onUnhandledRequest: 'bypass' }));
+afterEach(() => testServer.resetHandlers());
+afterAll(() => testServer.close());
+
+// Test wrapper with QueryClient
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+};
+
+// Mock data
+const mockChannel: Channel = {
+  id: 'channel-1',
+  title: 'Test Channel'
+};
+
+const mockVideoEntry: VideoEntry = {
+  entry: {
+    title: 'Test Video Title',
+    link: { Href: 'https://youtube.com/watch?v=test', Rel: 'alternate' },
+    id: 'video-123',
+    published: '2024-01-01T12:00:00Z',
+    content: 'Test video content',
+    author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
+    mediaGroup: {
+      mediaThumbnail: { URL: 'https://test.com/thumbnail.jpg', Width: '320', Height: '180' },
+      mediaTitle: 'Test Video',
+      mediaContent: { URL: 'https://test.com/video.mp4', Type: 'video/mp4', Width: '1920', Height: '1080' },
+      mediaDescription: 'Test description'
+    }
+  },
+  channelId: 'channel-1',
+  cachedAt: '2024-01-01T12:00:00Z',
+  watched: false
+};
+
+describe('VideoCard', () => {
+  it('should render video information correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    expect(screen.getByText('Test Video Title')).toBeInTheDocument();
+    expect(screen.getByText('Test Channel')).toBeInTheDocument();
+    expect(screen.getByText('Watch on YouTube')).toBeInTheDocument();
+    expect(screen.getByLabelText(/watched/i)).toBeInTheDocument();
+  });
+
+  it('should display watched checkbox as unchecked for unwatched video', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+  });
+
+  it('should display watched checkbox as checked for watched video', () => {
+    // Arrange
+    const watchedVideo = { ...mockVideoEntry, watched: true };
+
+    // Act
+    render(
+      <VideoCard 
+        video={watchedVideo} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+  });
+
+  it('should call markAsWatched API when checkbox is clicked', async () => {
+    // Arrange
+    let apiCalled = false;
+    testServer.use(
+      http.post('http://localhost:8080/api/videos/video-123/watch', () => {
+        apiCalled = true;
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
+
+    const mockCallback = jest.fn();
+
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+        onWatchedStatusChange={mockCallback}
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
+
+    // Assert
+    await waitFor(() => {
+      expect(apiCalled).toBe(true);
+      expect(mockCallback).toHaveBeenCalled();
+    });
+  });
+
+  it('should optimistically update checkbox state', async () => {
+    // Arrange
+    testServer.use(
+      http.post('http://localhost:8080/api/videos/video-123/watch', async () => {
+        // Delay to simulate network request
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
+
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    
+    // Initially unchecked
+    expect(checkbox).not.toBeChecked();
+    
+    // Click the checkbox
+    fireEvent.click(checkbox);
+    
+    // Should be immediately checked (optimistic update)
+    expect(checkbox).toBeChecked();
+
+    // Wait for API call to complete
+    await waitFor(() => {
+      expect(checkbox).toBeChecked();
+    });
+  });
+
+  it('should revert checkbox state on API error', async () => {
+    // Arrange
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    testServer.use(
+      http.post('http://localhost:8080/api/videos/video-123/watch', () => {
+        return HttpResponse.json(
+          { message: 'Server error' },
+          { status: 500 }
+        );
+      })
+    );
+
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    
+    // Initially unchecked
+    expect(checkbox).not.toBeChecked();
+    
+    // Click the checkbox
+    fireEvent.click(checkbox);
+    
+    // Should be immediately checked (optimistic update)
+    expect(checkbox).toBeChecked();
+
+    // Wait for API error and revert
+    await waitFor(() => {
+      expect(checkbox).not.toBeChecked();
+    });
+
+    // Assert
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to mark video as watched:', expect.any(Error));
+    
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle unknown channel gracefully', () => {
+    // Arrange
+    const videoWithUnknownChannel = { ...mockVideoEntry, channelId: 'unknown-channel' };
+
+    // Act
+    render(
+      <VideoCard 
+        video={videoWithUnknownChannel} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    expect(screen.getByText('Unknown Channel')).toBeInTheDocument();
+  });
+
+  it('should display time ago correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert - Should show "about 1 year ago" or similar for 2024-01-01
+    expect(screen.getByText(/ago$/)).toBeInTheDocument();
+  });
+
+  it('should link to YouTube correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const youtubeLink = screen.getByRole('link', { name: /watch on youtube/i });
+    expect(youtubeLink).toHaveAttribute('href', 'https://youtube.com/watch?v=test');
+    expect(youtubeLink).toHaveAttribute('target', '_blank');
+    expect(youtubeLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+});
