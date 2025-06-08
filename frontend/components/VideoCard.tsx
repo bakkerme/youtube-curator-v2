@@ -70,31 +70,17 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
       
       {/* Content */}
       <div className="p-4">
-        <div className="flex justify-between items-start mb-2">
+        <div className="mb-2">
           <a
             href={video.link.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 mr-2"
             aria-label={title}
           >
             <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 hover:text-red-600 dark:hover:text-red-400 transition-colors">
               {title}
             </h3>
           </a>
-          <div className="ml-2 flex-shrink-0">
-            <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
-              <span>Watched</span>
-              <input
-                type="checkbox"
-                id={`watched-${video.id}`}
-                name={`watched-${video.id}`}
-                checked={isChecked}
-                onChange={handleCheckboxChange}
-                className="form-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-red-600 dark:ring-offset-gray-800"
-              />
-            </label>
-          </div>
         </div>
         
         <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
@@ -102,15 +88,29 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
           <p>{timeAgo}</p>
         </div>
         
-        {/* Watch button */}
-        <a
-          href={video.link.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-        >
-          Watch on YouTube
-        </a>
+        {/* Watch button and Watched checkbox */}
+        <div className="mt-3 flex items-center justify-between">
+          <a
+            href={video.link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+          >
+            Watch on YouTube
+          </a>
+          
+          <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
+            <span>Watched</span>
+            <input
+              type="checkbox"
+              id={`watched-${video.id}`}
+              name={`watched-${video.id}`}
+              checked={isChecked}
+              onChange={handleCheckboxChange}
+              className="form-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-red-600 dark:ring-offset-gray-800"
+            />
+          </label>
+        </div>
       </div>
     </div>
   );
