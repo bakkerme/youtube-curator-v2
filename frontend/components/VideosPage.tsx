@@ -22,7 +22,11 @@ export default function VideosPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterMode, setFilterMode] = useState<'all' | 'today' | 'perDay'>('today');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday.toISOString().split('T')[0];
+  });
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
   
   // Get current page from URL params
