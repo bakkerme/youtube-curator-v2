@@ -104,16 +104,16 @@ export const mockConfig = {
 // Define handlers
 export const handlers = [
   // Get all channels
-  http.get('/api/channels', () => {
-    return HttpResponse.json(mockChannels, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+  http.get('http://localhost:8080/api/channels', () => {
+    return HttpResponse.json({
+      channels: mockChannels,
+      totalCount: mockChannels.length,
+      lastUpdated: new Date().toISOString(),
+    });
   }),
 
   // Add a channel
-  http.post('/api/channels', async ({ request }) => {
+  http.post('http://localhost:8080/api/channels', async ({ request }) => {
     const body = await request.json() as { channelId: string }
     const newChannel = {
       id: body.channelId,
@@ -127,12 +127,12 @@ export const handlers = [
   }),
 
   // Delete a channel
-  http.delete('/api/channels/:id', () => {
+  http.delete('http://localhost:8080/api/channels/:id', () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // Get videos
-  http.get('/api/videos', ({ request }) => {
+  http.get('http://localhost:8080/api/videos', ({ request }) => {
     const url = new URL(request.url)
     const refresh = url.searchParams.get('refresh')
     
@@ -163,8 +163,13 @@ export const handlers = [
     })
   }),
 
+  // Mark video as watched
+  http.post('http://localhost:8080/api/videos/:id/watch', () => {
+    return new HttpResponse(null, { status: 200 })
+  }),
+
   // Get channel by ID
-  http.get('/api/channels/search/:id', ({ params }) => {
+  http.get('http://localhost:8080/api/channels/search/:id', ({ params }) => {
     const { id } = params
     const channel = mockChannels.find(c => c.id === id)
     if (channel) {
@@ -174,7 +179,7 @@ export const handlers = [
   }),
 
   // Import channels
-  http.post('/api/channels/import', async ({ request }) => {
+  http.post('http://localhost:8080/api/channels/import', async ({ request }) => {
     const body = await request.json() as { channels: Array<{ id: string; title?: string }> }
     return HttpResponse.json({
       imported: body.channels.length,
@@ -184,29 +189,29 @@ export const handlers = [
   }),
 
   // Newsletter actions
-  http.post('/api/newsletter/run', () => {
+  http.post('http://localhost:8080/api/newsletter/run', () => {
     return HttpResponse.json({ message: 'Newsletter job started' })
   }),
 
-  http.post('/api/newsletter/test', () => {
+  http.post('http://localhost:8080/api/newsletter/test', () => {
     return HttpResponse.json({ message: 'Test email sent successfully' })
   }),
 
   // Config endpoints
-  http.get('/api/config', () => {
+  http.get('http://localhost:8080/api/config', () => {
     return HttpResponse.json({ apiUrl: 'http://localhost:8080/api' })
   }),
 
-  http.get('/api/config/smtp', () => {
+  http.get('http://localhost:8080/api/config/smtp', () => {
     return HttpResponse.json(mockConfig.smtp)
   }),
 
-  http.post('/api/config/smtp', async ({ request }) => {
+  http.post('http://localhost:8080/api/config/smtp', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
     return HttpResponse.json({ ...mockConfig.smtp, ...body })
   }),
 
-  http.post('/api/config/smtp/test', () => {
+  http.post('http://localhost:8080/api/config/smtp/test', () => {
     return HttpResponse.json({ message: 'Test email sent successfully' })
   }),
 ] 

@@ -59,7 +59,7 @@ export const channelAPI = {
   getAll: async (): Promise<Channel[]> => {
     return makeRequest(async () => {
       const { data } = await api.get('/channels');
-      return data;
+      return data.channels || [];
     });
   },
 
