@@ -197,6 +197,7 @@ func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProc
 }
 
 // processChannelsConcurrently processes multiple channels concurrently using a worker pool
+// This improves RSS load times by fetching multiple feeds in parallel while respecting rate limits
 func processChannelsConcurrently(ctx context.Context, channels []store.Channel, channelProcessor processor.ChannelProcessor, concurrency int) map[string]processor.ChannelResult {
 	if len(channels) == 0 {
 		return make(map[string]processor.ChannelResult)
@@ -205,6 +206,15 @@ func processChannelsConcurrently(ctx context.Context, channels []store.Channel, 
 	// Limit concurrency to number of channels if there are fewer channels than workers
 	if concurrency > len(channels) {
 		concurrency = len(channels)
+	}
+
+	// Safety check: Limit maximum concurrency to prevent overwhelming YouTube's servers
+	// which could trigger rate limiting
+	maxConcurrency := 10
+	if concurrency > maxConcurrency {
+		log.Printf("Warning: RSS_CONCURRENCY=%d exceeds recommended maximum of %d, limiting to %d", 
+			concurrency, maxConcurrency, maxConcurrency)
+		concurrency = maxConcurrency
 	}
 
 	log.Printf("Processing %d channels with %d concurrent workers", len(channels), concurrency)

@@ -373,6 +373,31 @@ func TestProcessChannelsConcurrently_ConcurrencyLimit(t *testing.T) {
 	}
 }
 
+func TestProcessChannelsConcurrently_MaxConcurrencyLimit(t *testing.T) {
+	mockProcessor := NewMockChannelProcessor()
+	ctx := context.Background()
+	
+	// Create 15 channels
+	channels := make([]store.Channel, 15)
+	for i := 0; i < 15; i++ {
+		channelID := fmt.Sprintf("channel-%d", i)
+		channels[i] = store.Channel{ID: channelID, Title: fmt.Sprintf("Channel %d", i)}
+		mockProcessor.results[channelID] = processor.ChannelResult{
+			ChannelID: channelID,
+			NewVideo:  nil,
+			Error:     nil,
+		}
+	}
+	
+	// Test that excessive concurrency is limited to max value (10)
+	// This should warn but still process all channels
+	results := processChannelsConcurrently(ctx, channels, mockProcessor, 15)
+	
+	if len(results) != 15 {
+		t.Errorf("Expected 15 results, got %d", len(results))
+	}
+}
+
 func TestCheckForNewVideos_FallbackToConfigEmail(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
