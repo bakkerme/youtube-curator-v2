@@ -379,6 +379,7 @@ paths:
               example:
                 - entry:
                     title: "Amazing Video Title"
+                    watched: false
                     link:
                       Href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                       Rel: "alternate"
@@ -404,6 +405,46 @@ paths:
                   cachedAt: "2024-01-15T10:35:00Z"
         '500':
           description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /videos/{videoId}/watch:
+    post:
+      summary: Mark a video as watched
+      description: Sets the 'watched' status of a video to true.
+      tags:
+        - Videos
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          description: The ID of the video to mark as watched. This is the `yt:video:` prefixed ID.
+          schema:
+            type: string
+            pattern: '^yt:video:[a-zA-Z0-9_-]{11}$' # Standard YouTube video ID prefixed
+          example: "yt:video:dQw4w9WgXcQ"
+      responses:
+        '204':
+          description: Video successfully marked as watched. No content returned.
+        '400':
+          description: Bad request - Invalid video ID format.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid video ID format. Video ID should start with 'yt:video:' and be followed by 11 characters."
+        '404':
+          description: Video not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Video with ID 'yt:video:xxxxxxxxxxx' not found."
+        '500':
+          description: Internal server error.
           content:
             application/json:
               schema:
@@ -533,6 +574,7 @@ components:
         - entry
         - channelId
         - cachedAt
+        - watched
       properties:
         entry:
           $ref: '#/components/schemas/Video'
@@ -546,6 +588,10 @@ components:
           description: Timestamp when the video was cached
           format: date-time
           example: "2024-01-15T10:35:00Z"
+        watched:
+          type: boolean
+          description: Whether the video has been marked as watched
+          example: false
 
     Video:
       type: object

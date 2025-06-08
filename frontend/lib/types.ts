@@ -111,6 +111,7 @@ export interface VideoEntry {
   entry: Entry;
   channelId: string;
   cachedAt: string;
+  watched: boolean;
 }
 
 export interface VideosAPIResponse {

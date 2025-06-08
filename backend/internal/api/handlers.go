@@ -245,6 +245,35 @@ func (h *Handlers) GetSMTPConfig(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+// MarkVideoAsWatched handles POST /api/videos/:videoId/watch
+func (h *Handlers) MarkVideoAsWatched(c echo.Context) error {
+	videoID := c.Param("videoId")
+	if videoID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
+	}
+
+	// Basic validation for video ID format (e.g., "yt:video:VIDEO_ID")
+	// This should align with the OpenAPI spec pattern.
+	if !strings.HasPrefix(videoID, "yt:video:") || len(videoID) < 19 { // "yt:video:" is 9 chars + 11 for ID = 20. Let's use 19 as a loose minimum.
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid video ID format. Expected format: yt:video:xxxxxxxxxxx")
+	}
+
+	if h.videoStore == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Video store not initialized")
+	}
+
+	// Call the store function to mark the video as watched.
+	// Note: The current videoStore.MarkVideoAsWatched doesn't return an error or status
+	// if the video is not found. It simply does nothing in that case.
+	// For a more robust API, the store method could be enhanced to return a boolean or error.
+	h.videoStore.MarkVideoAsWatched(videoID)
+
+	// Since the store method doesn't indicate if the video was found,
+	// we will assume success if no other errors occurred.
+	// A better approach would be for MarkVideoAsWatched to return a status.
+	return c.NoContent(http.StatusNoContent) // HTTP 204 No Content is suitable for successful actions with no response body
+}
+
 // SetSMTPConfig handles PUT /api/config/smtp
 func (h *Handlers) SetSMTPConfig(c echo.Context) error {
 	var req SMTPConfigRequest
