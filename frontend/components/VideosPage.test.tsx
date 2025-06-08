@@ -666,7 +666,7 @@ describe('VideosPage', () => {
 
     // Mock the API call for marking as watched
     const mockMarkAsWatched = jest.fn().mockResolvedValue({});
-    (videoAPI as any).markAsWatched = mockMarkAsWatched;
+    (videoAPI as unknown as { markAsWatched: jest.Mock }).markAsWatched = mockMarkAsWatched;
 
     // Find and click the watched checkbox
     const checkbox = screen.getByRole('checkbox');
