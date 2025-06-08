@@ -32,7 +32,8 @@ export const useChannels = (): UseQueryResult<Channel[], Error> => {
       if (!response.ok) {
         throw new Error('Failed to fetch channels');
       }
-      return response.json();
+      const data = await response.json();
+      return data.channels || [];
     },
   });
 };
