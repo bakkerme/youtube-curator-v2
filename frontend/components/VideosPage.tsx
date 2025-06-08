@@ -3,18 +3,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
 import { videoAPI, channelAPI } from '@/lib/api';
-import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
+import { VideoEntry, Channel } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
 import Pagination from '@/components/Pagination';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const VIDEOS_PER_PAGE = 12;
+const WATCHED_VIDEOS_PER_PAGE = 8;
 
 export default function VideosPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [videos, setVideos] = useState<VideoEntry[]>([]);
+  const [allVideos, setAllVideos] = useState<VideoEntry[]>([]); // Renamed from 'videos'
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -26,6 +27,7 @@ export default function VideosPage() {
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  const currentWatchedPage = parseInt(searchParams.get('watched_page') || '1', 10);
 
   const handleFilterModeChange = () => {
     if (filterMode === 'today') {
@@ -51,17 +53,17 @@ export default function VideosPage() {
         channelAPI.getAll()
       ]);
 
-      if (videosData && videosData.videos && videosData.videos.length > 0) {
-        setVideos(videosData.videos);
+      if (videosData && videosData.videos) { // Allow empty array to be set
+        setAllVideos(videosData.videos);
       } else if (refresh) {
         // If refreshing and no videos came back, it could be that all videos expired
         // or there are genuinely no videos for any channel.
         // Keep existing videos in this case unless it's an initial load.
         // If it's an initial load and no videos, videos will be an empty array.
-        if (videos.length > 0 && !loading) { // only clear if not initial load
+        if (allVideos.length > 0 && !loading) { // only clear if not initial load
              // Keep stale data on refresh error
         } else {
-            setVideos([]);
+            setAllVideos([]);
         }
       }
 
@@ -118,7 +120,7 @@ export default function VideosPage() {
         if (currentDay.getTime() > lastRefreshDay.getTime()) {
           console.log('Auto-refresh: Day has changed since last API refresh.');
 
-          const hasVideosForNewDay = videos.some(video => {
+          const hasVideosForNewDay = allVideos.some(video => {
             const videoPublishedDate = new Date(video.entry.published);
             const videoDay = new Date(videoPublishedDate.getFullYear(), videoPublishedDate.getMonth(), videoPublishedDate.getDate());
             return videoDay.getTime() === currentDay.getTime();
@@ -162,11 +164,11 @@ export default function VideosPage() {
       clearInterval(intervalId);
       console.log('Auto-refresh: Cleaned up visibility listener and interval.');
     };
-  }, [lastApiRefreshTimestamp, videos, loading, refreshing]); // Added loading and refreshing to deps
+  }, [lastApiRefreshTimestamp, allVideos, loading, refreshing]); // Added loading and refreshing to deps
 
-  // Filter videos based on search and today filter
-  const filteredVideos = useMemo(() => {
-    let dateFilteredVideos = videos;
+  // Filter videos based on search and date filters, then separate into watched/unwatched
+  const { unwatchedVideos, watchedVideos } = useMemo(() => {
+    let dateFilteredVideos = allVideos;
 
     const normalizeDate = (date: Date): Date => {
       const newDate = new Date(date);
@@ -177,7 +179,7 @@ export default function VideosPage() {
     // Apply date filtering based on filterMode
     if (filterMode === 'today') {
       const todayNormalized = normalizeDate(new Date());
-      dateFilteredVideos = dateFilteredVideos.filter(video => {
+      dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
         const videoDate = new Date(video.entry.published);
         return normalizeDate(videoDate).getTime() === todayNormalized.getTime();
       });
@@ -193,7 +195,7 @@ export default function VideosPage() {
             dateFilteredVideos = [];
           } else {
             const perDayNormalized = normalizeDate(perDayDate);
-            dateFilteredVideos = dateFilteredVideos.filter(video => {
+            dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
               const videoDate = new Date(video.entry.published);
               return normalizeDate(videoDate).getTime() === perDayNormalized.getTime();
             });
@@ -207,13 +209,13 @@ export default function VideosPage() {
         dateFilteredVideos = [];
       }
     }
-    // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'videos'.
+    // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'allVideos'.
 
     let searchFilteredVideos = dateFilteredVideos;
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      searchFilteredVideos = dateFilteredVideos.filter(video => {
+      searchFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
         const title = video.entry.title.toLowerCase();
         const channel = channels.find(c => c.id === video.channelId);
         const channelTitle = channel?.title.toLowerCase() || '';
@@ -221,22 +223,34 @@ export default function VideosPage() {
       });
     }
 
-    if (!searchFilteredVideos || searchFilteredVideos.length === 0) {
-        return [];
-    }
+    // Separate into watched and unwatched
+    const unwatched = searchFilteredVideos.filter(video => !video.watched);
+    const watched = searchFilteredVideos.filter(video => video.watched);
 
-    return searchFilteredVideos;
-  }, [videos, channels, searchQuery, filterMode, selectedDate]);
+    return { unwatchedVideos: unwatched, watchedVideos: watched };
+  }, [allVideos, channels, searchQuery, filterMode, selectedDate]);
 
-  // Calculate pagination
-  const totalPages = filteredVideos.length > 0 ? Math.ceil(filteredVideos.length / VIDEOS_PER_PAGE) : 1;
-  const startIndex = (currentPage - 1) * VIDEOS_PER_PAGE;
-  const paginatedVideos = filteredVideos.slice(startIndex, startIndex + VIDEOS_PER_PAGE);
+  // Calculate pagination for unwatched videos
+  const totalUnwatchedPages = unwatchedVideos.length > 0 ? Math.ceil(unwatchedVideos.length / VIDEOS_PER_PAGE) : 1;
+  const startIndexUnwatched = (currentPage - 1) * VIDEOS_PER_PAGE;
+  const paginatedUnwatchedVideos = unwatchedVideos.slice(startIndexUnwatched, startIndexUnwatched + VIDEOS_PER_PAGE);
 
-  // Handle page change
-  const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams.toString()); // Original
+  // Calculate pagination for watched videos
+  const totalWatchedPages = watchedVideos.length > 0 ? Math.ceil(watchedVideos.length / WATCHED_VIDEOS_PER_PAGE) : 1;
+  const startIndexWatched = (currentWatchedPage - 1) * WATCHED_VIDEOS_PER_PAGE;
+  const paginatedWatchedVideos = watchedVideos.slice(startIndexWatched, startIndexWatched + WATCHED_VIDEOS_PER_PAGE);
+
+  // Handle page change for unwatched videos
+  const handleUnwatchedPageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
     params.set('page', page.toString());
+    router.push(`/?${params.toString()}`);
+  };
+
+  // Handle page change for watched videos
+  const handleWatchedPageChange = (page: number) => {
+    const params = new URLSearchParams(searchParams);
+    params.set('watched_page', page.toString());
     router.push(`/?${params.toString()}`);
   };
 
@@ -271,9 +285,9 @@ export default function VideosPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h1 className="text-3xl font-bold">Latest Videos</h1>
+        <h1 className="text-3xl font-bold">Unwatched Videos</h1>
         <div className="text-sm text-gray-600 dark:text-gray-400">
-          {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''} found
+          {unwatchedVideos.length} video{unwatchedVideos.length !== 1 ? 's' : ''} found
         </div>
       </div>
 
@@ -338,13 +352,14 @@ export default function VideosPage() {
         </button>
       </div>
 
-      {/* Videos Grid */}
-      {paginatedVideos.length === 0 ? (
+      {/* Unwatched Videos Grid */}
+      <h2 className="text-2xl font-semibold mt-8 mb-4">Unwatched</h2>
+      {paginatedUnwatchedVideos.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            {filteredVideos.length === 0 && videos.length === 0
-              ? 'No videos available. Add some channels to start seeing videos!'
-              : 'No videos match your current filters.'}
+            {unwatchedVideos.length === 0 && allVideos.filter(v => !v.watched).length === 0
+              ? 'No unwatched videos available. Great job!'
+              : 'No unwatched videos match your current filters.'}
           </p>
           {searchQuery && (
             <button
@@ -358,22 +373,51 @@ export default function VideosPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {paginatedVideos.map((video) => (
+            {paginatedUnwatchedVideos.map((video) => (
               <VideoCard
                 key={video.entry.id}
                 video={video}
                 channels={channels}
+                // Pass loadData to refresh the list when a video is marked as watched
+                onWatchedStatusChange={() => loadData(false)}
               />
             ))}
           </div>
 
-          {/* Pagination */}
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
+          {/* Pagination for Unwatched Videos */}
+          {unwatchedVideos.length > VIDEOS_PER_PAGE && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalUnwatchedPages}
+              onPageChange={handleUnwatchedPageChange}
+            />
+          )}
         </>
+      )}
+
+      {/* Watched Videos Section */}
+      {watchedVideos.length > 0 && (
+        <div className="mt-12">
+          <h2 className="text-2xl font-semibold mb-4">Watched</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {paginatedWatchedVideos.map((video) => (
+              <VideoCard
+                key={video.entry.id}
+                video={video}
+                channels={channels}
+                onWatchedStatusChange={() => loadData(false)}
+              />
+            ))}
+          </div>
+          {/* Pagination for Watched Videos */}
+          {watchedVideos.length > WATCHED_VIDEOS_PER_PAGE && (
+            <Pagination
+              currentPage={currentWatchedPage}
+              totalPages={totalWatchedPages}
+              onPageChange={handleWatchedPageChange}
+            />
+          )}
+        </div>
       )}
     </div>
   );

@@ -43,6 +43,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 
 	// Video endpoints
 	api.GET("/videos", handlers.GetVideos)
+	api.POST("/videos/:videoId/watch", handlers.MarkVideoAsWatched)
 
 	return e
 }

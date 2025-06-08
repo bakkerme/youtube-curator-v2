@@ -11,6 +11,7 @@ type VideoEntry struct {
 	Entry     rss.Entry `json:"entry"`
 	ChannelID string    `json:"channelId"`
 	CachedAt  time.Time `json:"cachedAt"`
+	Watched   bool      `json:"watched"`
 }
 
 // VideoStore provides in-memory storage for videos with TTL
@@ -44,6 +45,7 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
 		Entry:     entry,
 		ChannelID: channelID,
 		CachedAt:  time.Now(),
+		Watched:   false,
 	}
 }
 
@@ -101,4 +103,15 @@ func (vs *VideoStore) GetLastRefreshedAt() time.Time {
 	vs.mutex.RLock()
 	defer vs.mutex.RUnlock()
 	return vs.lastRefreshedAt
+}
+
+// MarkVideoAsWatched sets the Watched flag to true for the video with the given ID
+func (vs *VideoStore) MarkVideoAsWatched(videoID string) {
+	vs.mutex.Lock()
+	defer vs.mutex.Unlock()
+
+	if video, ok := vs.videos[videoID]; ok {
+		video.Watched = true
+		vs.videos[videoID] = video
+	}
 }
