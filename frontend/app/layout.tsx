@@ -34,15 +34,15 @@ export default function RootLayout({
                     <div className="flex items-center space-x-6">
                       <Link href="/" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Home className="w-4 h-4" />
-                        <span>Home</span>
+                        <span className="hidden sm:inline">Home</span>
                       </Link>
                       <Link href="/subscriptions" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Bell className="w-4 h-4" />
-                        <span>Subscriptions</span>
+                        <span className="hidden sm:inline">Subscriptions</span>
                       </Link>
                       <Link href="/notifications" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Settings className="w-4 h-4" />
-                        <span>Settings</span>
+                        <span className="hidden sm:inline">Settings</span>
                       </Link>
                     </div>
                   </div>
