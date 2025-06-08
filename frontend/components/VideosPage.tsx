@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, RefreshCw } from 'lucide-react';
+import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
 import { videoAPI, channelAPI } from '@/lib/api';
-import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
+import { VideoEntry, Channel } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
 import Pagination from '@/components/Pagination';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 const VIDEOS_PER_PAGE = 12;
+const WATCHED_VIDEOS_PER_PAGE = 8;
 
 export default function VideosPage() {
   const router = useRouter();
@@ -20,11 +21,23 @@ export default function VideosPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showTodayOnly, setShowTodayOnly] = useState(true);
+  const [filterMode, setFilterMode] = useState<'all' | 'today' | 'perDay'>('today');
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
+  const currentWatchedPage = parseInt(searchParams.get('watched_page') || '1', 10);
+
+  const handleFilterModeChange = () => {
+    if (filterMode === 'today') {
+      setFilterMode('perDay');
+    } else if (filterMode === 'perDay') {
+      setFilterMode('all');
+    } else {
+      setFilterMode('today');
+    }
+  };
 
   // Load data function
   const loadData = async (refresh = false) => {
@@ -153,14 +166,56 @@ export default function VideosPage() {
     };
   }, [lastApiRefreshTimestamp, allVideos, loading, refreshing]); // Added loading and refreshing to deps
 
-  // Filter videos based on search and today filter
+  // Filter videos based on search and date filters, then separate into watched/unwatched
   const { unwatchedVideos, watchedVideos } = useMemo(() => {
-    let filtered = allVideos;
+    let dateFilteredVideos = allVideos;
 
+    const normalizeDate = (date: Date): Date => {
+      const newDate = new Date(date);
+      newDate.setHours(0, 0, 0, 0);
+      return newDate;
+    };
+
+    // Apply date filtering based on filterMode
+    if (filterMode === 'today') {
+      const todayNormalized = normalizeDate(new Date());
+      dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
+        const videoDate = new Date(video.entry.published);
+        return normalizeDate(videoDate).getTime() === todayNormalized.getTime();
+      });
+    } else if (filterMode === 'perDay') {
+      if (selectedDate) {
+        try {
+          // selectedDate is YYYY-MM-DD. Need to parse it correctly.
+          // Appending T00:00:00 to ensure it's parsed as local time, not UTC.
+          const perDayDate = new Date(selectedDate + 'T00:00:00');
+          if (isNaN(perDayDate.getTime())) {
+            // Handle invalid date string if necessary, though input type="date" helps
+            console.warn("Invalid selectedDate (parsed as NaN):", selectedDate);
+            dateFilteredVideos = [];
+          } else {
+            const perDayNormalized = normalizeDate(perDayDate);
+            dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
+              const videoDate = new Date(video.entry.published);
+              return normalizeDate(videoDate).getTime() === perDayNormalized.getTime();
+            });
+          }
+        } catch (e) {
+          console.error("Error parsing selectedDate catch:", e);
+          dateFilteredVideos = []; // Also empty list on error
+        }
+      } else { // selectedDate is an empty string (or null/undefined, though state is string)
+        console.warn("selectedDate is empty, showing no videos for perDay mode.");
+        dateFilteredVideos = [];
+      }
+    }
+    // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'allVideos'.
+
+    let searchFilteredVideos = dateFilteredVideos;
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(video => {
+      searchFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
         const title = video.entry.title.toLowerCase();
         const channel = channels.find(c => c.id === video.channelId);
         const channelTitle = channel?.title.toLowerCase() || '';
@@ -168,49 +223,34 @@ export default function VideosPage() {
       });
     }
 
-    // Apply today filter
-    if (showTodayOnly) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      filtered = filtered.filter(video => {
-        const videoDate = new Date(video.entry.published);
-        videoDate.setHours(0, 0, 0, 0);
-        return videoDate.getTime() === today.getTime();
-      });
-    }
-
-    const unwatched = filtered.filter(video => !video.watched);
-    const watched = filtered.filter(video => video.watched);
+    // Separate into watched and unwatched
+    const unwatched = searchFilteredVideos.filter(video => !video.watched);
+    const watched = searchFilteredVideos.filter(video => video.watched);
 
     return { unwatchedVideos: unwatched, watchedVideos: watched };
-  }, [allVideos, channels, searchQuery, showTodayOnly]);
+  }, [allVideos, channels, searchQuery, filterMode, selectedDate]);
 
   // Calculate pagination for unwatched videos
   const totalUnwatchedPages = unwatchedVideos.length > 0 ? Math.ceil(unwatchedVideos.length / VIDEOS_PER_PAGE) : 1;
   const startIndexUnwatched = (currentPage - 1) * VIDEOS_PER_PAGE;
   const paginatedUnwatchedVideos = unwatchedVideos.slice(startIndexUnwatched, startIndexUnwatched + VIDEOS_PER_PAGE);
 
-  // For watched videos, we'll display a smaller, non-paginated list or paginated if needed.
-  // For simplicity in this step, let's show all watched videos or a fixed number.
-  // Let's paginate watched videos as well for consistency.
-  const WATCHED_VIDEOS_PER_PAGE = 8; // Can be different from unwatched
-  const currentWatchedPage = parseInt(searchParams.get('watched_page') || '1', 10);
+  // Calculate pagination for watched videos
   const totalWatchedPages = watchedVideos.length > 0 ? Math.ceil(watchedVideos.length / WATCHED_VIDEOS_PER_PAGE) : 1;
   const startIndexWatched = (currentWatchedPage - 1) * WATCHED_VIDEOS_PER_PAGE;
   const paginatedWatchedVideos = watchedVideos.slice(startIndexWatched, startIndexWatched + WATCHED_VIDEOS_PER_PAGE);
 
-
   // Handle page change for unwatched videos
   const handleUnwatchedPageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     params.set('page', page.toString());
     router.push(`/?${params.toString()}`);
   };
 
   // Handle page change for watched videos
   const handleWatchedPageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
-    params.set('page', page.toString());
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('watched_page', page.toString());
     router.push(`/?${params.toString()}`);
   };
 
@@ -265,18 +305,37 @@ export default function VideosPage() {
           />
         </div>
 
-        {/* Today Filter */}
-        <button
-          onClick={() => setShowTodayOnly(!showTodayOnly)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-            showTodayOnly
-              ? 'bg-red-600 text-white border-red-600'
-              : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          Today
-        </button>
+        {/* Filter Controls Container */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            data-testid="filter-mode-button" // Added data-testid
+            onClick={handleFilterModeChange}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
+              (filterMode === 'today' || filterMode === 'perDay')
+                ? 'bg-red-600 text-white border-red-600' // Active style for 'today' and 'perDay'
+                : filterMode === 'all'
+                  ? 'bg-blue-600 text-white border-blue-600' // Active style for 'all' (example: blue)
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700' // Default
+            }`}
+          >
+            {filterMode === 'today' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'perDay' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'all' && <List className="w-4 h-4" />}
+            {filterMode === 'today' ? 'Today' : filterMode === 'perDay' ? 'Per Day' : 'All Videos'}
+          </button>
+
+          {filterMode === 'perDay' && (
+            <input
+              type="date"
+              data-testid="date-filter-input" // Added data-testid
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+              // Optional: Add max date to prevent selecting future dates if needed
+              // max={new Date().toISOString().split('T')[0]}
+            />
+          )}
+        </div>
 
         {/* Refresh Button */}
         <button
@@ -300,7 +359,7 @@ export default function VideosPage() {
           <p className="text-gray-600 dark:text-gray-400 mb-4">
             {unwatchedVideos.length === 0 && allVideos.filter(v => !v.watched).length === 0
               ? 'No unwatched videos available. Great job!'
-              : 'No unwatched videos match your current filters.'}
+              : 'No videos match your current filters.'}
           </p>
           {searchQuery && (
             <button
@@ -356,7 +415,6 @@ export default function VideosPage() {
               currentPage={currentWatchedPage}
               totalPages={totalWatchedPages}
               onPageChange={handleWatchedPageChange}
-              pageParamName="watched_page" // To distinguish from unwatched pagination
             />
           )}
         </div>
