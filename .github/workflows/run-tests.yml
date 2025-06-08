@@ -53,5 +53,8 @@ jobs:
     - name: Install dependencies
       run: npm install
 
+    - name: Run lint
+      run: npm run lint
+
     - name: Run frontend tests
       run: npm run test:ci

@@ -1,7 +1,6 @@
 import '@testing-library/jest-dom';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import VideoCard from './VideoCard';
 import { VideoEntry, Channel } from '@/lib/types';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
