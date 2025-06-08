@@ -82,12 +82,6 @@ export const channelAPI = {
       return data;
     });
   },
-
-  markAsWatched: async (videoId: string): Promise<void> => {
-    return makeRequest(async () => {
-      await api.post(`/videos/${videoId}/watch`);
-    });
-  },
 };
 
 // Configuration APIs
@@ -138,6 +132,12 @@ export const videoAPI = {
       const url = refresh ? '/videos?refresh=true' : '/videos';
       const { data } = await api.get<VideosAPIResponse>(url);
       return data;
+    });
+  },
+
+  markAsWatched: async (videoId: string): Promise<void> => {
+    return makeRequest(async () => {
+      await api.post(`/videos/${videoId}/watch`);
     });
   },
 };
