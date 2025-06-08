@@ -8,25 +8,6 @@ import VideoCard from '@/components/VideoCard';
 import Pagination from '@/components/Pagination';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-// Filter mode configuration
-const FILTER_MODE_CONFIG = {
-  today: {
-    label: 'Today',
-    icon: Calendar,
-    className: 'bg-red-600 text-white border-red-600'
-  },
-  perDay: {
-    label: 'Per Day',
-    icon: Calendar,
-    className: 'bg-red-600 text-white border-red-600'
-  },
-  all: {
-    label: 'All Videos',
-    icon: List,
-    className: 'bg-blue-600 text-white border-blue-600'
-  }
-} as const;
-
 const VIDEOS_PER_PAGE = 12;
 
 export default function VideosPage() {
@@ -208,8 +189,8 @@ export default function VideosPage() {
           const perDayDate = new Date(selectedDate + 'T00:00:00');
           if (isNaN(perDayDate.getTime())) {
             // Handle invalid date string if necessary, though input type="date" helps
-            console.warn("Invalid selectedDate:", selectedDate);
-            // Potentially show all videos or an error state for this case
+            console.warn("Invalid selectedDate (parsed as NaN):", selectedDate);
+            dateFilteredVideos = [];
           } else {
             const perDayNormalized = normalizeDate(perDayDate);
             dateFilteredVideos = dateFilteredVideos.filter(video => {
@@ -218,9 +199,12 @@ export default function VideosPage() {
             });
           }
         } catch (e) {
-          console.error("Error parsing selectedDate:", e);
-          // Fallback or error handling
+          console.error("Error parsing selectedDate catch:", e);
+          dateFilteredVideos = []; // Also empty list on error
         }
+      } else { // selectedDate is an empty string (or null/undefined, though state is string)
+        console.warn("selectedDate is empty, showing no videos for perDay mode.");
+        dateFilteredVideos = [];
       }
     }
     // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'videos'.
@@ -251,7 +235,7 @@ export default function VideosPage() {
 
   // Handle page change
   const handlePageChange = (page: number) => {
-    const params = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString()); // Original
     params.set('page', page.toString());
     router.push(`/?${params.toString()}`);
   };
@@ -309,22 +293,22 @@ export default function VideosPage() {
 
         {/* Filter Controls Container */}
         <div className="flex flex-col sm:flex-row gap-2">
-          {(() => {
-            const config = FILTER_MODE_CONFIG[filterMode];
-            const IconComponent = config.icon;
-            return (
-              <button
-                data-testid="filter-mode-button" // Added data-testid
-                onClick={handleFilterModeChange}
-                className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
-                  config.className
-                }`}
-              >
-                <IconComponent className="w-4 h-4" />
-                {config.label}
-              </button>
-            );
-          })()}
+          <button
+            data-testid="filter-mode-button" // Added data-testid
+            onClick={handleFilterModeChange}
+            className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors text-sm sm:text-base ${
+              (filterMode === 'today' || filterMode === 'perDay')
+                ? 'bg-red-600 text-white border-red-600' // Active style for 'today' and 'perDay'
+                : filterMode === 'all'
+                  ? 'bg-blue-600 text-white border-blue-600' // Active style for 'all' (example: blue)
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700 dark:hover:bg-gray-700' // Default
+            }`}
+          >
+            {filterMode === 'today' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'perDay' && <Calendar className="w-4 h-4" />}
+            {filterMode === 'all' && <List className="w-4 h-4" />}
+            {filterMode === 'today' ? 'Today' : filterMode === 'perDay' ? 'Per Day' : 'All Videos'}
+          </button>
 
           {filterMode === 'perDay' && (
             <input

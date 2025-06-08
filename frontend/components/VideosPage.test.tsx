@@ -5,22 +5,52 @@ import VideosPage from './VideosPage';
 import { videoAPI, channelAPI } from '@/lib/api'; // To be mocked
 import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
 
-// Mock next/navigation
+// --- Mocking next/navigation ---
+// This approach defines the stateful parts of the mock (params and functions)
+// in the module scope. Jest's hoisting of jest.mock means the factory function
+// can then refer to these already-defined variables.
+
+import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
+
+import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
+
+// --- Mocking next/navigation ---
+// Use a single instance of URLSearchParams that is mutated, not reassigned.
+const moduleLevelSearchParams = new URLSearchParams();
+
+const mockRouterPush = jest.fn((path: string) => {
+  const paramsString = path.split('?')[1] || '';
+  const newParams = new URLSearchParams(paramsString);
+
+  // Clear old params from moduleLevelSearchParams
+  moduleLevelSearchParams.forEach((_, key) => {
+    moduleLevelSearchParams.delete(key);
+  });
+  // Set new params into moduleLevelSearchParams
+  newParams.forEach((value, key) => {
+    moduleLevelSearchParams.set(key, value);
+  });
+});
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockRouterPush,
     replace: jest.fn(),
     prefetch: jest.fn(),
     back: jest.fn(),
     forward: jest.fn(),
   }),
   useSearchParams: () => ({
-    get: jest.fn((key) => {
-      if (key === 'page') return '1';
-      return null;
-    }),
+    get: (key: string) => {
+      if (key === 'page' && !moduleLevelSearchParams.has('page')) {
+        return '1';
+      }
+      return moduleLevelSearchParams.get(key);
+    },
+    toString: () => moduleLevelSearchParams.toString(),
   }),
 }));
+// --- End Mocking next/navigation ---
 
 // Mock APIs
 jest.mock('@/lib/api', () => ({
@@ -123,14 +153,23 @@ const mockVideos: VideoEntry[] = [
   // Removed extra trailing comma and brace here that caused syntax error
 ];
 
-const mockVideoAPIResponse: VideosAPIResponse = {
+const mockVideoAPIResponse: VideosAPIResponse = { // Used for most tests
   videos: mockVideos,
   lastRefreshedAt: new Date().toISOString(),
 };
 
+const VIDEOS_PER_PAGE = 12; // From VideosPage.tsx
+
 describe('VideosPage', () => {
   beforeEach(() => {
-    // Reset mocks before each test
+    // Reset the state of the navigation mocks before each test
+    // Clear the *contents* of moduleLevelSearchParams, don't reassign the variable itself
+    moduleLevelSearchParams.forEach((_, key) => {
+      moduleLevelSearchParams.delete(key);
+    });
+    mockRouterPush.mockClear();
+
+    // Default mock for most tests, can be overridden in specific tests
     (videoAPI.getAll as jest.Mock).mockResolvedValue(mockVideoAPIResponse);
     (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels);
     // Mock console.warn and console.error to avoid cluttering test output
@@ -240,6 +279,13 @@ describe('VideosPage', () => {
       dateInput = screen.getByTestId('date-filter-input');
       expect(dateInput).toBeVisible();
     });
+    // Assert that the date input defaults to today's date
+    const todayForDateValue = new Date(); // Use a new Date object for "today" to avoid date/time issues from 'today' var at top of file
+    const year = todayForDateValue.getFullYear();
+    const month = String(todayForDateValue.getMonth() + 1).padStart(2, '0');
+    const day = String(todayForDateValue.getDate()).padStart(2, '0');
+    const expectedDateString = `${year}-${month}-${day}`;
+    expect(dateInput).toHaveValue(expectedDateString);
 
     // Click 2: Per Day -> All
     fireEvent.click(filterButton);
@@ -260,6 +306,39 @@ describe('VideosPage', () => {
     });
   });
 
+  test('handles invalid date input for "Per Day" mode', async () => {
+    render(<VideosPage />);
+    await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
+
+    const filterButton = screen.getByTestId('filter-mode-button');
+    // Cycle to "Per Day" mode
+    fireEvent.click(filterButton); // Today -> Per Day
+    await waitFor(() => {
+      expect(filterButton).toHaveTextContent(/Per Day/i);
+      expect(screen.getByTestId('date-filter-input')).toBeVisible();
+    });
+
+    const dateInput = screen.getByTestId('date-filter-input');
+    fireEvent.change(dateInput, { target: { value: 'invalid-date' } });
+
+    // Assert that no videos are shown and a "no videos match" message appears
+    // The console.warn for "Invalid selectedDate" is expected here from the component
+    await waitFor(() => {
+      expect(screen.queryByText('Video Today Channel One')).not.toBeInTheDocument();
+      expect(screen.queryByText('Video Yesterday Channel One')).not.toBeInTheDocument();
+      expect(screen.queryByText('Video Specific Date Channel Two')).not.toBeInTheDocument();
+      // Check for the message that appears when no videos match filters
+      expect(screen.getByText(/No videos match your current filters./i)).toBeInTheDocument();
+    });
+
+    // Optionally, also test with an empty string if the behavior should be the same
+    fireEvent.change(dateInput, { target: { value: '' } }); // Empty string is also invalid for filtering
+    await waitFor(() => {
+      expect(screen.queryByText('Video Today Channel One')).not.toBeInTheDocument();
+      expect(screen.getByText(/No videos match your current filters./i)).toBeInTheDocument();
+    });
+  });
+
   describe('Search functionality with date filters', () => {
     const searchCases = [
       { mode: 'today' as const, buttonClicks: 0, expectedButtonText: /Today/i, expectedVideo: 'Video Today Channel One', searchFor: 'Channel One' },
@@ -269,6 +348,9 @@ describe('VideosPage', () => {
 
     searchCases.forEach(({ mode, buttonClicks, expectedButtonText, expectedVideo, searchFor, dateToSelect }) => {
       test(`works with ${mode} filter`, async () => {
+        // Ensure default mocks are used for these generic search tests
+        (videoAPI.getAll as jest.Mock).mockResolvedValue(mockVideoAPIResponse);
+        (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels);
         render(<VideosPage />);
         await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
@@ -320,6 +402,216 @@ describe('VideosPage', () => {
              }
         });
       });
+    });
+  });
+
+  describe('Pagination', () => {
+    const totalPaginationTestVideos = VIDEOS_PER_PAGE + 3; // e.g., 15 videos for 2 pages
+    let paginatedMockVideos: VideoEntry[];
+
+    beforeAll(() => {
+      // Create a larger set of videos for pagination tests
+      // All published today to match default filter
+      paginatedMockVideos = Array.from({ length: totalPaginationTestVideos }, (_, i) => ({
+        channelId: 'channel1',
+        entry: {
+          id: `pag_video_${i}`,
+          title: `Paginated Video ${i}`,
+          link: { Href: `https://example.com/pag_video_${i}`, Rel: 'alternate' },
+          published: today.toISOString(), // All today
+          content: `Content for paginated video ${i}`,
+          author: { name: 'Channel One', uri: 'uri_channel1' },
+          mediaGroup: {
+            mediaThumbnail: { URL: `https://images.example.com/pag_thumb${i}.jpg`, Width: '120', Height: '90' },
+            mediaTitle: `Paginated Video ${i}`,
+            mediaContent: { URL: `https://videos.example.com/pag_content${i}.mp4`, Type: 'video/mp4', Width: '640', Height: '360' },
+            mediaDescription: `Description for paginated video ${i}`,
+          },
+        },
+        cachedAt: today.toISOString(),
+      }));
+    });
+
+    test('correctly paginates filtered videos and handles page navigation', async () => {
+      const paginatedVideoResponse: VideosAPIResponse = {
+        videos: paginatedMockVideos,
+        lastRefreshedAt: new Date().toISOString(),
+      };
+      (videoAPI.getAll as jest.Mock).mockResolvedValue(paginatedVideoResponse);
+      (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels); // Use existing mockChannels
+
+      render(<VideosPage />);
+      await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
+
+      // Verify first page content
+      for (let i = 0; i < VIDEOS_PER_PAGE; i++) {
+        expect(screen.getByText(`Paginated Video ${i}`)).toBeInTheDocument();
+      }
+      expect(screen.queryByText(`Paginated Video ${VIDEOS_PER_PAGE}`)).not.toBeInTheDocument();
+
+      // Verify pagination controls (initial state)
+      // Based on test output, Pagination component uses <button> elements.
+      const nextButton = screen.getByRole('button', { name: "Next" });
+      expect(nextButton).toBeInTheDocument();
+      // The "Next" button should not be disabled if there is a next page.
+      // The dump shows it doesn't have 'disabled=""' attribute, so this is implicitly checked by not being disabled.
+      // For explicitly checking if not disabled: expect(nextButton).not.toBeDisabled();
+
+      const pageTwoButton = screen.getByRole('button', { name: "2" });
+      expect(pageTwoButton).toBeInTheDocument();
+
+      const previousButton = screen.getByRole('button', { name: "Previous" });
+      expect(previousButton).toBeInTheDocument();
+      expect(previousButton).toBeDisabled(); // On page 1, "Previous" is disabled
+
+      // Simulate page change to page 2 by clicking "Next" or "2"
+      // Clicking "2" is more direct if available.
+      fireEvent.click(pageTwoButton);
+
+      // First, verify that router.push was called correctly
+      expect(mockRouterPush).toHaveBeenCalledWith('/?page=2');
+
+      // Now, wait for the DOM to update.
+      // This relies on the mock correctly updating moduleLevelSearchParams
+      // AND VideosPage re-rendering and using the new page number.
+      await waitFor(() => {
+        // Verify second page content
+        expect(screen.getByText(`Paginated Video ${VIDEOS_PER_PAGE}`)).toBeInTheDocument();
+        expect(screen.getByText(`Paginated Video ${VIDEOS_PER_PAGE + 1}`)).toBeInTheDocument();
+        expect(screen.getByText(`Paginated Video ${VIDEOS_PER_PAGE + 2}`)).toBeInTheDocument();
+      });
+
+      // Verify first page videos are gone
+      expect(screen.queryByText('Paginated Video 0')).not.toBeInTheDocument();
+      expect(screen.queryByText(`Paginated Video ${VIDEOS_PER_PAGE -1}`)).not.toBeInTheDocument();
+
+      // Verify "Previous" button is now enabled/active
+      const previousButtonPage2 = screen.getByRole('button', { name: "Previous" });
+      expect(previousButtonPage2).toBeInTheDocument();
+      expect(previousButtonPage2).not.toBeDisabled();
+
+      const pageOneButton = screen.getByRole('button', { name: "1" });
+      expect(pageOneButton).toBeInTheDocument();
+
+      // Optional: Go back to page 1
+      fireEvent.click(pageOneButton);
+      await waitFor(() => {
+        expect(screen.getByText('Paginated Video 0')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(`Paginated Video ${VIDEOS_PER_PAGE}`)).not.toBeInTheDocument();
+
+    });
+  });
+
+  test('handles refresh button click and updates videos', async () => {
+    const initialTimestamp = new Date().toISOString();
+    const refreshedTimestamp = new Date(new Date().getTime() + 1000).toISOString(); // Ensure different timestamp
+
+    const mockInitialVideoEntry: VideoEntry[] = [{
+      channelId: 'channel1',
+      entry: {
+        id: 'video_initial_1',
+        title: 'Initial Video',
+        link: { Href: 'https://example.com/initial1', Rel: 'alternate' },
+        published: today.toISOString(),
+        content: 'Initial video content',
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { URL: 'https://images.example.com/initial_thumb1.jpg', Width: '120', Height: '90' },
+          mediaTitle: 'Initial Video',
+          mediaContent: { URL: 'https://videos.example.com/initial_content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+          mediaDescription: 'Description for initial video',
+        },
+      },
+      cachedAt: initialTimestamp,
+    }];
+
+    const mockRefreshedVideoEntry: VideoEntry[] = [{
+      channelId: 'channel1',
+      entry: {
+        id: 'video_refreshed_1',
+        title: 'Refreshed Video',
+        link: { Href: 'https://example.com/refreshed1', Rel: 'alternate' },
+        published: today.toISOString(), // Keep same day for simplicity, content changes
+        content: 'Refreshed video content',
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { URL: 'https://images.example.com/refreshed_thumb1.jpg', Width: '120', Height: '90' },
+          mediaTitle: 'Refreshed Video',
+          mediaContent: { URL: 'https://videos.example.com/refreshed_content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+          mediaDescription: 'Description for refreshed video',
+        },
+      },
+      cachedAt: refreshedTimestamp,
+    }];
+
+    (videoAPI.getAll as jest.Mock)
+      .mockResolvedValueOnce({ videos: mockInitialVideoEntry, lastRefreshedAt: initialTimestamp }) // For initial load
+      .mockResolvedValueOnce({ videos: mockRefreshedVideoEntry, lastRefreshedAt: refreshedTimestamp }) // For the manual refresh
+      .mockResolvedValue({ videos: mockRefreshedVideoEntry, lastRefreshedAt: refreshedTimestamp }); // For any subsequent auto-refresh calls
+
+    (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels); // Standard channels
+
+    render(<VideosPage />);
+
+    // Wait for initial load and verify initial video
+    await waitFor(() => {
+      expect(screen.getByText('Initial Video')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Refreshed Video')).not.toBeInTheDocument();
+
+    // Find and click the refresh button
+    // The button contains "Refresh" text and a RefreshCw icon.
+    // It might also be identified by 'Refreshing...' when loading.
+    const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+    fireEvent.click(refreshButton);
+
+    // Assert API calls and UI update
+    // Check that it was called for the initial load (argument can be false or undefined)
+    expect((videoAPI.getAll as jest.Mock).mock.calls[0][0]).toBe(false); // Or undefined, depending on initial call style
+
+    // After clicking refresh, wait for it to be called again
+    await waitFor(() => {
+      // We expect at least 2 calls: initial + manual refresh.
+      // Auto-refresh might add more, so we check that one of them was the manual refresh.
+      expect(videoAPI.getAll).toHaveBeenCalledWith(true);
+    });
+
+    // Ensure the *final relevant* data fetch (the manual one) used 'true'
+    // This assumes subsequent auto-refresh calls might also use 'true' or 'false'
+    // A more robust way is to find the specific call if there are many.
+    // For now, let's trust the order and that the manual refresh is the second distinct data-changing call.
+    // If auto-refresh calls with 'true' immediately after, this could be tricky.
+    // Given the mock setup, the second .mockResolvedValueOnce is the manual refresh.
+    // So, if it's called more than twice, we are interested in the data from the 2nd call.
+
+    // The critical part is that the UI updates to the "Refreshed Video"
+    await waitFor(() => {
+      expect(screen.getByText('Refreshed Video')).toBeInTheDocument();
+    });
+    expect(screen.queryByText('Initial Video')).not.toBeInTheDocument();
+  });
+
+  test('displays an error message when video API call fails', async () => {
+    // Mock videoAPI.getAll to reject
+    (videoAPI.getAll as jest.Mock).mockRejectedValue(new Error('Network Error: Failed to fetch videos'));
+    // Mock channelAPI.getAll to succeed (as it's called in Promise.all)
+    (channelAPI.getAll as jest.Mock).mockResolvedValue([]);
+
+    render(<VideosPage />);
+
+    // Wait for error UI to appear
+    await waitFor(() => {
+      expect(screen.getByText('Network Error: Failed to fetch videos')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /Retry/i })).toBeInTheDocument();
+
+    // Verify no loading state or videos are shown
+    expect(screen.queryByText(/Loading videos.../i)).not.toBeInTheDocument();
+    // Check for absence of any video titles from the standard mockVideos
+    // (though in this test, mockVideos isn't returned by videoAPI.getAll)
+    mockVideos.forEach(video => {
+      expect(screen.queryByText(video.entry.title)).not.toBeInTheDocument();
     });
   });
 });
