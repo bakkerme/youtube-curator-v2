@@ -47,23 +47,21 @@ const mockChannel: Channel = {
 };
 
 const mockVideoEntry: VideoEntry = {
-  entry: {
-    title: 'Test Video Title',
-    link: { Href: 'https://youtube.com/watch?v=test', Rel: 'alternate' },
-    id: 'video-123',
-    published: '2024-01-01T12:00:00Z',
-    content: 'Test video content',
-    author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
-    mediaGroup: {
-      mediaThumbnail: { URL: 'https://test.com/thumbnail.jpg', Width: '320', Height: '180' },
-      mediaTitle: 'Test Video',
-      mediaContent: { URL: 'https://test.com/video.mp4', Type: 'video/mp4', Width: '1920', Height: '1080' },
-      mediaDescription: 'Test description'
-    }
-  },
+  id: 'video-123',
   channelId: 'channel-1',
   cachedAt: '2024-01-01T12:00:00Z',
-  watched: false
+  watched: false,
+  title: 'Test Video Title',
+  link: { href: 'https://youtube.com/watch?v=test', rel: 'alternate' },
+  published: '2024-01-01T12:00:00Z',
+  content: 'Test video content',
+  author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
+  mediaGroup: {
+    mediaThumbnail: { url: 'https://test.com/thumbnail.jpg', width: '320', height: '180' },
+    mediaTitle: 'Test Video',
+    mediaContent: { url: 'https://test.com/video.mp4', type: 'video/mp4', width: '1920', height: '1080' },
+    mediaDescription: 'Test description'
+  }
 };
 
 describe('VideoCard', () => {

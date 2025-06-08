@@ -6,15 +6,6 @@ import { videoAPI, channelAPI } from '@/lib/api'; // To be mocked
 import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
 
 // --- Mocking next/navigation ---
-// This approach defines the stateful parts of the mock (params and functions)
-// in the module scope. Jest's hoisting of jest.mock means the factory function
-// can then refer to these already-defined variables.
-
-import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
-
-import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
-
-// --- Mocking next/navigation ---
 // Use a single instance of URLSearchParams that is mutated, not reassigned.
 const moduleLevelSearchParams = new URLSearchParams();
 
@@ -63,8 +54,8 @@ jest.mock('@/lib/api', () => ({
 }));
 
 const mockChannels: Channel[] = [
-  { id: 'channel1', title: 'Channel One', url: 'url1', thumbnailUrl: 'thumb1' },
-  { id: 'channel2', title: 'Channel Two', url: 'url2', thumbnailUrl: 'thumb2' },
+  { id: 'channel1', title: 'Channel One' },
+  { id: 'channel2', title: 'Channel Two' },
 ];
 
 const today = new Date();
@@ -74,88 +65,79 @@ const specificPastDate = new Date('2023-03-15T12:00:00'); // Ensure specific tim
 
 const mockVideos: VideoEntry[] = [
   { // Video 1 (Today)
+    id: 'video1',
     channelId: 'channel1',
-    entry: {
-      id: 'video1',
-      title: 'Video Today Channel One',
-      link: { Href: 'https://example.com/video1', Rel: 'alternate' },
-      published: today.toISOString(),
-      content: 'Content for video 1',
-      author: { name: 'Channel One', uri: 'uri_channel1' },
-      mediaGroup: {
-        mediaThumbnail: { URL: 'https://images.example.com/thumb1.jpg', Width: '120', Height: '90' },
-        mediaTitle: 'Video Today Channel One',
-        mediaContent: { URL: 'https://videos.example.com/content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
-        mediaDescription: 'Description for video 1',
-      }
-      // url, duration, thumbnailUrl are not part of the 'Entry' type directly,
-      // but were in previous mock. If VideoCard relies on them at top level of entry,
-      // they might need to be mapped or VideoCard adjusted.
-      // For now, assuming VideoCard uses mediaGroup.mediaThumbnail.URL for thumbnail
-      // and entry.link.Href for the main link.
+    watched: false,
+    title: 'Video Today Channel One',
+    link: { href: 'https://example.com/video1', rel: 'alternate' },
+    published: today.toISOString(),
+    content: 'Content for video 1',
+    author: { name: 'Channel One', uri: 'uri_channel1' },
+    mediaGroup: {
+      mediaThumbnail: { url: 'https://images.example.com/thumb1.jpg', width: '120', height: '90' },
+      mediaTitle: 'Video Today Channel One',
+      mediaContent: { url: 'https://videos.example.com/content1.mp4', type: 'video/mp4', width: '640', height: '360' },
+      mediaDescription: 'Description for video 1',
     },
-    cachedAt: today.toISOString(), // Added cachedAt
+    cachedAt: today.toISOString(),
   },
   { // Video 2 (Yesterday)
+    id: 'video2',
     channelId: 'channel1',
-    entry: {
-      id: 'video2',
-      title: 'Video Yesterday Channel One',
-      link: { Href: 'https://example.com/video2', Rel: 'alternate' },
-      published: yesterday.toISOString(),
-      content: 'Content for video 2',
-      author: { name: 'Channel One', uri: 'uri_channel1' },
+    watched: false,
+    title: 'Video Yesterday Channel One',
+    link: { href: 'https://example.com/video2', rel: 'alternate' },
+    published: yesterday.toISOString(),
+    content: 'Content for video 2',
+    author: { name: 'Channel One', uri: 'uri_channel1' },
       mediaGroup: {
-        mediaThumbnail: { URL: 'https://images.example.com/thumb2.jpg', Width: '120', Height: '90' },
+        mediaThumbnail: { url: 'https://images.example.com/thumb2.jpg', width: '120', height: '90' },
         mediaTitle: 'Video Yesterday Channel One',
-        mediaContent: { URL: 'https://videos.example.com/content2.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
+        mediaContent: { url: 'https://videos.example.com/content2.mp4', type: 'video/mp4', width: '640', height: '360' },
         mediaDescription: 'Description for video 2',
-      }
     },
-    cachedAt: today.toISOString(), // Added cachedAt
+    cachedAt: yesterday.toISOString(),
   },
   { // Video 3 (Specific Past Date)
+    id: 'video3',
     channelId: 'channel2',
-    entry: {
-      id: 'video3',
-      title: 'Video Specific Date Channel Two',
-      link: { Href: 'https://example.com/video3', Rel: 'alternate' },
-      published: specificPastDate.toISOString(),
-      content: 'Content for video 3',
-      author: { name: 'Channel Two', uri: 'uri_channel2' },
-      mediaGroup: {
-        mediaThumbnail: { URL: 'https://images.example.com/thumb3.jpg', Width: '120', Height: '90' },
-        mediaTitle: 'Video Specific Date Channel Two',
-        mediaContent: { URL: 'https://videos.example.com/content3.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
-        mediaDescription: 'Description for video 3',
-      }
+    watched: false,
+    title: 'Video Specific Date Channel Two',
+    link: { href: 'https://example.com/video3', rel: 'alternate' },
+    published: specificPastDate.toISOString(),
+    content: 'Content for video 3',
+    author: { name: 'Channel Two', uri: 'uri_channel2' },
+    mediaGroup: {
+      mediaThumbnail: { url: 'https://images.example.com/thumb3.jpg', width: '120', height: '90' },
+      mediaTitle: 'Video Specific Date Channel Two',
+      mediaContent: { url: 'https://videos.example.com/content3.mp4', type: 'video/mp4', width: '640', height: '360' },
+      mediaDescription: 'Description for video 3',
     },
-    cachedAt: today.toISOString(), // Added cachedAt
+    cachedAt: specificPastDate.toISOString(),
   },
   { // Video 4 (Today, different channel, for search testing)
+    id: 'video4',
     channelId: 'channel2',
-    entry: {
-      id: 'video4',
-      title: 'Another Video Today Channel Two',
-      link: { Href: 'https://example.com/video4', Rel: 'alternate' },
-      published: today.toISOString(),
-      content: 'Content for video 4',
-      author: { name: 'Channel Two', uri: 'uri_channel2' },
-      mediaGroup: {
-        mediaThumbnail: { URL: 'https://images.example.com/thumb4.jpg', Width: '120', Height: '90' },
-        mediaTitle: 'Another Video Today Channel Two',
-        mediaContent: { URL: 'https://videos.example.com/content4.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
-        mediaDescription: 'Description for video 4',
-      }
+    watched: false,
+    title: 'Another Video Today Channel Two',
+    link: { href: 'https://example.com/video4', rel: 'alternate' },
+    published: today.toISOString(),
+    content: 'Content for video 4',
+    author: { name: 'Channel Two', uri: 'uri_channel2' },
+    mediaGroup: {
+      mediaThumbnail: { url: 'https://images.example.com/thumb4.jpg', width: '120', height: '90' },
+      mediaTitle: 'Another Video Today Channel Two',
+      mediaContent: { url: 'https://videos.example.com/content4.mp4', type: 'video/mp4', width: '640', height: '360' },
+      mediaDescription: 'Description for video 4',
     },
-    cachedAt: today.toISOString(), // Added cachedAt
+    cachedAt: today.toISOString(),
   },
-  // Removed extra trailing comma and brace here that caused syntax error
 ];
 
 const mockVideoAPIResponse: VideosAPIResponse = { // Used for most tests
   videos: mockVideos,
-  lastRefreshedAt: new Date().toISOString(),
+  lastRefresh: new Date().toISOString(),
+  totalCount: mockVideos.length,
 };
 
 const VIDEOS_PER_PAGE = 12; // From VideosPage.tsx
@@ -387,7 +369,7 @@ describe('VideosPage', () => {
           const dateInput = screen.getByTestId('date-filter-input');
           fireEvent.change(dateInput, { target: { value: dateToSelect } });
           // Wait for videos to filter based on new date
-          await waitFor(() => expect(screen.queryByText(mockVideos[0].entry.title)).not.toBeInTheDocument());
+          await waitFor(() => expect(screen.queryByText(mockVideos[0].title)).not.toBeInTheDocument());
         }
 
         const searchInput = screen.getByPlaceholderText(/Search videos or channels.../i);
@@ -398,22 +380,22 @@ describe('VideosPage', () => {
         });
 
         // Check that other videos that don't match search are not present
-        mockVideos.filter(v => v.entry.title !== expectedVideo && !v.entry.title.includes(searchFor)).forEach(v => {
+        mockVideos.filter(v => v.title !== expectedVideo && !v.title.includes(searchFor)).forEach(v => {
              // If the video was supposed to be filtered out by date already, it won't be there.
              // This check is more about search filtering out other videos that *would* match the date filter.
              if (mode === 'today') {
-                const videoDate = new Date(v.entry.published).toISOString().split('T')[0];
+                const videoDate = new Date(v.published).toISOString().split('T')[0];
                 const todayString = today.toISOString().split('T')[0];
                 if(videoDate === todayString) { // If it's a "today" video but doesn't match search
-                    expect(screen.queryByText(v.entry.title)).not.toBeInTheDocument();
+                    expect(screen.queryByText(v.title)).not.toBeInTheDocument();
                 }
              } else if (mode === 'perDay' && dateToSelect) {
-                const videoDate = new Date(v.entry.published).toISOString().split('T')[0];
+                const videoDate = new Date(v.published).toISOString().split('T')[0];
                  if(videoDate === dateToSelect) { // If it's a "selectedDate" video but doesn't match search
-                    expect(screen.queryByText(v.entry.title)).not.toBeInTheDocument();
+                    expect(screen.queryByText(v.title)).not.toBeInTheDocument();
                  }
              } else if (mode === 'all') { // In 'all' mode, if it doesn't match search, it shouldn't be there
-                 expect(screen.queryByText(v.entry.title)).not.toBeInTheDocument();
+                 expect(screen.queryByText(v.title)).not.toBeInTheDocument();
              }
         });
       });
@@ -429,19 +411,18 @@ describe('VideosPage', () => {
       // All published today to match default filter
       paginatedMockVideos = Array.from({ length: totalPaginationTestVideos }, (_, i) => ({
         channelId: 'channel1',
-        entry: {
-          id: `pag_video_${i}`,
-          title: `Paginated Video ${i}`,
-          link: { Href: `https://example.com/pag_video_${i}`, Rel: 'alternate' },
-          published: today.toISOString(), // All today
-          content: `Content for paginated video ${i}`,
-          author: { name: 'Channel One', uri: 'uri_channel1' },
-          mediaGroup: {
-            mediaThumbnail: { URL: `https://images.example.com/pag_thumb${i}.jpg`, Width: '120', Height: '90' },
-            mediaTitle: `Paginated Video ${i}`,
-            mediaContent: { URL: `https://videos.example.com/pag_content${i}.mp4`, Type: 'video/mp4', Width: '640', Height: '360' },
-            mediaDescription: `Description for paginated video ${i}`,
-          },
+        id: `pag_video_${i}`,
+        watched: false,
+        title: `Paginated Video ${i}`,
+        link: { href: `https://example.com/pag_video_${i}`, rel: 'alternate' },
+        published: today.toISOString(), // All today
+        content: `Content for paginated video ${i}`,
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { url: `https://images.example.com/pag_thumb${i}.jpg`, width: '120', height: '90' },
+          mediaTitle: `Paginated Video ${i}`,
+          mediaContent: { url: `https://videos.example.com/pag_content${i}.mp4`, type: 'video/mp4', width: '640', height: '360' },
+          mediaDescription: `Description for paginated video ${i}`,
         },
         cachedAt: today.toISOString(),
       }));
@@ -450,7 +431,8 @@ describe('VideosPage', () => {
     test('correctly paginates filtered videos and handles page navigation', async () => {
       const paginatedVideoResponse: VideosAPIResponse = {
         videos: paginatedMockVideos,
-        lastRefreshedAt: new Date().toISOString(),
+        lastRefresh: new Date().toISOString(),
+        totalCount: paginatedMockVideos.length,
       };
       (videoAPI.getAll as jest.Mock).mockResolvedValue(paginatedVideoResponse);
       (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels); // Use existing mockChannels
@@ -532,38 +514,36 @@ describe('VideosPage', () => {
 
     const mockInitialVideoEntry: VideoEntry[] = [{
       channelId: 'channel1',
-      entry: {
-        id: 'video_initial_1',
-        title: 'Initial Video',
-        link: { Href: 'https://example.com/initial1', Rel: 'alternate' },
-        published: today.toISOString(),
-        content: 'Initial video content',
-        author: { name: 'Channel One', uri: 'uri_channel1' },
-        mediaGroup: {
-          mediaThumbnail: { URL: 'https://images.example.com/initial_thumb1.jpg', Width: '120', Height: '90' },
-          mediaTitle: 'Initial Video',
-          mediaContent: { URL: 'https://videos.example.com/initial_content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
-          mediaDescription: 'Description for initial video',
-        },
+      id: 'video_initial_1',
+      watched: false,
+      title: 'Initial Video',
+      link: { href: 'https://example.com/initial1', rel: 'alternate' },
+      published: today.toISOString(),
+      content: 'Initial video content',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://images.example.com/initial_thumb1.jpg', width: '120', height: '90' },
+        mediaTitle: 'Initial Video',
+        mediaContent: { url: 'https://videos.example.com/initial_content1.mp4', type: 'video/mp4', width: '640', height: '360' },
+        mediaDescription: 'Description for initial video',
       },
       cachedAt: initialTimestamp,
     }];
 
     const mockRefreshedVideoEntry: VideoEntry[] = [{
       channelId: 'channel1',
-      entry: {
-        id: 'video_refreshed_1',
-        title: 'Refreshed Video',
-        link: { Href: 'https://example.com/refreshed1', Rel: 'alternate' },
-        published: today.toISOString(), // Keep same day for simplicity, content changes
-        content: 'Refreshed video content',
-        author: { name: 'Channel One', uri: 'uri_channel1' },
-        mediaGroup: {
-          mediaThumbnail: { URL: 'https://images.example.com/refreshed_thumb1.jpg', Width: '120', Height: '90' },
-          mediaTitle: 'Refreshed Video',
-          mediaContent: { URL: 'https://videos.example.com/refreshed_content1.mp4', Type: 'video/mp4', Width: '640', Height: '360' },
-          mediaDescription: 'Description for refreshed video',
-        },
+      id: 'video_refreshed_1',
+      watched: false,
+      title: 'Refreshed Video',
+      link: { href: 'https://example.com/refreshed1', rel: 'alternate' },
+      published: today.toISOString(), // Keep same day for simplicity, content changes
+      content: 'Refreshed video content',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://images.example.com/refreshed_thumb1.jpg', width: '120', height: '90' },
+        mediaTitle: 'Refreshed Video',
+        mediaContent: { url: 'https://videos.example.com/refreshed_content1.mp4', type: 'video/mp4', width: '640', height: '360' },
+        mediaDescription: 'Description for refreshed video',
       },
       cachedAt: refreshedTimestamp,
     }];
@@ -634,7 +614,7 @@ describe('VideosPage', () => {
     // Check for absence of any video titles from the standard mockVideos
     // (though in this test, mockVideos isn't returned by videoAPI.getAll)
     mockVideos.forEach(video => {
-      expect(screen.queryByText(video.entry.title)).not.toBeInTheDocument();
+      expect(screen.queryByText(video.title)).not.toBeInTheDocument();
     });
   });
 });

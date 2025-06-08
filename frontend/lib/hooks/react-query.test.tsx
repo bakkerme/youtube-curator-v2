@@ -97,18 +97,39 @@ describe('React Query Hooks Integration Tests', () => {
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toHaveLength(2);
       
-      // Check first video
+      // Check first video with new VideoEntry structure
       const firstVideo = result.current.data?.[0];
       expect(firstVideo).toEqual({
         id: 'dQw4w9WgXcQ',
-        title: 'Introduction to React Testing',
         channelId: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
-        channelTitle: 'Google Developers',
-        thumbnailUrl: 'https://i.ytimg.com/vi/mock/maxresdefault.jpg',
-        publishedAt: '2024-01-15T10:00:00Z',
-        viewCount: 150000,
-        likeCount: 5000,
-        commentCount: 200,
+        cachedAt: '2024-01-15T10:00:00Z',
+        watched: false,
+        title: 'Introduction to React Testing',
+        link: {
+          Href: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          Rel: 'alternate',
+        },
+        published: '2024-01-15T10:00:00Z',
+        content: 'Learn how to test React components effectively with modern testing tools.',
+        author: {
+          name: 'Google Developers',
+          uri: 'https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw',
+        },
+        mediaGroup: {
+          mediaThumbnail: {
+            URL: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+            Width: '1280',
+            Height: '720',
+          },
+          mediaTitle: 'Introduction to React Testing',
+          mediaContent: {
+            URL: 'https://www.youtube.com/v/dQw4w9WgXcQ?version=3',
+            Type: 'application/x-shockwave-flash',
+            Width: '640',
+            Height: '390',
+          },
+          mediaDescription: 'Learn how to test React components effectively with modern testing tools.',
+        },
       });
     });
 
@@ -120,20 +141,49 @@ describe('React Query Hooks Integration Tests', () => {
           const refresh = url.searchParams.get('refresh');
           
           if (refresh === 'true') {
-            return HttpResponse.json([{
-              id: 'refreshed123',
-              title: 'Refreshed Video Title',
-              channelId: 'UC_refresh',
-              channelTitle: 'Refresh Channel',
-              thumbnailUrl: 'https://refresh.example.com/thumb.jpg',
-              publishedAt: '2024-01-20T00:00:00Z',
-              viewCount: 999999,
-              likeCount: 50000,
-              commentCount: 1000,
-            }]);
+            return HttpResponse.json({
+              videos: [{
+                id: 'refreshed123',
+                channelId: 'UC_refresh',
+                cachedAt: '2024-01-20T00:00:00Z',
+                watched: false,
+                title: 'Refreshed Video Title',
+                link: {
+                  Href: 'https://www.youtube.com/watch?v=refreshed123',
+                  Rel: 'alternate',
+                },
+                published: '2024-01-20T00:00:00Z',
+                content: 'Refreshed video content.',
+                author: {
+                  name: 'Refresh Channel',
+                  uri: 'https://www.youtube.com/channel/UC_refresh',
+                },
+                mediaGroup: {
+                  mediaThumbnail: {
+                    URL: 'https://refresh.example.com/thumb.jpg',
+                    Width: '1280',
+                    Height: '720',
+                  },
+                  mediaTitle: 'Refreshed Video Title',
+                  mediaContent: {
+                    URL: 'https://www.youtube.com/v/refreshed123?version=3',
+                    Type: 'application/x-shockwave-flash',
+                    Width: '640',
+                    Height: '390',
+                  },
+                  mediaDescription: 'Refreshed video content.',
+                },
+              }],
+              lastRefresh: '2024-01-20T00:00:00Z',
+              totalCount: 1,
+            });
           }
           
-          return HttpResponse.json([]);
+          return HttpResponse.json({
+            videos: [],
+            lastRefresh: '2024-01-15T10:00:00Z',
+            totalCount: 0,
+          });
         })
       );
 

@@ -1,4 +1,5 @@
 import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import { VideoEntry, VideosAPIResponse } from '../types';
 
 // Types for our API responses
 export interface Channel {
@@ -8,18 +9,6 @@ export interface Channel {
   thumbnailUrl: string;
   createdAt: string;
   lastVideoPublishedAt: string;
-}
-
-export interface Video {
-  id: string;
-  title: string;
-  channelId: string;
-  channelTitle: string;
-  thumbnailUrl: string;
-  publishedAt: string;
-  viewCount: number;
-  likeCount: number;  
-  commentCount: number;
 }
 
 export interface Config {
@@ -49,10 +38,10 @@ export const useChannels = (): UseQueryResult<Channel[], Error> => {
 };
 
 // Hook to fetch videos with optional refresh
-export const useVideos = (options?: { refresh?: boolean }): UseQueryResult<Video[], Error> => {
+export const useVideos = (options?: { refresh?: boolean }): UseQueryResult<VideoEntry[], Error> => {
   return useQuery({
     queryKey: ['videos', options?.refresh],
-    queryFn: async (): Promise<Video[]> => {
+    queryFn: async (): Promise<VideoEntry[]> => {
       const params = new URLSearchParams();
       if (options?.refresh) {
         params.append('refresh', 'true');
@@ -62,7 +51,8 @@ export const useVideos = (options?: { refresh?: boolean }): UseQueryResult<Video
       if (!response.ok) {
         throw new Error('Failed to fetch videos');
       }
-      return response.json();
+      const data: VideosAPIResponse = await response.json();
+      return data.videos;
     },
   });
 };

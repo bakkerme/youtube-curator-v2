@@ -72,8 +72,8 @@ export default function VideosPage() {
         setChannels(channelsData);
       }
 
-      if (videosData && videosData.lastRefreshedAt) {
-        setLastApiRefreshTimestamp(videosData.lastRefreshedAt);
+      if (videosData && videosData.lastRefresh) {
+        setLastApiRefreshTimestamp(videosData.lastRefresh);
       }
       setError(null);
     } catch (err) {
@@ -89,7 +89,7 @@ export default function VideosPage() {
   // Load data on component mount
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, []);
 
   // Handle refresh button click
   const handleRefresh = useCallback(() => {
@@ -98,7 +98,7 @@ export default function VideosPage() {
     // but we want a manual refresh.
     // Or, more simply, loadData(true) will fetch new data and update it.
     loadData(true);
-  }, [loadData]);
+  }, []);
 
   // Auto-refresh logic
   useEffect(() => {
@@ -122,7 +122,7 @@ export default function VideosPage() {
           console.log('Auto-refresh: Day has changed since last API refresh.');
 
           const hasVideosForNewDay = allVideos.some(video => {
-            const videoPublishedDate = new Date(video.entry.published);
+            const videoPublishedDate = new Date(video.published);
             const videoDay = new Date(videoPublishedDate.getFullYear(), videoPublishedDate.getMonth(), videoPublishedDate.getDate());
             return videoDay.getTime() === currentDay.getTime();
           });
@@ -181,7 +181,7 @@ export default function VideosPage() {
     if (filterMode === 'today') {
       const todayNormalized = normalizeDate(new Date());
       dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
-        const videoDate = new Date(video.entry.published);
+        const videoDate = new Date(video.published);
         return normalizeDate(videoDate).getTime() === todayNormalized.getTime();
       });
     } else if (filterMode === 'perDay') {
@@ -197,7 +197,7 @@ export default function VideosPage() {
           } else {
             const perDayNormalized = normalizeDate(perDayDate);
             dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
-              const videoDate = new Date(video.entry.published);
+              const videoDate = new Date(video.published);
               return normalizeDate(videoDate).getTime() === perDayNormalized.getTime();
             });
           }
@@ -210,14 +210,14 @@ export default function VideosPage() {
         dateFilteredVideos = [];
       }
     }
+    
     // If filterMode is 'all', no date filtering is applied, dateFilteredVideos remains 'allVideos'.
-
     let searchFilteredVideos = dateFilteredVideos;
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       searchFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
-        const title = video.entry.title.toLowerCase();
+        const title = video.title.toLowerCase();
         const channel = channels.find(c => c.id === video.channelId);
         const channelTitle = channel?.title.toLowerCase() || '';
         return title.includes(query) || channelTitle.includes(query);
@@ -376,11 +376,11 @@ export default function VideosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {paginatedUnwatchedVideos.map((video) => (
               <VideoCard
-                key={video.entry.id}
+                key={video.id}
                 video={video}
                 channels={channels}
                 // Pass loadData to refresh the list when a video is marked as watched
-                onWatchedStatusChange={() => loadData(false)}
+                // onWatchedStatusChange={() => loadData(false)}
               />
             ))}
           </div>
@@ -403,10 +403,10 @@ export default function VideosPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {paginatedWatchedVideos.map((video) => (
               <VideoCard
-                key={video.entry.id}
+                key={video.id}
                 video={video}
                 channels={channels}
-                onWatchedStatusChange={() => loadData(false)}
+                // onWatchedStatusChange={() => loadData(false)}
               />
             ))}
           </div>

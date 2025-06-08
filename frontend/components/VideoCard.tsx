@@ -11,20 +11,19 @@ interface VideoCardProps {
 }
 
 export default function VideoCard({ video, channels, onWatchedStatusChange }: VideoCardProps) {
-  const { entry, channelId, watched } = video; // Destructure watched
-  const [isChecked, setIsChecked] = useState(watched);
+  const [isChecked, setIsChecked] = useState(video.watched);
 
   // Effect to synchronize isChecked with prop changes
   useEffect(() => {
-    setIsChecked(watched);
-  }, [watched]);
+    setIsChecked(video.watched);
+  }, [video.watched]);
 
   const handleCheckboxChange = async () => {
     const originalCheckedState = isChecked;
     setIsChecked(!originalCheckedState); // Optimistic update
 
     try {
-      await videoAPI.markAsWatched(entry.id);
+      await videoAPI.markAsWatched(video.id);
       if (onWatchedStatusChange) {
         onWatchedStatusChange(); // Call the callback to refresh data in parent
       }
@@ -35,18 +34,18 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
   };
   
   // Find the channel title
-  const channel = channels.find(c => c.id === channelId);
+  const channel = channels.find(c => c.id === video.channelId);
   const channelTitle = channel?.title || 'Unknown Channel';
   
   // Format the published date
-  const publishedDate = new Date(entry.published);
+  const publishedDate = new Date(video.published);
   const timeAgo = formatDistanceToNow(publishedDate, { addSuffix: true });
   
   // Get thumbnail URL with fallback
-  const thumbnailUrl = entry.mediaGroup?.mediaThumbnail?.URL || '/placeholder-video.svg';
+  const thumbnailUrl = video.mediaGroup?.mediaThumbnail?.url || '/placeholder-video.svg';
   
   // Clean up title
-  const title = entry.title || 'Untitled Video';
+  const title = video.title || 'Untitled Video';
   
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all ${isChecked ? 'opacity-60' : ''}`}>
@@ -68,12 +67,12 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
             {title}
           </h3>
           <div className="ml-2 flex-shrink-0">
-            <label htmlFor={`watched-${entry.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
+            <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
               <span>Watched</span>
               <input
                 type="checkbox"
-                id={`watched-${entry.id}`}
-                name={`watched-${entry.id}`}
+                id={`watched-${video.id}`}
+                name={`watched-${video.id}`}
                 checked={isChecked}
                 onChange={handleCheckboxChange}
                 className="form-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-red-600 dark:ring-offset-gray-800"
@@ -89,7 +88,7 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
         
         {/* Watch button */}
         <a
-          href={entry.link.Href}
+          href={video.link.href}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"

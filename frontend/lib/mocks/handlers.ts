@@ -23,25 +23,67 @@ export const mockChannels = [
 export const mockVideos = [
   {
     id: 'dQw4w9WgXcQ',
-    title: 'Introduction to React Testing',
     channelId: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
-    channelTitle: 'Google Developers',
-    thumbnailUrl: 'https://i.ytimg.com/vi/mock/maxresdefault.jpg',
-    publishedAt: '2024-01-15T10:00:00Z',
-    viewCount: 150000,
-    likeCount: 5000,
-    commentCount: 200,
+    cachedAt: '2024-01-15T10:00:00Z',
+    watched: false,
+    title: 'Introduction to React Testing',
+    link: {
+      Href: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      Rel: 'alternate',
+    },
+    published: '2024-01-15T10:00:00Z',
+    content: 'Learn how to test React components effectively with modern testing tools.',
+    author: {
+      name: 'Google Developers',
+      uri: 'https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw',
+    },
+    mediaGroup: {
+      mediaThumbnail: {
+        URL: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
+        Width: '1280',
+        Height: '720',
+      },
+      mediaTitle: 'Introduction to React Testing',
+      mediaContent: {
+        URL: 'https://www.youtube.com/v/dQw4w9WgXcQ?version=3',
+        Type: 'application/x-shockwave-flash',
+        Width: '640',
+        Height: '390',
+      },
+      mediaDescription: 'Learn how to test React components effectively with modern testing tools.',
+    },
   },
   {
     id: 'abc123xyz',
-    title: 'Next.js 15 Performance Tips',
     channelId: 'UCsBjURrPoezykLs9EqgamOA',
-    channelTitle: 'Fireship',
-    thumbnailUrl: 'https://i.ytimg.com/vi/mock2/maxresdefault.jpg',
-    publishedAt: '2024-01-14T15:30:00Z',
-    viewCount: 250000,
-    likeCount: 12000,
-    commentCount: 450,
+    cachedAt: '2024-01-14T15:30:00Z',
+    watched: false,
+    title: 'Next.js 15 Performance Tips',
+    link: {
+      Href: 'https://www.youtube.com/watch?v=abc123xyz',
+      Rel: 'alternate',
+    },
+    published: '2024-01-14T15:30:00Z',
+    content: 'Discover the latest performance optimizations in Next.js 15.',
+    author: {
+      name: 'Fireship',
+      uri: 'https://www.youtube.com/channel/UCsBjURrPoezykLs9EqgamOA',
+    },
+    mediaGroup: {
+      mediaThumbnail: {
+        URL: 'https://i.ytimg.com/vi/abc123xyz/maxresdefault.jpg',
+        Width: '1280',
+        Height: '720',
+      },
+      mediaTitle: 'Next.js 15 Performance Tips',
+      mediaContent: {
+        URL: 'https://www.youtube.com/v/abc123xyz?version=3',
+        Type: 'application/x-shockwave-flash',
+        Width: '640',
+        Height: '390',
+      },
+      mediaDescription: 'Discover the latest performance optimizations in Next.js 15.',
+    },
   },
 ]
 
@@ -96,13 +138,29 @@ export const handlers = [
     
     // Simulate refresh behavior
     if (refresh === 'true') {
-      return HttpResponse.json({
-        ...mockVideos[0],
-        title: 'Refreshed: ' + mockVideos[0].title,
-      })
+      const refreshedVideos = {
+        videos: [
+          {
+            ...mockVideos[0],
+            title: 'Refreshed: ' + mockVideos[0].title,
+            mediaGroup: {
+              ...mockVideos[0].mediaGroup,
+              mediaTitle: 'Refreshed: ' + mockVideos[0].title,
+            }
+          },
+          ...mockVideos.slice(1)
+        ],
+        lastRefresh: new Date().toISOString(),
+        totalCount: mockVideos.length,
+      }
+      return HttpResponse.json(refreshedVideos)
     }
     
-    return HttpResponse.json(mockVideos)
+    return HttpResponse.json({
+      videos: mockVideos,
+      lastRefresh: '2024-01-15T10:00:00Z',
+      totalCount: mockVideos.length,
+    })
   }),
 
   // Get channel by ID

@@ -706,7 +706,7 @@ components:
       properties:
         id:
           type: string
-          description: Video ID with yt:video: prefix
+          description: "Video ID with yt:video: prefix"
           example: "yt:video:dQw4w9WgXcQ"
         title:
           type: string

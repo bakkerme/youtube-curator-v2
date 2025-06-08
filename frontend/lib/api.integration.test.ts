@@ -118,16 +118,21 @@ describe('API Integration Tests', () => {
       const response = await apiClient.get('/api/videos');
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveLength(2);
-      expect(response.data[0]).toHaveProperty('id', 'dQw4w9WgXcQ');
-      expect(response.data[0]).toHaveProperty('title', 'Introduction to React Testing');
+      expect(response.data).toHaveProperty('videos');
+      expect(response.data).toHaveProperty('lastRefresh');
+      expect(response.data).toHaveProperty('totalCount');
+      expect(response.data.videos).toHaveLength(2);
+      expect(response.data.videos[0]).toHaveProperty('id', 'dQw4w9WgXcQ');
+      expect(response.data.videos[0]).toHaveProperty('title', 'Introduction to React Testing');
     });
 
     test('GET /api/videos with refresh param returns refreshed data', async () => {
       const response = await apiClient.get('/api/videos?refresh=true');
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('title', 'Refreshed: Introduction to React Testing');
+      expect(response.data).toHaveProperty('videos');
+      expect(response.data.videos[0]).toHaveProperty('title');
+      expect(response.data.videos[0].title).toContain('Refreshed: Introduction to React Testing');
     });
 
     describe('markAsWatched', () => {
@@ -262,7 +267,8 @@ describe('Advanced API Patterns', () => {
     const response = await apiClient.get(`/api/videos?${params.toString()}`);
 
     expect(response.status).toBe(200);
-    expect(response.data.title).toContain('Refreshed:');
+    expect(response.data).toHaveProperty('videos');
+    expect(response.data.videos[0].title).toContain('Refreshed:');
   });
 
   test('handles request with complex payload', async () => {
@@ -306,19 +312,44 @@ describe('Response Validation', () => {
     const response = await apiClient.get('/api/videos');
 
     expect(response.data).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          id: expect.any(String),
-          title: expect.any(String),
-          channelId: expect.any(String),
-          channelTitle: expect.any(String),
-          thumbnailUrl: expect.any(String),
-          publishedAt: expect.any(String),
-          viewCount: expect.any(Number),
-          likeCount: expect.any(Number),
-          commentCount: expect.any(Number),
-        })
-      ])
+      expect.objectContaining({
+        videos: expect.arrayContaining([
+          expect.objectContaining({
+            id: expect.any(String),
+            title: expect.any(String),
+            channelId: expect.any(String),
+            cachedAt: expect.any(String),
+            watched: expect.any(Boolean),
+            published: expect.any(String),
+            content: expect.any(String),
+            link: expect.objectContaining({
+              Href: expect.any(String),
+              Rel: expect.any(String),
+            }),
+            author: expect.objectContaining({
+              name: expect.any(String),
+              uri: expect.any(String),
+            }),
+            mediaGroup: expect.objectContaining({
+              mediaThumbnail: expect.objectContaining({
+                URL: expect.any(String),
+                Width: expect.any(String),
+                Height: expect.any(String),
+              }),
+              mediaTitle: expect.any(String),
+              mediaContent: expect.objectContaining({
+                URL: expect.any(String),
+                Type: expect.any(String),
+                Width: expect.any(String),
+                Height: expect.any(String),
+              }),
+              mediaDescription: expect.any(String),
+            }),
+          })
+        ]),
+        lastRefresh: expect.any(String),
+        totalCount: expect.any(Number),
+      })
     );
   });
 

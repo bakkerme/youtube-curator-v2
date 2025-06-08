@@ -87,22 +87,18 @@ type VideoMediaGroupResponse struct {
 	MediaDescription string                      `json:"mediaDescription"`
 }
 
-// VideoResponse represents a video in API responses with consistent camelCase naming
+// VideoResponse represents a video in API responses matching the frontend VideoEntry interface
 type VideoResponse struct {
-	ID            string                  `json:"id"`
-	Title         string                  `json:"title"`
-	Link          VideoLinkResponse       `json:"link"`
-	PublishedAt   time.Time               `json:"publishedAt"`
-	Content       string                  `json:"content"`
-	Author        VideoAuthorResponse     `json:"author"`
-	MediaGroup    VideoMediaGroupResponse `json:"mediaGroup"`
-	ChannelID     string                  `json:"channelId"`
-	ChannelTitle  string                  `json:"channelTitle"`
-	CachedAt      time.Time               `json:"cachedAt"`
-	Duration      int                     `json:"duration,omitempty"`
-	Tags          []string                `json:"tags,omitempty"`
-	TopComments   []string                `json:"topComments,omitempty"`
-	AutoSubtitles string                  `json:"autoSubtitles,omitempty"`
+	ID         string                  `json:"id"`
+	ChannelID  string                  `json:"channelId"`
+	CachedAt   time.Time               `json:"cachedAt"`
+	Watched    bool                    `json:"watched"`
+	Title      string                  `json:"title"`
+	Link       VideoLinkResponse       `json:"link"`
+	Published  time.Time               `json:"published"`
+	Content    string                  `json:"content"`
+	Author     VideoAuthorResponse     `json:"author"`
+	MediaGroup VideoMediaGroupResponse `json:"mediaGroup"`
 }
 
 // VideosResponse represents the response for GET /api/videos
@@ -149,25 +145,21 @@ func transformChannels(channels []store.Channel) ChannelsResponse {
 	}
 }
 
-// transformVideoEntry converts a store.VideoEntry to VideoResponse with enhanced metadata
-func transformVideoEntry(videoEntry store.VideoEntry, channelTitle string) VideoResponse {
+// transformVideoEntry converts a store.VideoEntry to VideoResponse matching the frontend VideoEntry interface
+func transformVideoEntry(videoEntry store.VideoEntry) VideoResponse {
 	entry := videoEntry.Entry
 
 	return VideoResponse{
-		ID:            entry.ID,
-		Title:         entry.Title,
-		Link:          transformVideoLink(entry.Link),
-		PublishedAt:   entry.Published,
-		Content:       entry.Content,
-		Author:        transformVideoAuthor(entry.Author),
-		MediaGroup:    transformVideoMediaGroup(entry.MediaGroup),
-		ChannelID:     videoEntry.ChannelID,
-		ChannelTitle:  channelTitle,
-		CachedAt:      videoEntry.CachedAt,
-		Duration:      entry.Duration,
-		Tags:          entry.Tags,
-		TopComments:   entry.TopComments,
-		AutoSubtitles: entry.AutoSubtitles,
+		ID:         entry.ID,
+		ChannelID:  videoEntry.ChannelID,
+		CachedAt:   videoEntry.CachedAt,
+		Watched:    videoEntry.Watched,
+		Title:      entry.Title,
+		Link:       transformVideoLink(entry.Link),
+		Published:  entry.Published,
+		Content:    entry.Content,
+		Author:     transformVideoAuthor(entry.Author),
+		MediaGroup: transformVideoMediaGroup(entry.MediaGroup),
 	}
 }
 
@@ -216,21 +208,11 @@ func transformVideoMediaContent(content rss.MediaContent) VideoMediaContentRespo
 	}
 }
 
-// transformVideos converts video entries to VideosResponse with enhanced metadata
-func transformVideos(videoEntries []store.VideoEntry, channels []store.Channel, lastRefresh time.Time) VideosResponse {
-	// Create a map of channel ID to title for quick lookup
-	channelTitleMap := make(map[string]string)
-	for _, channel := range channels {
-		channelTitleMap[channel.ID] = channel.Title
-	}
-
+// transformVideos converts video entries to VideosResponse
+func transformVideos(videoEntries []store.VideoEntry, lastRefresh time.Time) VideosResponse {
 	videoResponses := make([]VideoResponse, len(videoEntries))
 	for i, videoEntry := range videoEntries {
-		channelTitle := channelTitleMap[videoEntry.ChannelID]
-		if channelTitle == "" {
-			channelTitle = "Unknown Channel"
-		}
-		videoResponses[i] = transformVideoEntry(videoEntry, channelTitle)
+		videoResponses[i] = transformVideoEntry(videoEntry)
 	}
 
 	return VideosResponse{
@@ -797,14 +779,8 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 		return videos[i].Entry.Published.After(videos[j].Entry.Published)
 	})
 
-	// Get all channels for title mapping
-	channels, err := h.store.GetChannels()
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve channels")
-	}
-
 	// Prepare response using the transformation function
-	response := transformVideos(videos, channels, h.videoStore.GetLastRefreshedAt())
+	response := transformVideos(videos, h.videoStore.GetLastRefreshedAt())
 
 	return c.JSON(http.StatusOK, response)
 }

@@ -67,16 +67,16 @@ export interface RunNewsletterResponse {
 
 // RSS Entry types
 export interface MediaThumbnail {
-  URL: string;
-  Width: string;
-  Height: string;
+  url: string;
+  width: string;
+  height: string;
 }
 
 export interface MediaContent {
-  URL: string;
-  Type: string;
-  Width: string;
-  Height: string;
+  url: string;
+  type: string;
+  width: string;
+  height: string;
 }
 
 export interface MediaGroup {
@@ -92,29 +92,26 @@ export interface Author {
 }
 
 export interface Link {
-  Href: string;
-  Rel: string;
+  href: string;
+  rel: string;
 }
 
-export interface Entry {
+// Video Entry from the API
+export interface VideoEntry {
+  id: string;
+  channelId: string;
+  cachedAt: string;
+  watched: boolean;
   title: string;
   link: Link;
-  id: string;
   published: string;
   content: string;
   author: Author;
   mediaGroup: MediaGroup;
 }
 
-// Video Entry from the API
-export interface VideoEntry {
-  entry: Entry;
-  channelId: string;
-  cachedAt: string;
-  watched: boolean;
-}
-
 export interface VideosAPIResponse {
   videos: VideoEntry[];
-  lastRefreshedAt: string;
+  lastRefresh: string;
+  totalCount: number;
 }
