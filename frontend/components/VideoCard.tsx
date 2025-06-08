@@ -48,7 +48,7 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
   const title = video.title || 'Untitled Video';
   
   return (
-    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all ${isChecked ? 'opacity-60' : ''}`}>
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all min-h-[400px] flex flex-col ${isChecked ? 'opacity-60' : ''}`}>
       {/* Thumbnail */}
       <a
         href={video.link.href}
@@ -69,7 +69,7 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
       </a>
       
       {/* Content */}
-      <div className="p-4 flex flex-col justify-between h-full">
+      <div className="p-4 flex flex-col justify-between flex-1">
         <div>
           <div className="mb-2">
             <a

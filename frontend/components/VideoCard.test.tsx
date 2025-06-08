@@ -349,6 +349,6 @@ describe('VideoCard', () => {
     const contentContainer = title.closest('div[class*="p-4"]');
     
     // Verify the content container has flexbox classes for bottom positioning
-    expect(contentContainer).toHaveClass('flex', 'flex-col', 'justify-between', 'h-full');
+    expect(contentContainer).toHaveClass('flex', 'flex-col', 'justify-between', 'flex-1');
   });
 });
