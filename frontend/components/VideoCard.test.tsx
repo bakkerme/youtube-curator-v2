@@ -333,4 +333,22 @@ describe('VideoCard', () => {
     // Verify the container has flex layout classes
     expect(buttonContainer).toHaveClass('flex', 'items-center', 'justify-between');
   });
+
+  it('should use flexbox layout to position controls at bottom of card', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert - Find the main content container
+    const title = screen.getByText('Test Video Title');
+    const contentContainer = title.closest('div[class*="p-4"]');
+    
+    // Verify the content container has flexbox classes for bottom positioning
+    expect(contentContainer).toHaveClass('flex', 'flex-col', 'justify-between', 'h-full');
+  });
 });
