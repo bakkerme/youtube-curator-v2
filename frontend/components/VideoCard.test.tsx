@@ -14,12 +14,16 @@ jest.mock('next/image', () => ({
 }));
 
 // Mock the runtime config
-jest.mock('@/lib/config', () => ({
-  getRuntimeConfig: jest.fn().mockResolvedValue({
-    apiUrl: 'http://localhost:8080/api'
-  })
-}));
+jest.mock('@/lib/config', () => {
+  const baseURL = 'http://localhost:8080/api';
+  return {
+    getRuntimeConfig: jest.fn().mockResolvedValue({
+      apiUrl: baseURL,
+    })
+  };
+});
 
+const baseURL = 'http://localhost:8080/api';
 
 // Test wrapper with QueryClient
 const TestWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -118,7 +122,7 @@ describe('VideoCard', () => {
     // Arrange
     let apiCalled = false;
     server.use(
-      http.post('http://localhost:8080/api/videos/video-123/watch', () => {
+      http.post(`${baseURL}/videos/video-123/watch`, () => {
         apiCalled = true;
         return new HttpResponse(null, { status: 200 });
       })
@@ -149,7 +153,7 @@ describe('VideoCard', () => {
   it('should optimistically update checkbox state', async () => {
     // Arrange
     server.use(
-      http.post('http://localhost:8080/api/videos/video-123/watch', async () => {
+      http.post(`${baseURL}/api/videos/video-123/watch`, async () => {
         // Delay to simulate network request
         await new Promise(resolve => setTimeout(resolve, 100));
         return new HttpResponse(null, { status: 200 });
@@ -187,7 +191,7 @@ describe('VideoCard', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     
     server.use(
-      http.post('http://localhost:8080/api/videos/video-123/watch', () => {
+      http.post(`${baseURL}/videos/video-123/watch`, () => {
         return HttpResponse.json(
           { message: 'Server error' },
           { status: 500 }
