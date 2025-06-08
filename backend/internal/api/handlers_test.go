@@ -76,7 +76,7 @@ func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 		{ID: "channel1", Title: "Test Channel 1"},
 		{ID: "channel2", Title: "Test Channel 2"},
 	}
-	mockStore.EXPECT().GetChannels().Return(channels, nil)
+	mockStore.EXPECT().GetChannels().Return(channels, nil).Times(2) // Called twice: once for fetching, once for response transformation
 
 	// Setup mock feeds
 	video1 := rss.Entry{
@@ -149,7 +149,7 @@ func TestGetVideos_WithRefreshParameter(t *testing.T) {
 	channels := []store.Channel{
 		{ID: "channel1", Title: "Test Channel 1"},
 	}
-	mockStore.EXPECT().GetChannels().Return(channels, nil)
+	mockStore.EXPECT().GetChannels().Return(channels, nil).Times(2) // Called twice: once for fetching, once for response transformation
 
 	// Setup new video in mock feed
 	newVideo := rss.Entry{
@@ -228,7 +228,13 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 	}
 	videoStore.AddVideo("channel1", cachedVideo)
 
-	// Create handlers - no mock store expectations since cache should be used
+	// Setup mock expectations for channel title mapping
+	channels := []store.Channel{
+		{ID: "channel1", Title: "Test Channel 1"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil) // Called once for response transformation
+
+	// Create handlers
 	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
 
 	// Create test request without refresh parameter

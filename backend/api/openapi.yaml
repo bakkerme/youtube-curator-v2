@@ -7,6 +7,8 @@ info:
     This API allows you to:
     - Manage subscribed YouTube channels
     - Configure the check interval for video monitoring
+    - Retrieve videos with some metadata
+    - Mark videos as watched
   version: 2.0.0
   contact:
     name: YouTube Curator v2
@@ -26,12 +28,21 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Channel'
+                $ref: '#/components/schemas/ChannelsResponse'
               example:
-                - id: "UCAYF6ZY9gWBR1GW3R7PX7yw"
-                - id: "UCkpKS8M7MaZAFewtUz24K3A"
+                channels:
+                  - id: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                    title: "Majuular"
+                    createdAt: "2024-01-15T10:00:00Z"
+                    isActive: true
+                    videoCount: 0
+                  - id: "UCkpKS8M7MaZAFewtUz24K3A"
+                    title: "GitHub"
+                    createdAt: "2024-01-15T10:00:00Z"
+                    isActive: true
+                    videoCount: 0
+                totalCount: 2
+                lastUpdated: "2024-01-15T10:00:00Z"
         '500':
           description: Internal server error
           content:
@@ -69,9 +80,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Channel'
+                $ref: '#/components/schemas/ChannelResponse'
               example:
                 id: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                title: "Majuular"
+                createdAt: "2024-01-15T10:00:00Z"
+                isActive: true
+                videoCount: 0
         '400':
           description: Bad request - invalid URL format or unsupported URL type
           content:
@@ -121,8 +136,14 @@ paths:
                 imported:
                   - id: "UC_x5XG1OV2P6uZZ5FSM9Ttw"
                     title: "Google for Developers"
-                  - id: "UCkpKS8M7MaZAFewtUz24K3A" # Assuming @github resolves to this ID
+                    createdAt: "2024-01-15T10:00:00Z"
+                    isActive: true
+                    videoCount: 0
+                  - id: "UCkpKS8M7MaZAFewtUz24K3A"
                     title: "GitHub"
+                    createdAt: "2024-01-15T10:00:00Z"
+                    isActive: true
+                    videoCount: 0
                 failed: []
         '207':
           description: Partial import - some channels failed to import
@@ -134,6 +155,9 @@ paths:
                 imported:
                   - id: "UC_x5XG1OV2P6uZZ5FSM9Ttw"
                     title: "Google for Developers"
+                    createdAt: "2024-01-15T10:00:00Z"
+                    isActive: true
+                    videoCount: 0
                 failed:
                   - channel:
                       url: "https://www.youtube.com/user/invalidchannel"
@@ -317,23 +341,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Newsletter run completed"
-                  channelsProcessed:
-                    type: integer
-                    example: 5
-                  channelsWithError:
-                    type: integer
-                    example: 0
-                  newVideosFound:
-                    type: integer
-                    example: 3
-                  emailSent:
-                    type: boolean
-                    example: true
+                $ref: '#/components/schemas/NewsletterRunResponse'
+              example:
+                message: "Newsletter run completed"
+                channelsProcessed: 5
+                channelsWithError: 0
+                newVideosFound: 3
+                emailSent: true
         '400':
           description: Bad request - invalid channel ID format if provided
           content:
@@ -369,40 +383,44 @@ paths:
           example: true
       responses:
         '200':
-          description: Successfully retrieved videos
+          description: Successfully retrieved videos.
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/VideoEntry'
+                $ref: '#/components/schemas/VideosResponse'
               example:
-                - entry:
+                videos:
+                  - id: "yt:video:dQw4w9WgXcQ"
                     title: "Amazing Video Title"
-                    watched: false
                     link:
-                      Href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                      Rel: "alternate"
-                    id: "yt:video:dQw4w9WgXcQ"
-                    published: "2024-01-15T10:30:00Z"
+                      href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                      rel: "alternate"
+                    publishedAt: "2024-01-15T10:30:00Z"
                     content: "Video description content here"
                     author:
                       name: "Channel Name"
                       uri: "https://www.youtube.com/channel/UCAYF6ZY9gWBR1GW3R7PX7yw"
                     mediaGroup:
                       mediaThumbnail:
-                        URL: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
-                        Width: "480"
-                        Height: "360"
+                        url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
+                        width: "480"
+                        height: "360"
                       mediaTitle: "Amazing Video Title"
                       mediaContent:
-                        URL: "https://www.youtube.com/v/dQw4w9WgXcQ?version=3"
-                        Type: "application/x-shockwave-flash"
-                        Width: "640"
-                        Height: "390"
+                        url: "https://www.youtube.com/v/dQw4w9WgXcQ?version=3"
+                        type: "application/x-shockwave-flash"
+                        width: "640"
+                        height: "390"
                       mediaDescription: "Video description content here"
-                  channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
-                  cachedAt: "2024-01-15T10:35:00Z"
+                    channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                    channelTitle: "Channel Name"
+                    cachedAt: "2024-01-15T10:35:00Z"
+                    duration: 300
+                    tags: ["technology", "tutorial"]
+                    topComments: ["Great video!", "Very helpful"]
+                    autoSubtitles: "https://example.com/subtitles.vtt"
+                totalCount: 1
+                lastRefresh: "2024-01-15T10:35:00Z"
         '500':
           description: Internal server error
           content:
@@ -422,7 +440,7 @@ paths:
           description: The ID of the video to mark as watched. This is the `yt:video:` prefixed ID.
           schema:
             type: string
-            pattern: '^yt:video:[a-zA-Z0-9_-]{11}$' # Standard YouTube video ID prefixed
+            pattern: '^yt:video:[a-zA-Z0-9_-]{11}$'
           example: "yt:video:dQw4w9WgXcQ"
       responses:
         '204':
@@ -452,11 +470,14 @@ paths:
 
 components:
   schemas:
-    Channel:
+    ChannelResponse:
       type: object
       required:
         - id
         - title
+        - createdAt
+        - isActive
+        - videoCount
       properties:
         id:
           type: string
@@ -467,12 +488,59 @@ components:
           type: string
           description: Channel title
           example: "Majuular"
+        customUrl:
+          type: string
+          description: Custom channel URL (if available)
+          example: "@majuular"
+        thumbnailUrl:
+          type: string
+          description: Channel thumbnail URL (if available)
+          example: "https://yt3.ggpht.com/example.jpg"
+        createdAt:
+          type: string
+          format: date-time
+          description: When the channel was added to monitoring
+          example: "2024-01-15T10:00:00Z"
+        lastVideoPublishedAt:
+          type: string
+          format: date-time
+          description: When the last video was published (if available)
+          example: "2024-01-15T09:30:00Z"
+        videoCount:
+          type: integer
+          description: Number of videos currently cached for this channel
+          example: 5
+        isActive:
+          type: boolean
+          description: Whether the channel is actively being monitored
+          example: true
+
+    ChannelsResponse:
+      type: object
+      required:
+        - channels
+        - totalCount
+        - lastUpdated
+      properties:
+        channels:
+          type: array
+          description: List of monitored channels
+          items:
+            $ref: '#/components/schemas/ChannelResponse'
+        totalCount:
+          type: integer
+          description: Total number of channels
+          example: 5
+        lastUpdated:
+          type: string
+          format: date-time
+          description: When this response was generated
+          example: "2024-01-15T10:00:00Z"
       
     ChannelRequest:
       type: object
       required:
         - url
-        - title
       properties:
         url:
           type: string
@@ -547,7 +615,7 @@ components:
           type: array
           description: List of channels successfully imported
           items:
-            $ref: '#/components/schemas/Channel'
+            $ref: '#/components/schemas/ChannelResponse'
         failed:
           type: array
           description: List of channels that failed to import and the reason for failure
@@ -568,56 +636,88 @@ components:
           description: The reason the channel failed to import
           example: "invalid channel ID format"
 
-    VideoEntry:
+    NewsletterRunResponse:
       type: object
       required:
-        - entry
-        - channelId
-        - cachedAt
-        - watched
+        - message
+        - channelsProcessed
+        - channelsWithError
+        - newVideosFound
+        - emailSent
       properties:
-        entry:
-          $ref: '#/components/schemas/Video'
-        channelId:
+        message:
           type: string
-          description: YouTube channel ID
-          pattern: '^UC[a-zA-Z0-9_-]{22}$'
-          example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
-        cachedAt:
-          type: string
-          description: Timestamp when the video was cached
-          format: date-time
-          example: "2024-01-15T10:35:00Z"
-        watched:
+          description: Status message about the newsletter run
+          example: "Newsletter run completed"
+        channelsProcessed:
+          type: integer
+          description: Number of channels successfully processed
+          example: 5
+        channelsWithError:
+          type: integer
+          description: Number of channels that encountered errors
+          example: 0
+        newVideosFound:
+          type: integer
+          description: Total number of new videos found across all channels
+          example: 3
+        emailSent:
           type: boolean
-          description: Whether the video has been marked as watched
-          example: false
+          description: Whether an email notification was sent
+          example: true
 
-    Video:
+    VideosResponse:
       type: object
       required:
+        - videos
+        - totalCount
+        - lastRefresh
+      properties:
+        videos:
+          type: array
+          description: List of videos with enhanced metadata
+          items:
+            $ref: '#/components/schemas/VideoResponse'
+        totalCount:
+          type: integer
+          description: Total number of videos returned
+          example: 10
+        lastRefresh:
+          type: string
+          format: date-time
+          description: When the video data was last refreshed
+          example: "2024-01-15T10:35:00Z"
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    VideoResponse:
+      type: object
+      required:
+        - id
         - title
         - link
-        - id
-        - published
+        - publishedAt
         - content
         - author
         - mediaGroup
+        - channelId
+        - channelTitle
+        - cachedAt
       properties:
+        id:
+          type: string
+          description: Video ID with yt:video: prefix
+          example: "yt:video:dQw4w9WgXcQ"
         title:
           type: string
           description: Video title
           example: "Amazing Video Title"
         link:
           $ref: '#/components/schemas/VideoLink'
-        id:
+        publishedAt:
           type: string
-          description: Video ID
-          example: "yt:video:dQw4w9WgXcQ"
-        published:
-          type: string
-          description: Video publication date
           format: date-time
+          description: Video publication date
           example: "2024-01-15T10:30:00Z"
         content:
           type: string
@@ -627,18 +727,52 @@ components:
           $ref: '#/components/schemas/VideoAuthor'
         mediaGroup:
           $ref: '#/components/schemas/VideoMediaGroup'
+        channelId:
+          type: string
+          description: YouTube channel ID
+          pattern: '^UC[a-zA-Z0-9_-]{22}$'
+          example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+        channelTitle:
+          type: string
+          description: Channel title for easy reference
+          example: "Channel Name"
+        cachedAt:
+          type: string
+          format: date-time
+          description: When this video was cached
+          example: "2024-01-15T10:35:00Z"
+        duration:
+          type: integer
+          description: Video duration in seconds (from yt-dlp enhancement)
+          example: 300
+        tags:
+          type: array
+          items:
+            type: string
+          description: Video tags (from yt-dlp enhancement)
+          example: ["technology", "tutorial"]
+        topComments:
+          type: array
+          items:
+            type: string
+          description: Top comments (from yt-dlp enhancement)
+          example: ["Great video!", "Very helpful"]
+        autoSubtitles:
+          type: string
+          description: URL to auto-generated subtitles (from yt-dlp enhancement)
+          example: "https://example.com/subtitles.vtt"
 
     VideoLink:
       type: object
       required:
-        - Href
-        - Rel
+        - href
+        - rel
       properties:
-        Href:
+        href:
           type: string
           description: Video URL
           example: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        Rel:
+        rel:
           type: string
           description: Link relation type
           example: "alternate"
@@ -682,19 +816,19 @@ components:
     VideoMediaThumbnail:
       type: object
       required:
-        - URL
-        - Width
-        - Height
+        - url
+        - width
+        - height
       properties:
-        URL:
+        url:
           type: string
           description: Video thumbnail URL
           example: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"
-        Width:
+        width:
           type: string
           description: Video thumbnail width
           example: "480"
-        Height:
+        height:
           type: string
           description: Video thumbnail height
           example: "360"
@@ -702,27 +836,62 @@ components:
     VideoMediaContent:
       type: object
       required:
-        - URL
-        - Type
-        - Width
-        - Height
+        - url
+        - type
+        - width
+        - height
       properties:
-        URL:
+        url:
           type: string
           description: Video content URL
           example: "https://www.youtube.com/v/dQw4w9WgXcQ?version=3"
-        Type:
+        type:
           type: string
           description: Video content type
           example: "application/x-shockwave-flash"
-        Width:
+        width:
           type: string
           description: Video content width
           example: "640"
-        Height:
+        height:
           type: string
           description: Video content height
           example: "390"
+
+    Pagination:
+      type: object
+      required:
+        - currentPage
+        - totalPages
+        - totalItems
+        - itemsPerPage
+        - hasNext
+        - hasPrevious
+      properties:
+        currentPage:
+          type: integer
+          description: Current page number
+          example: 1
+        totalPages:
+          type: integer
+          description: Total number of pages
+          example: 5
+        totalItems:
+          type: integer
+          description: Total number of items across all pages
+          example: 50
+        itemsPerPage:
+          type: integer
+          description: Number of items per page
+          example: 10
+        hasNext:
+          type: boolean
+          description: Whether there is a next page
+          example: true
+        hasPrevious:
+          type: boolean
+          description: Whether there is a previous page
+          example: false
 
 tags:
   - name: Channels

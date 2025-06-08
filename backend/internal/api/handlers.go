@@ -16,10 +16,228 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// VideosResponse represents the response for the GetVideos endpoint
+// ErrorResponse represents a standard error response
+type ErrorResponse struct {
+	Error   string                 `json:"error"`
+	Code    string                 `json:"code,omitempty"`
+	Details map[string]interface{} `json:"details,omitempty"`
+}
+
+// Pagination represents pagination information
+type Pagination struct {
+	CurrentPage  int  `json:"currentPage"`
+	TotalPages   int  `json:"totalPages"`
+	TotalItems   int  `json:"totalItems"`
+	ItemsPerPage int  `json:"itemsPerPage"`
+	HasNext      bool `json:"hasNext"`
+	HasPrevious  bool `json:"hasPrevious"`
+}
+
+// ChannelResponse represents a channel in API responses
+type ChannelResponse struct {
+	ID                   string    `json:"id"`
+	Title                string    `json:"title"`
+	CustomURL            string    `json:"customUrl,omitempty"`
+	ThumbnailURL         string    `json:"thumbnailUrl,omitempty"`
+	CreatedAt            time.Time `json:"createdAt"`
+	LastVideoPublishedAt time.Time `json:"lastVideoPublishedAt,omitempty"`
+	VideoCount           int       `json:"videoCount"`
+	IsActive             bool      `json:"isActive"`
+}
+
+// ChannelsResponse represents the response for GET /api/channels
+type ChannelsResponse struct {
+	Channels    []ChannelResponse `json:"channels"`
+	TotalCount  int               `json:"totalCount"`
+	LastUpdated time.Time         `json:"lastUpdated"`
+}
+
+// VideoLinkResponse represents a video link in API responses
+type VideoLinkResponse struct {
+	Href string `json:"href"`
+	Rel  string `json:"rel"`
+}
+
+// VideoAuthorResponse represents a video author in API responses
+type VideoAuthorResponse struct {
+	Name string `json:"name"`
+	URI  string `json:"uri"`
+}
+
+// VideoMediaThumbnailResponse represents a video thumbnail in API responses
+type VideoMediaThumbnailResponse struct {
+	URL    string `json:"url"`
+	Width  string `json:"width"`
+	Height string `json:"height"`
+}
+
+// VideoMediaContentResponse represents video media content in API responses
+type VideoMediaContentResponse struct {
+	URL    string `json:"url"`
+	Type   string `json:"type"`
+	Width  string `json:"width"`
+	Height string `json:"height"`
+}
+
+// VideoMediaGroupResponse represents video media group in API responses
+type VideoMediaGroupResponse struct {
+	MediaThumbnail   VideoMediaThumbnailResponse `json:"mediaThumbnail"`
+	MediaTitle       string                      `json:"mediaTitle"`
+	MediaContent     VideoMediaContentResponse   `json:"mediaContent"`
+	MediaDescription string                      `json:"mediaDescription"`
+}
+
+// VideoResponse represents a video in API responses with consistent camelCase naming
+type VideoResponse struct {
+	ID            string                  `json:"id"`
+	Title         string                  `json:"title"`
+	Link          VideoLinkResponse       `json:"link"`
+	PublishedAt   time.Time               `json:"publishedAt"`
+	Content       string                  `json:"content"`
+	Author        VideoAuthorResponse     `json:"author"`
+	MediaGroup    VideoMediaGroupResponse `json:"mediaGroup"`
+	ChannelID     string                  `json:"channelId"`
+	ChannelTitle  string                  `json:"channelTitle"`
+	CachedAt      time.Time               `json:"cachedAt"`
+	Duration      int                     `json:"duration,omitempty"`
+	Tags          []string                `json:"tags,omitempty"`
+	TopComments   []string                `json:"topComments,omitempty"`
+	AutoSubtitles string                  `json:"autoSubtitles,omitempty"`
+}
+
+// VideosResponse represents the response for GET /api/videos
 type VideosResponse struct {
-	Videos          []store.VideoEntry `json:"videos"`
-	LastRefreshedAt time.Time          `json:"lastRefreshedAt"`
+	Videos      []VideoResponse `json:"videos"`
+	TotalCount  int             `json:"totalCount"`
+	LastRefresh time.Time       `json:"lastRefresh"`
+	Pagination  *Pagination     `json:"pagination,omitempty"`
+}
+
+// NewsletterRunResponse represents the response from triggering a newsletter run
+type NewsletterRunResponse struct {
+	Message           string `json:"message"`
+	ChannelsProcessed int    `json:"channelsProcessed"`
+	ChannelsWithError int    `json:"channelsWithError"`
+	NewVideosFound    int    `json:"newVideosFound"`
+	EmailSent         bool   `json:"emailSent"`
+}
+
+// Transformation functions to convert internal types to API response types
+
+// transformChannel converts a store.Channel to ChannelResponse
+func transformChannel(channel store.Channel) ChannelResponse {
+	return ChannelResponse{
+		ID:         channel.ID,
+		Title:      channel.Title,
+		CreatedAt:  time.Now(), // TODO: Add CreatedAt to store.Channel if needed
+		IsActive:   true,       // TODO: Add IsActive to store.Channel if needed
+		VideoCount: 0,          // TODO: Calculate video count if needed
+	}
+}
+
+// transformChannels converts a slice of store.Channel to ChannelsResponse
+func transformChannels(channels []store.Channel) ChannelsResponse {
+	channelResponses := make([]ChannelResponse, len(channels))
+	for i, channel := range channels {
+		channelResponses[i] = transformChannel(channel)
+	}
+
+	return ChannelsResponse{
+		Channels:    channelResponses,
+		TotalCount:  len(channels),
+		LastUpdated: time.Now(),
+	}
+}
+
+// transformVideoEntry converts a store.VideoEntry to VideoResponse with enhanced metadata
+func transformVideoEntry(videoEntry store.VideoEntry, channelTitle string) VideoResponse {
+	entry := videoEntry.Entry
+
+	return VideoResponse{
+		ID:            entry.ID,
+		Title:         entry.Title,
+		Link:          transformVideoLink(entry.Link),
+		PublishedAt:   entry.Published,
+		Content:       entry.Content,
+		Author:        transformVideoAuthor(entry.Author),
+		MediaGroup:    transformVideoMediaGroup(entry.MediaGroup),
+		ChannelID:     videoEntry.ChannelID,
+		ChannelTitle:  channelTitle,
+		CachedAt:      videoEntry.CachedAt,
+		Duration:      entry.Duration,
+		Tags:          entry.Tags,
+		TopComments:   entry.TopComments,
+		AutoSubtitles: entry.AutoSubtitles,
+	}
+}
+
+// transformVideoLink converts rss.Link to VideoLinkResponse
+func transformVideoLink(link rss.Link) VideoLinkResponse {
+	return VideoLinkResponse{
+		Href: link.Href,
+		Rel:  link.Rel,
+	}
+}
+
+// transformVideoAuthor converts rss.Author to VideoAuthorResponse
+func transformVideoAuthor(author rss.Author) VideoAuthorResponse {
+	return VideoAuthorResponse{
+		Name: author.Name,
+		URI:  author.URI,
+	}
+}
+
+// transformVideoMediaGroup converts rss.MediaGroup to VideoMediaGroupResponse
+func transformVideoMediaGroup(mediaGroup rss.MediaGroup) VideoMediaGroupResponse {
+	return VideoMediaGroupResponse{
+		MediaThumbnail:   transformVideoMediaThumbnail(mediaGroup.MediaThumbnail),
+		MediaTitle:       mediaGroup.MediaTitle,
+		MediaContent:     transformVideoMediaContent(mediaGroup.MediaContent),
+		MediaDescription: mediaGroup.MediaDescription,
+	}
+}
+
+// transformVideoMediaThumbnail converts rss.MediaThumbnail to VideoMediaThumbnailResponse
+func transformVideoMediaThumbnail(thumbnail rss.MediaThumbnail) VideoMediaThumbnailResponse {
+	return VideoMediaThumbnailResponse{
+		URL:    thumbnail.URL,
+		Width:  thumbnail.Width,
+		Height: thumbnail.Height,
+	}
+}
+
+// transformVideoMediaContent converts rss.MediaContent to VideoMediaContentResponse
+func transformVideoMediaContent(content rss.MediaContent) VideoMediaContentResponse {
+	return VideoMediaContentResponse{
+		URL:    content.URL,
+		Type:   content.Type,
+		Width:  content.Width,
+		Height: content.Height,
+	}
+}
+
+// transformVideos converts video entries to VideosResponse with enhanced metadata
+func transformVideos(videoEntries []store.VideoEntry, channels []store.Channel, lastRefresh time.Time) VideosResponse {
+	// Create a map of channel ID to title for quick lookup
+	channelTitleMap := make(map[string]string)
+	for _, channel := range channels {
+		channelTitleMap[channel.ID] = channel.Title
+	}
+
+	videoResponses := make([]VideoResponse, len(videoEntries))
+	for i, videoEntry := range videoEntries {
+		channelTitle := channelTitleMap[videoEntry.ChannelID]
+		if channelTitle == "" {
+			channelTitle = "Unknown Channel"
+		}
+		videoResponses[i] = transformVideoEntry(videoEntry, channelTitle)
+	}
+
+	return VideosResponse{
+		Videos:      videoResponses,
+		TotalCount:  len(videoEntries),
+		LastRefresh: lastRefresh,
+	}
 }
 
 // Handlers contains the API handlers
@@ -44,7 +262,7 @@ func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	}
 }
 
-// Channel represents a channel in API responses
+// Channel represents a channel in API responses (legacy, use ChannelResponse instead)
 type Channel struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -93,8 +311,8 @@ type ChannelImport struct {
 
 // ImportChannelsResponse represents the response from importing channels
 type ImportChannelsResponse struct {
-	Imported []Channel       `json:"imported"`
-	Failed   []ImportFailure `json:"failed"`
+	Imported []ChannelResponse `json:"imported"`
+	Failed   []ImportFailure   `json:"failed"`
 }
 
 // ImportFailure represents a failed channel import
@@ -114,7 +332,8 @@ func (h *Handlers) GetChannels(c echo.Context) error {
 		channels = []store.Channel{}
 	}
 
-	return c.JSON(http.StatusOK, channels)
+	response := transformChannels(channels)
+	return c.JSON(http.StatusOK, response)
 }
 
 // AddChannel handles POST /api/channels
@@ -153,7 +372,8 @@ func (h *Handlers) AddChannel(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add channel")
 	}
 
-	return c.JSON(http.StatusCreated, channel)
+	response := transformChannel(channel)
+	return c.JSON(http.StatusCreated, response)
 }
 
 // RemoveChannel handles DELETE /api/channels/:id
@@ -339,7 +559,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "At least one channel is required")
 	}
 
-	var imported []Channel
+	var imported []ChannelResponse
 	var failed []ImportFailure
 
 	ctx := context.Background()
@@ -393,7 +613,8 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 			continue
 		}
 
-		imported = append(imported, Channel{ID: channelID, Title: title})
+		storeChannel := store.Channel{ID: channelID, Title: title}
+		imported = append(imported, transformChannel(storeChannel))
 	}
 
 	response := ImportChannelsResponse{
@@ -519,12 +740,12 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 	}
 
 	// Return response with stats
-	response := map[string]interface{}{
-		"message":           "Newsletter run completed",
-		"channelsProcessed": processedCount,
-		"channelsWithError": errorCount,
-		"newVideosFound":    len(allNewVideos),
-		"emailSent":         len(allNewVideos) > 0,
+	response := NewsletterRunResponse{
+		Message:           "Newsletter run completed",
+		ChannelsProcessed: processedCount,
+		ChannelsWithError: errorCount,
+		NewVideosFound:    len(allNewVideos),
+		EmailSent:         len(allNewVideos) > 0,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -576,11 +797,14 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 		return videos[i].Entry.Published.After(videos[j].Entry.Published)
 	})
 
-	// Prepare response
-	response := VideosResponse{
-		Videos:          h.videoStore.GetAllVideos(), // Get potentially updated and sorted list
-		LastRefreshedAt: h.videoStore.GetLastRefreshedAt(),
+	// Get all channels for title mapping
+	channels, err := h.store.GetChannels()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve channels")
 	}
+
+	// Prepare response using the transformation function
+	response := transformVideos(videos, channels, h.videoStore.GetLastRefreshedAt())
 
 	return c.JSON(http.StatusOK, response)
 }
