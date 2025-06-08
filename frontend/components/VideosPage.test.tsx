@@ -276,11 +276,12 @@ describe('VideosPage', () => {
       dateInput = screen.getByTestId('date-filter-input');
       expect(dateInput).toBeVisible();
     });
-    // Assert that the date input defaults to today's date
-    const todayForDateValue = new Date(); // Use a new Date object for "today" to avoid date/time issues from 'today' var at top of file
-    const year = todayForDateValue.getFullYear();
-    const month = String(todayForDateValue.getMonth() + 1).padStart(2, '0');
-    const day = String(todayForDateValue.getDate()).padStart(2, '0');
+    // Assert that the date input defaults to yesterday's date
+    const yesterdayForDateValue = new Date();
+    yesterdayForDateValue.setDate(yesterdayForDateValue.getDate() - 1);
+    const year = yesterdayForDateValue.getFullYear();
+    const month = String(yesterdayForDateValue.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterdayForDateValue.getDate()).padStart(2, '0');
     const expectedDateString = `${year}-${month}-${day}`;
     expect(dateInput).toHaveValue(expectedDateString);
 
