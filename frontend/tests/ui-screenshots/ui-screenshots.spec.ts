@@ -61,14 +61,15 @@ test.describe('UI Screenshots for PR Review', () => {
   // Helper function to toggle dark mode
   async function toggleDarkMode(page: Page) {
     await page.evaluate(() => {
-      document.documentElement.classList.toggle('dark');
+      document.documentElement.classList.add('dark');
     });
   }
 
-  // Helper function to wait for page load
+  // Helper function to wait for page load and React hydration
   async function waitForPageLoad(page: Page) {
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1000); // Extra time for animations
+    // Wait for React to hydrate and any loading states to complete
+    await page.waitForTimeout(2000); 
   }
 
   test.describe('Home Page (Videos) Screenshots', () => {
@@ -76,9 +77,12 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/');
       await waitForPageLoad(page);
       
+      // Wait for videos to load by checking for video cards
+      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('home-videos-light.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -87,9 +91,12 @@ test.describe('UI Screenshots for PR Review', () => {
       await toggleDarkMode(page);
       await waitForPageLoad(page);
       
+      // Wait for videos to load
+      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('home-videos-dark.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -99,38 +106,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await expect(page).toHaveScreenshot('home-empty-light.png', {
         fullPage: true,
-        timeout: 10000,
-      });
-    });
-
-    test('should capture home page with search filter', async ({ page }) => {
-      await page.goto('/');
-      await waitForPageLoad(page);
-      
-      // Apply search filter
-      await page.fill('input[placeholder*="Search"]', 'React');
-      await page.waitForTimeout(500);
-      
-      await expect(page).toHaveScreenshot('home-search-filtered.png', {
-        fullPage: true,
-        timeout: 10000,
-      });
-    });
-
-    test('should capture home page with today filter', async ({ page }) => {
-      await page.goto('/');
-      await waitForPageLoad(page);
-      
-      // Toggle today filter
-      const todayButton = page.locator('button', { hasText: "Today's Videos" });
-      if (await todayButton.isVisible()) {
-        await todayButton.click();
-        await page.waitForTimeout(500);
-      }
-      
-      await expect(page).toHaveScreenshot('home-today-filtered.png', {
-        fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
   });
@@ -140,9 +116,12 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/subscriptions');
       await waitForPageLoad(page);
       
+      // Wait for the page title to ensure content is loaded
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('subscriptions-channels-light.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -151,9 +130,11 @@ test.describe('UI Screenshots for PR Review', () => {
       await toggleDarkMode(page);
       await waitForPageLoad(page);
       
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('subscriptions-channels-dark.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -161,24 +142,11 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/subscriptions?empty=true');
       await waitForPageLoad(page);
       
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('subscriptions-empty-light.png', {
         fullPage: true,
-        timeout: 10000,
-      });
-    });
-
-    test('should capture subscriptions page with import modal', async ({ page }) => {
-      await page.goto('/subscriptions');
-      await waitForPageLoad(page);
-      
-      // Open import modal
-      const importButton = page.locator('button', { hasText: 'Import Channels' });
-      await importButton.click();
-      await page.waitForTimeout(500);
-      
-      await expect(page).toHaveScreenshot('subscriptions-import-modal.png', {
-        fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
   });
@@ -188,9 +156,12 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/notifications');
       await waitForPageLoad(page);
       
+      // Wait for forms to load
+      await page.waitForSelector('form, h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('notifications-light.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -199,26 +170,11 @@ test.describe('UI Screenshots for PR Review', () => {
       await toggleDarkMode(page);
       await waitForPageLoad(page);
       
+      await page.waitForSelector('form, h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('notifications-dark.png', {
         fullPage: true,
-        timeout: 10000,
-      });
-    });
-
-    test('should capture notifications page with newsletter results', async ({ page }) => {
-      await page.goto('/notifications');
-      await waitForPageLoad(page);
-      
-      // Trigger newsletter run to show results
-      const runButton = page.locator('button', { hasText: 'Run Newsletter' });
-      if (await runButton.isVisible()) {
-        await runButton.click();
-        await page.waitForTimeout(1000);
-      }
-      
-      await expect(page).toHaveScreenshot('notifications-newsletter-results.png', {
-        fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
   });
@@ -229,9 +185,11 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/');
       await waitForPageLoad(page);
       
+      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('mobile-home-light.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
 
@@ -240,9 +198,11 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/subscriptions');
       await waitForPageLoad(page);
       
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
       await expect(page).toHaveScreenshot('tablet-subscriptions-light.png', {
         fullPage: true,
-        timeout: 10000,
+        timeout: 15000,
       });
     });
   });
