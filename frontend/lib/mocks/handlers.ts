@@ -135,6 +135,10 @@ export const handlers = [
   }),
 
   // Config endpoints
+  http.get('/api/config', () => {
+    return HttpResponse.json({ apiUrl: 'http://localhost:8080/api' })
+  }),
+
   http.get('/api/config/smtp', () => {
     return HttpResponse.json(mockConfig.smtp)
   }),

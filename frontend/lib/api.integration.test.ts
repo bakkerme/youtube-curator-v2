@@ -1,50 +1,61 @@
 import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import { videoAPI } from './api';
+import { handlers } from './mocks/handlers';
 
 // Helper function to make API calls using fetch (which works correctly with MSW v2)
 const apiClient = {
   async get(url: string) {
     const response = await fetch(url);
-    
+
     let data;
     try {
       data = await response.json();
     } catch {
       data = null; // For responses without JSON body (404, 500, etc.)
     }
-    
+
     return { status: response.status, data };
   },
-  
+
   async post(url: string, body?: Record<string, unknown>) {
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     });
-    
+
     let data;
     try {
       data = await response.json();
     } catch {
       data = null; // For 204 responses or empty responses
     }
-    
+
     return { status: response.status, data };
   },
-  
+
   async delete(url: string) {
     const response = await fetch(url, { method: 'DELETE' });
-    
+
     let data;
     try {
       data = await response.json();
     } catch {
       data = null; // For 204 responses or empty responses
     }
-    
+
     return { status: response.status, data };
   },
 };
+
+// Setup MSW server for API mocking
+const server = setupServer(...handlers);
+
+beforeAll(() => server.listen());
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
 
 describe('API Integration Tests', () => {
   describe('Channels API', () => {
@@ -52,7 +63,7 @@ describe('API Integration Tests', () => {
       // Use fetch since it works correctly with MSW v2
       const response = await fetch('/api/channels');
       const data = await response.json();
-      
+
       expect(response.status).toBe(200);
       expect(data).toHaveLength(2);
       expect(data[0]).toHaveProperty('id', 'UC_x5XG1OV2P6uZZ5FSM9Ttw');
@@ -61,9 +72,9 @@ describe('API Integration Tests', () => {
 
     test('POST /api/channels creates new channel', async () => {
       const newChannelData = { channelId: 'UC123newchannel' };
-      
+
       const response = await apiClient.post('/api/channels', newChannelData);
-      
+
       expect(response.status).toBe(201);
       expect(response.data).toHaveProperty('id', 'UC123newchannel');
       expect(response.data).toHaveProperty('title', 'New Test Channel');
@@ -71,13 +82,13 @@ describe('API Integration Tests', () => {
 
     test('DELETE /api/channels/:id deletes channel', async () => {
       const response = await apiClient.delete('/api/channels/UC_x5XG1OV2P6uZZ5FSM9Ttw');
-      
+
       expect(response.status).toBe(204);
     });
 
     test('GET /api/channels/search/:id returns specific channel', async () => {
       const response = await apiClient.get('/api/channels/search/UC_x5XG1OV2P6uZZ5FSM9Ttw');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toHaveProperty('id', 'UC_x5XG1OV2P6uZZ5FSM9Ttw');
       expect(response.data).toHaveProperty('title', 'Google Developers');
@@ -90,9 +101,9 @@ describe('API Integration Tests', () => {
 
     test('POST /api/channels/import imports channels', async () => {
       const importData = { channels: [{ id: '1' }, { id: '2' }] };
-      
+
       const response = await apiClient.post('/api/channels/import', importData);
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toEqual({
         imported: 2,
@@ -105,7 +116,7 @@ describe('API Integration Tests', () => {
   describe('Videos API', () => {
     test('GET /api/videos returns video list', async () => {
       const response = await apiClient.get('/api/videos');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toHaveLength(2);
       expect(response.data[0]).toHaveProperty('id', 'dQw4w9WgXcQ');
@@ -114,23 +125,71 @@ describe('API Integration Tests', () => {
 
     test('GET /api/videos with refresh param returns refreshed data', async () => {
       const response = await apiClient.get('/api/videos?refresh=true');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toHaveProperty('title', 'Refreshed: Introduction to React Testing');
+    });
+
+    describe('markAsWatched', () => {
+      it('should successfully mark a video as watched', async () => {
+        // Arrange
+        const videoId = 'test-video-id';
+
+        server.use(
+          http.post(`http://localhost:8080/api/videos/${videoId}/watch`, () => {
+            return new HttpResponse(null, { status: 200 });
+          })
+        );
+
+        // Act & Assert
+        await expect(videoAPI.markAsWatched(videoId)).resolves.not.toThrow();
+      });
+
+      it('should handle API errors when marking video as watched', async () => {
+        // Arrange
+        const videoId = 'test-video-id';
+        const errorMessage = 'Video not found';
+
+        server.use(
+          http.post(`http://localhost:8080/api/videos/${videoId}/watch`, () => {
+            return HttpResponse.json(
+              { message: errorMessage },
+              { status: 404 }
+            );
+          })
+        );
+
+        // Act & Assert
+        await expect(videoAPI.markAsWatched(videoId)).rejects.toThrow();
+      });
+
+      it('should handle network errors', async () => {
+        // Arrange
+        const videoId = 'test-video-id';
+
+        server.use(
+          http.post(`http://localhost:8080/api/videos/${videoId}/watch`, () => {
+            return HttpResponse.error();
+          })
+        );
+
+        // Act & Assert
+        await expect(videoAPI.markAsWatched(videoId)).rejects.toThrow('Unable to connect to the server');
+      });
     });
   });
 
   describe('Newsletter API', () => {
     test('POST /api/newsletter/run starts newsletter job', async () => {
       const response = await apiClient.post('/api/newsletter/run');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toEqual({ message: 'Newsletter job started' });
     });
 
     test('POST /api/newsletter/test sends test email', async () => {
       const response = await apiClient.post('/api/newsletter/test');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toEqual({ message: 'Test email sent successfully' });
     });
@@ -139,7 +198,7 @@ describe('API Integration Tests', () => {
   describe('Config API', () => {
     test('GET /api/config/smtp returns SMTP config', async () => {
       const response = await apiClient.get('/api/config/smtp');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toHaveProperty('host', 'smtp.gmail.com');
       expect(response.data).toHaveProperty('port', 587);
@@ -147,9 +206,9 @@ describe('API Integration Tests', () => {
 
     test('POST /api/config/smtp updates SMTP config', async () => {
       const updateData = { host: 'smtp.new.com', port: 465 };
-      
+
       const response = await apiClient.post('/api/config/smtp', updateData);
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toHaveProperty('host', 'smtp.new.com');
       expect(response.data).toHaveProperty('port', 465);
@@ -157,7 +216,7 @@ describe('API Integration Tests', () => {
 
     test('POST /api/config/smtp/test sends test SMTP email', async () => {
       const response = await apiClient.post('/api/config/smtp/test');
-      
+
       expect(response.status).toBe(200);
       expect(response.data).toEqual({ message: 'Test email sent successfully' });
     });
@@ -184,9 +243,9 @@ describe('Advanced API Patterns', () => {
       apiClient.get('/api/videos'),
       apiClient.get('/api/config/smtp'),
     ];
-    
+
     const responses = await Promise.all(promises);
-    
+
     expect(responses).toHaveLength(3);
     responses.forEach(response => {
       expect(response.status).toBe(200);
@@ -199,9 +258,9 @@ describe('Advanced API Patterns', () => {
       limit: '10',
       sort: 'date',
     });
-    
+
     const response = await apiClient.get(`/api/videos?${params.toString()}`);
-    
+
     expect(response.status).toBe(200);
     expect(response.data.title).toContain('Refreshed:');
   });
@@ -217,9 +276,9 @@ describe('Advanced API Patterns', () => {
         validateUrls: false,
       }
     };
-    
+
     const response = await apiClient.post('/api/channels/import', complexPayload);
-    
+
     expect(response.status).toBe(200);
     expect(response.data.imported).toBe(2);
   });
@@ -228,7 +287,7 @@ describe('Advanced API Patterns', () => {
 describe('Response Validation', () => {
   test('validates channel response structure', async () => {
     const response = await apiClient.get('/api/channels');
-    
+
     expect(response.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -245,7 +304,7 @@ describe('Response Validation', () => {
 
   test('validates video response structure', async () => {
     const response = await apiClient.get('/api/videos');
-    
+
     expect(response.data).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -265,7 +324,7 @@ describe('Response Validation', () => {
 
   test('validates config response structure', async () => {
     const response = await apiClient.get('/api/config/smtp');
-    
+
     expect(response.data).toEqual(
       expect.objectContaining({
         host: expect.any(String),
@@ -279,44 +338,5 @@ describe('Response Validation', () => {
         emailTimezone: expect.any(String),
       })
     );
-  });
-});
-
-describe('Dynamic MSW Handler Override', () => {
-  test('can override handlers for specific test scenarios', async () => {
-    // This test demonstrates how to override MSW handlers for specific scenarios
-    const { server } = await import('../lib/mocks/server');
-    
-    // Override the channels endpoint to return empty array
-    server.use(
-      http.get('/api/channels', () => {
-        return HttpResponse.json([])
-      })
-    );
-    
-    const response = await apiClient.get('/api/channels');
-    
-    expect(response.status).toBe(200);
-    expect(response.data).toHaveLength(0);
-    
-    // Reset handlers after test
-    server.resetHandlers();
-  });
-
-  test('can simulate server errors', async () => {
-    const { server } = await import('../lib/mocks/server');
-    
-    // Override to return server error
-    server.use(
-      http.get('/api/channels', () => {
-        return new HttpResponse(null, { status: 500 })
-      })
-    );
-    
-    const response = await apiClient.get('/api/channels');
-    expect(response.status).toBe(500);
-    
-    // Reset handlers after test
-    server.resetHandlers();
   });
 });

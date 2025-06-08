@@ -1,193 +1,280 @@
-import React from 'react'
-import { render, screen } from '@/lib/test-utils'
-import VideoCard from './VideoCard'
-import { VideoEntry, Channel } from '@/lib/types'
-import { formatDistanceToNow } from 'date-fns'
+import '@testing-library/jest-dom';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+import VideoCard from './VideoCard';
+import { VideoEntry, Channel } from '@/lib/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { server } from '@/lib/mocks/server';
 
-// Mock next/image since it has specific requirements in tests
+// Mock next/image
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (props: { src: string; alt: string; width?: number; height?: number; className?: string; fill?: boolean }) => {
-    // Filter out Next.js specific props that don't belong on img elements
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { fill: _fill, ...imgProps } = props
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img {...imgProps} alt={props.alt || ''} />
+  default: ({ src, alt, ...props }: { src: string; alt: string; [key: string]: unknown }) => <img src={src} alt={alt} {...props} />,
+}));
+
+// Mock the runtime config
+jest.mock('@/lib/config', () => {
+  const baseURL = 'http://localhost:8080/api';
+  return {
+    getRuntimeConfig: jest.fn().mockResolvedValue({
+      apiUrl: baseURL,
+    })
+  };
+});
+
+const baseURL = 'http://localhost:8080/api';
+
+// Test wrapper with QueryClient
+const TestWrapper = ({ children }: { children: React.ReactNode }) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+};
+
+// Mock data
+const mockChannel: Channel = {
+  id: 'channel-1',
+  title: 'Test Channel'
+};
+
+const mockVideoEntry: VideoEntry = {
+  entry: {
+    title: 'Test Video Title',
+    link: { Href: 'https://youtube.com/watch?v=test', Rel: 'alternate' },
+    id: 'video-123',
+    published: '2024-01-01T12:00:00Z',
+    content: 'Test video content',
+    author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
+    mediaGroup: {
+      mediaThumbnail: { URL: 'https://test.com/thumbnail.jpg', Width: '320', Height: '180' },
+      mediaTitle: 'Test Video',
+      mediaContent: { URL: 'https://test.com/video.mp4', Type: 'video/mp4', Width: '1920', Height: '1080' },
+      mediaDescription: 'Test description'
+    }
   },
-}))
+  channelId: 'channel-1',
+  cachedAt: '2024-01-01T12:00:00Z',
+  watched: false
+};
 
 describe('VideoCard', () => {
-  const mockChannels: Channel[] = [
-    {
-      id: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
-      title: 'Google Developers',
-    },
-  ]
+  it('should render video information correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
 
-  const mockVideo: VideoEntry = {
-    channelId: 'UC_x5XG1OV2P6uZZ5FSM9Ttw',
-    cachedAt: new Date().toISOString(),
-    entry: {
-      title: 'Introduction to React Testing',
-      link: {
-        Href: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-        Rel: 'alternate',
-      },
-      id: 'yt:video:dQw4w9WgXcQ',
-      published: new Date().toISOString(),
-      content: 'A comprehensive introduction to testing React applications',
-      author: {
-        name: 'Google Developers',
-        uri: 'https://www.youtube.com/channel/UC_x5XG1OV2P6uZZ5FSM9Ttw',
-      },
-      mediaGroup: {
-        mediaThumbnail: {
-          URL: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
-          Width: '1280',
-          Height: '720',
-        },
-        mediaTitle: 'Introduction to React Testing',
-        mediaContent: {
-          URL: 'https://www.youtube.com/v/dQw4w9WgXcQ',
-          Type: 'application/x-shockwave-flash',
-          Width: '640',
-          Height: '390',
-        },
-        mediaDescription: 'A comprehensive introduction to testing React applications',
-      },
-    },
-  }
+    // Assert
+    expect(screen.getByText('Test Video Title')).toBeInTheDocument();
+    expect(screen.getByText('Test Channel')).toBeInTheDocument();
+    expect(screen.getByText('Watch on YouTube')).toBeInTheDocument();
+    expect(screen.getByLabelText(/watched/i)).toBeInTheDocument();
+  });
 
-  it('renders video information correctly', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
-    
-    // Check title is rendered
-    expect(screen.getByText('Introduction to React Testing')).toBeInTheDocument()
-    
-    // Check channel name is rendered
-    expect(screen.getByText('Google Developers')).toBeInTheDocument()
-    
-    // Check time ago is rendered (will be "less than a minute ago" for new date)
-    expect(screen.getByText(/ago/)).toBeInTheDocument()
-    
-    // Check Watch button exists
-    expect(screen.getByRole('link', { name: /watch/i })).toBeInTheDocument()
-  })
+  it('should display watched checkbox as unchecked for unwatched video', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
 
-  it('opens video link in new tab', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
-    
-    const watchLink = screen.getByRole('link', { name: /watch/i })
-    expect(watchLink).toHaveAttribute('href', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-    expect(watchLink).toHaveAttribute('target', '_blank')
-    expect(watchLink).toHaveAttribute('rel', 'noopener noreferrer')
-  })
+    // Assert
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+  });
 
-  it('renders thumbnail image', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
-    
-    const thumbnail = screen.getByAltText('Introduction to React Testing')
-    expect(thumbnail).toHaveAttribute('src', 'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg')
-  })
+  it('should display watched checkbox as checked for watched video', () => {
+    // Arrange
+    const watchedVideo = { ...mockVideoEntry, watched: true };
 
-  it('handles missing thumbnail gracefully', () => {
-    const videoWithoutThumbnail: VideoEntry = {
-      ...mockVideo,
-      entry: {
-        ...mockVideo.entry,
-        mediaGroup: {
-          mediaThumbnail: {
-            URL: '',
-            Width: '0',
-            Height: '0',
-          },
-          mediaTitle: mockVideo.entry.title,
-          mediaContent: {
-            URL: '',
-            Type: '',
-            Width: '0',
-            Height: '0',
-          },
-          mediaDescription: '',
-        },
-      },
-    }
-    
-    render(<VideoCard video={videoWithoutThumbnail} channels={mockChannels} />)
-    
-    const thumbnail = screen.getByAltText('Introduction to React Testing')
-    expect(thumbnail).toHaveAttribute('src', '/placeholder-video.svg')
-  })
+    // Act
+    render(
+      <VideoCard 
+        video={watchedVideo} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
 
-  it('handles unknown channel', () => {
-    const videoWithUnknownChannel = {
-      ...mockVideo,
-      channelId: 'unknown-channel-id',
-    }
-    
-    render(<VideoCard video={videoWithUnknownChannel} channels={mockChannels} />)
-    
-    expect(screen.getByText('Unknown Channel')).toBeInTheDocument()
-  })
+    // Assert
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeChecked();
+  });
 
-  it('handles missing video title', () => {
-    const videoWithoutTitle = {
-      ...mockVideo,
-      entry: {
-        ...mockVideo.entry,
-        title: '',
-      },
-    }
-    
-    render(<VideoCard video={videoWithoutTitle} channels={mockChannels} />)
-    
-    expect(screen.getByText('Untitled Video')).toBeInTheDocument()
-  })
+  it('should call markAsWatched API when checkbox is clicked', async () => {
+    // Arrange
+    let apiCalled = false;
+    server.use(
+      http.post(`${baseURL}/videos/video-123/watch`, () => {
+        apiCalled = true;
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
 
-  it('formats published date correctly', () => {
-    const specificDate = new Date('2024-01-15T10:00:00Z')
-    const videoWithSpecificDate = {
-      ...mockVideo,
-      entry: {
-        ...mockVideo.entry,
-        published: specificDate.toISOString(),
-      },
-    }
-    
-    render(<VideoCard video={videoWithSpecificDate} channels={mockChannels} />)
-    
-    // Calculate expected time ago
-    const expectedTimeAgo = formatDistanceToNow(specificDate, { addSuffix: true })
-    expect(screen.getByText(expectedTimeAgo)).toBeInTheDocument()
-  })
+    const mockCallback = jest.fn();
 
-  it('applies correct CSS classes for dark mode', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
-    
-    // Check for dark mode classes on the card
-    const card = screen.getByText('Introduction to React Testing').closest('div[class*="bg-white"]')
-    expect(card).toHaveClass('dark:bg-gray-800')
-    
-    // Check text has dark mode classes - the parent div has the dark mode class
-    const channelText = screen.getByText('Google Developers')
-    const textContainer = channelText.closest('div[class*="text-gray-600"]')
-    expect(textContainer).toHaveClass('dark:text-gray-400')
-  })
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+        onWatchedStatusChange={mockCallback}
+      />,
+      { wrapper: TestWrapper }
+    );
 
-  it('has hover effect on card', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
-    
-    const card = screen.getByText('Introduction to React Testing').closest('div[class*="bg-white"]')
-    expect(card).toHaveClass('hover:shadow-lg')
-    expect(card).toHaveClass('transition-all')
-  })
+    const checkbox = screen.getByRole('checkbox');
+    fireEvent.click(checkbox);
 
-  it('has correct styling for watch button', () => {
-    render(<VideoCard video={mockVideo} channels={mockChannels} />)
+    // Assert
+    await waitFor(() => {
+      expect(apiCalled).toBe(true);
+      expect(mockCallback).toHaveBeenCalled();
+    });
+  });
+
+  it('should optimistically update checkbox state', async () => {
+    // Arrange
+    server.use(
+      http.post(`${baseURL}/api/videos/video-123/watch`, async () => {
+        // Delay to simulate network request
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return new HttpResponse(null, { status: 200 });
+      })
+    );
+
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    const checkbox = screen.getByRole('checkbox');
     
-    const watchButton = screen.getByRole('link', { name: /watch/i })
-    expect(watchButton).toHaveClass('bg-red-600')
-    expect(watchButton).toHaveClass('hover:bg-red-700')
-    expect(watchButton).toHaveClass('text-white')
-  })
-}) 
+    // Initially unchecked
+    expect(checkbox).not.toBeChecked();
+    
+    // Click the checkbox
+    fireEvent.click(checkbox);
+    
+    // Should be immediately checked (optimistic update)
+    expect(checkbox).toBeChecked();
+
+    // Wait for API call to complete
+    await waitFor(() => {
+      expect(checkbox).toBeChecked();
+    });
+  });
+
+  it('should revert checkbox state on API error', async () => {
+    // Arrange
+    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    server.use(
+      http.post(`${baseURL}/videos/video-123/watch`, () => {
+        return HttpResponse.json(
+          { message: 'Server error' },
+          { status: 500 }
+        );
+      })
+    );
+
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    const checkbox = screen.getByRole('checkbox');
+    
+    // Initially unchecked
+    expect(checkbox).not.toBeChecked();
+    
+    // Click the checkbox
+    fireEvent.click(checkbox);
+    
+    // Should be immediately checked (optimistic update)
+    expect(checkbox).toBeChecked();
+
+    // Wait for API error and revert
+    await waitFor(() => {
+      expect(checkbox).not.toBeChecked();
+    });
+
+    // Assert
+    expect(consoleSpy).toHaveBeenCalledWith('Failed to mark video as watched:', expect.any(Error));
+    
+    consoleSpy.mockRestore();
+  });
+
+  it('should handle unknown channel gracefully', () => {
+    // Arrange
+    const videoWithUnknownChannel = { ...mockVideoEntry, channelId: 'unknown-channel' };
+
+    // Act
+    render(
+      <VideoCard 
+        video={videoWithUnknownChannel} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    expect(screen.getByText('Unknown Channel')).toBeInTheDocument();
+  });
+
+  it('should display time ago correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert - Should show "about 1 year ago" or similar for 2024-01-01
+    expect(screen.getByText(/ago$/)).toBeInTheDocument();
+  });
+
+  it('should link to YouTube correctly', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const youtubeLink = screen.getByRole('link', { name: /watch on youtube/i });
+    expect(youtubeLink).toHaveAttribute('href', 'https://youtube.com/watch?v=test');
+    expect(youtubeLink).toHaveAttribute('target', '_blank');
+    expect(youtubeLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+});

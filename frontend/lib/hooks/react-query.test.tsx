@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { createWrapper } from '../mocks/QueryWrapper';
 import { useChannels, useVideos, useConfig } from './react-query';
+import { server } from '../mocks/server';
 
 describe('React Query Hooks Integration Tests', () => {
   let queryClient: QueryClient;
@@ -64,8 +65,6 @@ describe('React Query Hooks Integration Tests', () => {
     });
 
     test('handles error state when MSW returns error', async () => {
-      const { server } = await import('../mocks/server');
-      
       // Override MSW to return error
       server.use(
         http.get('/api/channels', () => {
@@ -114,8 +113,6 @@ describe('React Query Hooks Integration Tests', () => {
     });
 
     test('handles refresh parameter correctly', async () => {
-      const { server } = await import('../mocks/server');
-      
       // Override to test refresh behavior
       server.use(
         http.get('/api/videos', ({ request }) => {
