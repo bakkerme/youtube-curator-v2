@@ -684,13 +684,90 @@ describe('VideosPage', () => {
       expect(screen.getByRole('heading', { name: 'Watched' })).toBeInTheDocument();
     });
 
-    // Verify the video is now in watched section
-    expect(screen.getByText('Test Unwatched Video')).toBeInTheDocument();
+    // The accordion should be collapsed by default, so the video won't be visible yet
+    expect(screen.queryByText('Test Unwatched Video')).not.toBeInTheDocument();
+    
+    // Find and click the accordion button to expand watched videos
+    const accordionButton = screen.getByRole('button', { name: /watched/i });
+    expect(accordionButton).toHaveAttribute('aria-expanded', 'false');
+    
+    fireEvent.click(accordionButton);
+    
+    // Wait for the accordion to expand and video to become visible
+    await waitFor(() => {
+      expect(accordionButton).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText('Test Unwatched Video')).toBeInTheDocument();
+    });
     
     // Verify the API was called to mark as watched
     expect(mockMarkAsWatched).toHaveBeenCalledWith('test-video-1');
     
     // Verify that videoAPI.getAll was NOT called again (no refetch)
     expect(videoAPI.getAll).toHaveBeenCalledTimes(1); // Only the initial call
+  });
+
+  test('watched videos accordion is collapsed by default and can be toggled', async () => {
+    // Arrange - Setup mock videos with watched videos
+    const today = new Date().toISOString();
+    const mockWatchedVideo: VideoEntry = {
+      id: 'watched-video-1',
+      channelId: 'channel-1',
+      cachedAt: today,
+      watched: true,
+      title: 'Test Watched Video',
+      link: { href: 'https://youtube.com/watch?v=test1', rel: 'alternate' },
+      published: today,
+      content: 'Test video content',
+      author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://test.com/thumbnail.jpg', width: '320', height: '180' },
+        mediaTitle: 'Test Video',
+        mediaContent: { url: 'https://test.com/video.mp4', type: 'video/mp4', width: '1920', height: '1080' },
+        mediaDescription: 'Test description'
+      }
+    };
+
+    const mockChannel: Channel = { id: 'channel-1', title: 'Test Channel' };
+
+    const videosResponse: VideosAPIResponse = {
+      videos: [mockWatchedVideo],
+      lastRefresh: today
+    };
+
+    (videoAPI.getAll as jest.Mock).mockResolvedValue(videosResponse);
+    (channelAPI.getAll as jest.Mock).mockResolvedValue([mockChannel]);
+
+    // Render component
+    render(<VideosPage />);
+
+    // Wait for initial load and watched section to appear
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Watched' })).toBeInTheDocument();
+    });
+
+    // Find the accordion button
+    const accordionButton = screen.getByRole('button', { name: /watched/i });
+    
+    // Verify accordion is collapsed by default
+    expect(accordionButton).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('Test Watched Video')).not.toBeInTheDocument();
+
+    // Click to expand the accordion
+    fireEvent.click(accordionButton);
+
+    // Verify accordion is now expanded and content is visible
+    await waitFor(() => {
+      expect(accordionButton).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText('Test Watched Video')).toBeInTheDocument();
+    });
+
+    // Click again to collapse the accordion
+    fireEvent.click(accordionButton);
+
+    // Verify accordion is collapsed again and content is hidden
+    await waitFor(() => {
+      expect(accordionButton).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByText('Test Watched Video')).not.toBeInTheDocument();
+    });
   });
 });

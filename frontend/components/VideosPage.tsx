@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Search, Calendar, RefreshCw, List } from 'lucide-react'; // Added List icon
+import { Search, Calendar, RefreshCw, List, ChevronDown } from 'lucide-react';
 import { videoAPI, channelAPI } from '@/lib/api';
 import { VideoEntry, Channel } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
@@ -28,6 +28,7 @@ export default function VideosPage() {
     return yesterday.toISOString().split('T')[0];
   });
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
+  const [isWatchedAccordionOpen, setIsWatchedAccordionOpen] = useState(false); // Accordion collapsed by default
   
   // Use refs to access current values in the auto-refresh effect
   const allVideosRef = useRef<VideoEntry[]>([]);
@@ -431,24 +432,43 @@ export default function VideosPage() {
       {/* Watched Videos Section */}
       {watchedVideos.length > 0 && (
         <div className="mt-12">
-          <h2 className="text-2xl font-semibold mb-4">Watched</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {paginatedWatchedVideos.map((video) => (
-              <VideoCard
-                key={video.id}
-                video={video}
-                channels={channels}
-                onWatchedStatusChange={handleVideoWatchedStatusChange}
-              />
-            ))}
-          </div>
-          {/* Pagination for Watched Videos */}
-          {watchedVideos.length > WATCHED_VIDEOS_PER_PAGE && (
-            <Pagination
-              currentPage={currentWatchedPage}
-              totalPages={totalWatchedPages}
-              onPageChange={handleWatchedPageChange}
+          {/* Accordion Header */}
+          <button
+            onClick={() => setIsWatchedAccordionOpen(!isWatchedAccordionOpen)}
+            className="flex items-center gap-2 w-full text-left group focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded-lg p-1"
+            aria-expanded={isWatchedAccordionOpen}
+            aria-controls="watched-videos-content"
+          >
+            <h2 className="text-2xl font-semibold">Watched</h2>
+            <ChevronDown 
+              className={`w-6 h-6 text-gray-500 transition-transform duration-200 group-hover:text-gray-700 dark:text-gray-400 dark:group-hover:text-gray-200 ${
+                isWatchedAccordionOpen ? 'rotate-180' : ''
+              }`}
             />
+          </button>
+          
+          {/* Accordion Content */}
+          {isWatchedAccordionOpen && (
+            <div id="watched-videos-content" className="mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {paginatedWatchedVideos.map((video) => (
+                  <VideoCard
+                    key={video.id}
+                    video={video}
+                    channels={channels}
+                    onWatchedStatusChange={handleVideoWatchedStatusChange}
+                  />
+                ))}
+              </div>
+              {/* Pagination for Watched Videos */}
+              {watchedVideos.length > WATCHED_VIDEOS_PER_PAGE && (
+                <Pagination
+                  currentPage={currentWatchedPage}
+                  totalPages={totalWatchedPages}
+                  onPageChange={handleWatchedPageChange}
+                />
+              )}
+            </div>
           )}
         </div>
       )}
