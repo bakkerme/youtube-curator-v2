@@ -143,7 +143,7 @@ describe('VideoCard', () => {
     // Assert
     await waitFor(() => {
       expect(apiCalled).toBe(true);
-      expect(mockCallback).toHaveBeenCalled();
+      expect(mockCallback).toHaveBeenCalledWith('video-123');
     });
   });
 

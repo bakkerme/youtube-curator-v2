@@ -7,7 +7,7 @@ import Image from 'next/image';
 interface VideoCardProps {
   video: VideoEntry;
   channels: Channel[];
-  onWatchedStatusChange?: () => void; // Add callback prop
+  onWatchedStatusChange?: (videoId: string) => void; // Add callback prop with video ID
 }
 
 export default function VideoCard({ video, channels, onWatchedStatusChange }: VideoCardProps) {
@@ -25,7 +25,7 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
     try {
       await videoAPI.markAsWatched(video.id);
       if (onWatchedStatusChange) {
-        onWatchedStatusChange(); // Call the callback to refresh data in parent
+        onWatchedStatusChange(video.id); // Pass video ID to callback
       }
     } catch (error) {
       console.error('Failed to mark video as watched:', error);
