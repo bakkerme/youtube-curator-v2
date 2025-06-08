@@ -274,4 +274,38 @@ describe('VideoCard', () => {
     expect(youtubeLink).toHaveAttribute('target', '_blank');
     expect(youtubeLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
+
+  it('should make thumbnail clickable and link to YouTube', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const thumbnailLink = screen.getByRole('link', { name: /test video title.*thumbnail/i });
+    expect(thumbnailLink).toHaveAttribute('href', 'https://youtube.com/watch?v=test');
+    expect(thumbnailLink).toHaveAttribute('target', '_blank');
+    expect(thumbnailLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+
+  it('should make title clickable and link to YouTube', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert
+    const titleLink = screen.getByRole('link', { name: /test video title$/i });
+    expect(titleLink).toHaveAttribute('href', 'https://youtube.com/watch?v=test');
+    expect(titleLink).toHaveAttribute('target', '_blank');
+    expect(titleLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
 });
