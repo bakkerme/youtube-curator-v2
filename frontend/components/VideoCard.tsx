@@ -50,22 +50,38 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
   return (
     <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all ${isChecked ? 'opacity-60' : ''}`}>
       {/* Thumbnail */}
-      <div className="relative aspect-video">
-        <Image
-          src={thumbnailUrl}
-          alt={title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
-      </div>
+      <a
+        href={video.link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block"
+        aria-label={`${title} - thumbnail`}
+      >
+        <div className="relative aspect-video">
+          <Image
+            src={thumbnailUrl}
+            alt={title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        </div>
+      </a>
       
       {/* Content */}
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 flex-1">
-            {title}
-          </h3>
+          <a
+            href={video.link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 mr-2"
+            aria-label={title}
+          >
+            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+              {title}
+            </h3>
+          </a>
           <div className="ml-2 flex-shrink-0">
             <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
               <span>Watched</span>
