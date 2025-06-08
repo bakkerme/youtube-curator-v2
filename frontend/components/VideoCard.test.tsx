@@ -178,7 +178,7 @@ describe('VideoCard', () => {
     
     const card = screen.getByText('Introduction to React Testing').closest('div[class*="bg-white"]')
     expect(card).toHaveClass('hover:shadow-lg')
-    expect(card).toHaveClass('transition-shadow')
+    expect(card).toHaveClass('transition-all')
   })
 
   it('has correct styling for watch button', () => {
