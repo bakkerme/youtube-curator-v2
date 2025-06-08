@@ -83,7 +83,8 @@ export default function VideosPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [allVideos.length, loading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Intentionally empty deps to prevent infinite re-renders caused by allVideos.length and loading changes
 
   // Load data on component mount
   useEffect(() => {
