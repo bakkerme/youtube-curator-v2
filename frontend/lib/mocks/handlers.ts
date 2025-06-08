@@ -105,11 +105,11 @@ export const mockConfig = {
 export const handlers = [
   // Get all channels
   http.get('/api/channels', () => {
-    return HttpResponse.json(mockChannels, {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    return HttpResponse.json({
+      channels: mockChannels,
+      totalCount: mockChannels.length,
+      lastUpdated: new Date().toISOString(),
+    });
   }),
 
   // Add a channel
@@ -161,6 +161,11 @@ export const handlers = [
       lastRefresh: '2024-01-15T10:00:00Z',
       totalCount: mockVideos.length,
     })
+  }),
+
+  // Mark video as watched
+  http.post('/api/videos/:id/watch', () => {
+    return new HttpResponse(null, { status: 200 })
   }),
 
   // Get channel by ID
