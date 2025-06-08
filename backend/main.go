@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 	"time"
 
 	"youtube-curator-v2/internal/api"
@@ -18,6 +19,12 @@ import (
 
 	"github.com/robfig/cron/v3"
 )
+
+// channelJob represents a channel processing job
+type channelJob struct {
+	channelID string
+	result    chan processor.ChannelResult
+}
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -122,19 +129,20 @@ func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProc
 	// Map to store the latest new video for each channel
 	latestNewVideoPerChannel := make(map[string]rss.Entry)
 
-	// Process each channel using the channel processor
-	for _, channel := range channels {
-		result := channelProcessor.ProcessChannel(ctx, channel.ID)
+	// Process channels concurrently using the configured concurrency level
+	results := processChannelsConcurrently(ctx, channels, channelProcessor, cfg.RSSConcurrency)
 
+	// Process results
+	for channelID, result := range results {
 		// Skip channels that had errors
 		if result.Error != nil {
-			log.Printf("Error processing channel %s: %v\n", channel.ID, result.Error)
+			log.Printf("Error processing channel %s: %v\n", channelID, result.Error)
 			continue
 		}
 
 		// If a new video was found, add it to our map
 		if result.NewVideo != nil {
-			latestNewVideoPerChannel[channel.ID] = *result.NewVideo
+			latestNewVideoPerChannel[channelID] = *result.NewVideo
 		}
 	}
 
@@ -186,4 +194,66 @@ func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProc
 	}
 
 	log.Println("Finished checking for new videos.")
+}
+
+// processChannelsConcurrently processes multiple channels concurrently using a worker pool
+func processChannelsConcurrently(ctx context.Context, channels []store.Channel, channelProcessor processor.ChannelProcessor, concurrency int) map[string]processor.ChannelResult {
+	if len(channels) == 0 {
+		return make(map[string]processor.ChannelResult)
+	}
+
+	// Limit concurrency to number of channels if there are fewer channels than workers
+	if concurrency > len(channels) {
+		concurrency = len(channels)
+	}
+
+	log.Printf("Processing %d channels with %d concurrent workers", len(channels), concurrency)
+
+	// Create channels for job distribution and result collection
+	jobs := make(chan channelJob, len(channels))
+	results := make(map[string]processor.ChannelResult)
+	var resultsMutex sync.Mutex
+
+	// Start worker goroutines
+	var wg sync.WaitGroup
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			log.Printf("Worker %d started", workerID)
+
+			for job := range jobs {
+				// Process the channel
+				result := channelProcessor.ProcessChannel(ctx, job.channelID)
+				
+				// Store result safely
+				resultsMutex.Lock()
+				results[job.channelID] = result
+				resultsMutex.Unlock()
+
+				log.Printf("Worker %d processed channel %s", workerID, job.channelID)
+			}
+
+			log.Printf("Worker %d finished", workerID)
+		}(i)
+	}
+
+	// Send jobs to workers
+	go func() {
+		defer close(jobs)
+		for _, channel := range channels {
+			select {
+			case jobs <- channelJob{channelID: channel.ID}:
+			case <-ctx.Done():
+				log.Printf("Context cancelled while sending jobs")
+				return
+			}
+		}
+	}()
+
+	// Wait for all workers to complete
+	wg.Wait()
+
+	log.Printf("Completed processing %d channels", len(channels))
+	return results
 }

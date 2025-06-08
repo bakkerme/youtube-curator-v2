@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,6 +24,7 @@ type Config struct {
 	APIPort        string // Port for the API server
 	EnableAPI      bool   // Whether to enable the API server
 	CronSchedule   string // e.g. '0 0 * * *' for daily at midnight
+	RSSConcurrency int    // Number of concurrent RSS fetches, default 5
 }
 
 // LoadConfig loads configuration from environment variables
@@ -92,6 +94,14 @@ func LoadConfig() (*Config, error) {
 		enableAPI = strings.ToLower(enableAPIStr) == "true"
 	}
 
+	rssConcurrency := 5 // default to 5 concurrent fetches
+	rssConcurrencyStr := os.Getenv("RSS_CONCURRENCY")
+	if rssConcurrencyStr != "" {
+		if parsed, err := parseIntEnv("RSS_CONCURRENCY", rssConcurrencyStr); err == nil && parsed > 0 {
+			rssConcurrency = parsed
+		}
+	}
+
 	return &Config{
 		DBPath:         dbPath,
 		SMTPServer:     smtpServer,
@@ -105,5 +115,15 @@ func LoadConfig() (*Config, error) {
 		APIPort:        apiPort,
 		EnableAPI:      enableAPI,
 		CronSchedule:   cronSchedule,
+		RSSConcurrency: rssConcurrency,
 	}, nil
+}
+
+// parseIntEnv is a helper function to parse integer environment variables
+func parseIntEnv(name, value string) (int, error) {
+	parsed, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid %s value '%s': must be an integer", name, value)
+	}
+	return parsed, nil
 }
