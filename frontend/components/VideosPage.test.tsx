@@ -617,4 +617,76 @@ describe('VideosPage', () => {
       expect(screen.queryByText(video.title)).not.toBeInTheDocument();
     });
   });
+
+  test('updates UI when video is marked as watched without refetching from API', async () => {
+    // Arrange - Setup mock videos with one unwatched video (using today's date)
+    const today = new Date().toISOString();
+    const mockUnwatchedVideo: VideoEntry = {
+      id: 'test-video-1',
+      channelId: 'channel-1',
+      cachedAt: today,
+      watched: false,
+      title: 'Test Unwatched Video',
+      link: { href: 'https://youtube.com/watch?v=test1', rel: 'alternate' },
+      published: today, // Use today's date so it shows up in 'today' filter
+      content: 'Test video content',
+      author: { name: 'Test Author', uri: 'https://youtube.com/channel/test' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://test.com/thumbnail.jpg', width: '320', height: '180' },
+        mediaTitle: 'Test Video',
+        mediaContent: { url: 'https://test.com/video.mp4', type: 'video/mp4', width: '1920', height: '1080' },
+        mediaDescription: 'Test description'
+      }
+    };
+
+    const mockChannel: Channel = { id: 'channel-1', title: 'Test Channel' };
+
+    const videosResponse: VideosAPIResponse = {
+      videos: [mockUnwatchedVideo],
+      lastRefresh: today
+    };
+
+    (videoAPI.getAll as jest.Mock).mockResolvedValue(videosResponse);
+    (channelAPI.getAll as jest.Mock).mockResolvedValue([mockChannel]);
+
+    // Render component
+    render(<VideosPage />);
+
+    // Wait for initial load
+    await waitFor(() => {
+      expect(screen.getByText('Test Unwatched Video')).toBeInTheDocument();
+    });
+
+    // Verify video appears in unwatched section (under "Unwatched" heading)
+    const unwatchedSection = screen.getByRole('heading', { name: 'Unwatched' });
+    expect(unwatchedSection).toBeInTheDocument();
+    
+    // Verify no watched section heading is displayed initially
+    expect(screen.queryByRole('heading', { name: 'Watched' })).not.toBeInTheDocument();
+
+    // Mock the API call for marking as watched
+    const mockMarkAsWatched = jest.fn().mockResolvedValue({});
+    (videoAPI as any).markAsWatched = mockMarkAsWatched;
+
+    // Find and click the watched checkbox
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).not.toBeChecked();
+    
+    fireEvent.click(checkbox);
+
+    // Wait for the UI to update
+    await waitFor(() => {
+      // Video should now appear in watched section heading
+      expect(screen.getByRole('heading', { name: 'Watched' })).toBeInTheDocument();
+    });
+
+    // Verify the video is now in watched section
+    expect(screen.getByText('Test Unwatched Video')).toBeInTheDocument();
+    
+    // Verify the API was called to mark as watched
+    expect(mockMarkAsWatched).toHaveBeenCalledWith('test-video-1');
+    
+    // Verify that videoAPI.getAll was NOT called again (no refetch)
+    expect(videoAPI.getAll).toHaveBeenCalledTimes(1); // Only the initial call
+  });
 });

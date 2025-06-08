@@ -255,6 +255,17 @@ export default function VideosPage() {
     router.push(`/?${params.toString()}`);
   };
 
+  // Handle video watched status change without refetching from API
+  const handleVideoWatchedStatusChange = useCallback((videoId: string) => {
+    setAllVideos(prevVideos => 
+      prevVideos.map(video => 
+        video.id === videoId 
+          ? { ...video, watched: true }
+          : video
+      )
+    );
+  }, []);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -379,8 +390,7 @@ export default function VideosPage() {
                 key={video.id}
                 video={video}
                 channels={channels}
-                // Pass loadData to refresh the list when a video is marked as watched
-                // onWatchedStatusChange={() => loadData(false)}
+                onWatchedStatusChange={handleVideoWatchedStatusChange}
               />
             ))}
           </div>
@@ -406,7 +416,7 @@ export default function VideosPage() {
                 key={video.id}
                 video={video}
                 channels={channels}
-                // onWatchedStatusChange={() => loadData(false)}
+                onWatchedStatusChange={handleVideoWatchedStatusChange}
               />
             ))}
           </div>
