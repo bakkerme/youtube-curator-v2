@@ -122,6 +122,19 @@ test.describe('UI Screenshots for PR Review', () => {
   // Helper function to wait for page load and React hydration
   async function waitForPageLoad(page: Page) {
     await page.waitForLoadState('networkidle');
+    
+    // Wait for web fonts to load completely
+    await page.evaluate(() => {
+      return new Promise<void>((resolve) => {
+        if (document.fonts && document.fonts.ready) {
+          document.fonts.ready.then(() => resolve());
+        } else {
+          // Fallback timeout if document.fonts is not available
+          setTimeout(() => resolve(), 1000);
+        }
+      });
+    });
+    
     // Wait for React to hydrate and any loading states to complete
     await page.waitForTimeout(2000); 
   }

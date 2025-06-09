@@ -126,11 +126,50 @@ To ensure clean screenshots without development interference, the following are 
 - **Next.js Development Mode**: When running in CI, the app runs in production mode for clean output
 - **Dev Server Indicators**: Any development-only UI elements are suppressed
 
+### Font Consistency Across Platforms
+
+To ensure consistent screenshot rendering between local development and CI environments:
+- **Web Font**: The app uses Inter from Google Fonts as the primary font
+- **Consistent Rendering**: Font loading is properly awaited before taking screenshots
+- **Cross-Platform**: Same font renders identically on macOS, Windows, and Linux (CI)
+- **Fallback Fonts**: System fonts are used as fallbacks if web fonts fail to load
+
+This prevents font rendering differences between local screenshots and CI-generated screenshots.
+
 ## Artifacts
 
 Screenshots are stored as GitHub Actions artifacts named `ui-screenshots` and retained for 14 days.
 
 ## Troubleshooting
+
+### Font Rendering Consistency Between Local and CI
+
+If you notice that locally generated screenshots don't match CI-generated screenshots due to font differences:
+
+1. **Root Cause**: Different operating systems use different default fonts in the font stack
+   - macOS: Uses -apple-system (San Francisco)
+   - Windows: Uses Segoe UI
+   - Linux (CI): Uses ui-sans-serif or Roboto
+
+2. **Solution Applied**: The app now uses a prioritized font stack designed for cross-platform consistency:
+   ```css
+   font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+   ```
+
+3. **Browser Flags**: Playwright uses specific Chrome flags to ensure consistent font rendering:
+   - `--font-render-hinting=none`: Disables font hinting variations
+   - `--disable-font-subpixel-positioning`: Consistent character spacing
+   - `--force-color-profile=srgb`: Consistent color rendering
+   - `--disable-font-variations`: Prevents font weight variations
+
+4. **Font Loading**: Tests wait for fonts to load completely before taking screenshots
+
+If screenshots still differ between environments:
+- Ensure you're using the same Node.js version locally as in CI (20.x)
+- Clear your browser cache and Playwright cache: `npx playwright install --force`
+- Regenerate baseline screenshots: `npm run test:screenshots:update`
+
+### Other Issues
 
 If tests fail:
 1. **Visual Regression Mode**: Check if UI changes are intentional, then run `npm run test:screenshots:update`

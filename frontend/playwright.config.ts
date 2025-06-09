@@ -26,13 +26,34 @@ export default defineConfig({
     trace: 'on-first-retry',
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
+    /* Ensure consistent font rendering across platforms */
+    extraHTTPHeaders: {
+      // Force consistent font loading
+      'Accept-Language': 'en-US,en;q=0.9',
+    },
   },
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        // Ensure consistent font rendering for screenshots across platforms
+        launchOptions: {
+          args: [
+            '--font-render-hinting=none',
+            '--disable-font-subpixel-positioning',
+            '--disable-gpu',
+            '--disable-features=VizDisplayCompositor',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-backgrounding-occluded-windows',
+            '--force-color-profile=srgb',
+            '--disable-font-variations'
+          ]
+        }
+      },
     },
   ],
 
