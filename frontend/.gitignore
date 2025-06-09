@@ -13,6 +13,13 @@
 # testing
 /coverage
 
+# playwright
+/test-results/
+/playwright-report/
+/playwright/.cache/
+# But include baseline screenshots for visual regression testing
+!/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/
+
 # next.js
 /.next/
 /out/
