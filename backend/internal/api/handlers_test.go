@@ -259,3 +259,83 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 		t.Errorf("Expected cached video ID 'cached_video', got '%s'", videos[0].Entry.ID)
 	}
 }
+
+func TestGetVideos_WithRefreshParameter_PreservesWatchedState(t *testing.T) {
+	// Setup
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mockStore := store.NewMockStore(ctrl)
+	mockFeedProvider := NewMockFeedProvider()
+	mockEmailSender := &MockEmailSender{}
+	mockProcessor := &MockChannelProcessor{}
+	cfg := &config.Config{}
+
+	// Create video store and add a video
+	videoStore := store.NewVideoStore(1 * time.Hour)
+	testVideo := rss.Entry{
+		ID:        "test_video",
+		Title:     "Test Video",
+		Published: time.Now().Add(-2 * time.Hour),
+	}
+	videoStore.AddVideo("channel1", testVideo)
+
+	// Mark the video as watched
+	videoStore.MarkVideoAsWatched("test_video")
+
+	// Verify it's marked as watched
+	videos := videoStore.GetAllVideos()
+	if len(videos) != 1 {
+		t.Fatalf("Expected 1 video in store, got %d", len(videos))
+	}
+	if !videos[0].Watched {
+		t.Fatalf("Expected video to be marked as watched before refresh")
+	}
+
+	// Setup mock expectations for refresh
+	channels := []store.Channel{
+		{ID: "channel1", Title: "Test Channel 1"},
+	}
+	mockStore.EXPECT().GetChannels().Return(channels, nil).Times(1)
+
+	// Setup mock feed with the same video (simulating refresh)
+	mockFeedProvider.feeds["channel1"] = &rss.Feed{
+		Entries: []rss.Entry{testVideo},
+	}
+
+	// Create handlers
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
+
+	// Create test request with refresh=true
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/videos?refresh=true", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	// Execute
+	err := handlers.GetVideos(c)
+
+	// Verify
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", rec.Code)
+	}
+
+	// Verify watched state is preserved after refresh
+	videos = videoStore.GetAllVideos()
+	if len(videos) != 1 {
+		t.Fatalf("Expected 1 video in store after refresh, got %d", len(videos))
+	}
+
+	if videos[0].Entry.ID != "test_video" {
+		t.Errorf("Expected video ID 'test_video', got '%s'", videos[0].Entry.ID)
+	}
+
+	// This should pass after the fix - currently it fails because watched state is reset
+	if !videos[0].Watched {
+		t.Error("Expected video to remain marked as watched after refresh")
+	}
+}
