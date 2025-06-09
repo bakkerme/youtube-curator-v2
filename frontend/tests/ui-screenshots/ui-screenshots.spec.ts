@@ -81,8 +81,42 @@ test.describe('UI Screenshots for PR Review', () => {
   // Helper function to toggle dark mode
   async function toggleDarkMode(page: Page) {
     await page.evaluate(() => {
+      // Add dark class for Tailwind dark mode
       document.documentElement.classList.add('dark');
+      
+      // Override CSS custom properties to force dark mode
+      const root = document.documentElement;
+      
+      // Set the root variables that are used in @media (prefers-color-scheme: dark)
+      root.style.setProperty('--background', '#0a0a0a');
+      root.style.setProperty('--foreground', '#ededed');
+      
+      // Also set the theme variables that Tailwind uses
+      root.style.setProperty('--color-background', '#0a0a0a');
+      root.style.setProperty('--color-foreground', '#ededed');
+      
+      // Force body styles as well to ensure immediate effect
+      document.body.style.background = '#0a0a0a';
+      document.body.style.color = '#ededed';
+      
+      // Add data attribute to indicate dark mode for better debugging
+      root.setAttribute('data-theme', 'dark');
+      
+      // Force a style recalculation by accessing offsetHeight
+      document.body.offsetHeight;
     });
+    
+    // Wait for dark mode styles to be applied and any transitions to complete
+    await page.waitForTimeout(1500);
+    
+    // Verify dark mode is applied by checking for the dark class
+    const isDarkModeActive = await page.evaluate(() => {
+      return document.documentElement.classList.contains('dark');
+    });
+    
+    if (!isDarkModeActive) {
+      throw new Error('Dark mode was not properly applied');
+    }
   }
 
   // Helper function to wait for page load and React hydration
