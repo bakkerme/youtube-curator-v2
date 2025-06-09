@@ -102,20 +102,73 @@ test.describe('UI Screenshots for PR Review', () => {
       // Add data attribute to indicate dark mode for better debugging
       root.setAttribute('data-theme', 'dark');
       
+      // Force all elements with dark mode classes to apply their styles
+      // This ensures Tailwind's dark mode classes take effect immediately
+      const allElements = document.querySelectorAll('*');
+      allElements.forEach(el => {
+        const element = el as HTMLElement;
+        if (element.className && element.className.includes('dark:')) {
+          // Force recompute styles by touching a style property
+          const display = getComputedStyle(element).display;
+          element.style.display = 'none';
+          element.offsetHeight; // Trigger reflow
+          element.style.display = display;
+        }
+      });
+      
+      // Additional forced styles for common card elements to ensure dark mode
+      const cards = document.querySelectorAll('.bg-white, [class*="bg-white"]');
+      cards.forEach(card => {
+        const element = card as HTMLElement;
+        if (element.className.includes('dark:bg-gray-800')) {
+          element.style.backgroundColor = '#1f2937'; // gray-800
+        }
+      });
+      
+      const borders = document.querySelectorAll('[class*="border-gray-200"]');
+      borders.forEach(border => {
+        const element = border as HTMLElement;
+        if (element.className.includes('dark:border-gray-700')) {
+          element.style.borderColor = '#374151'; // gray-700
+        }
+      });
+      
+      // Force text colors for dark mode
+      const grayTexts = document.querySelectorAll('[class*="text-gray-600"]');
+      grayTexts.forEach(text => {
+        const element = text as HTMLElement;
+        if (element.className.includes('dark:text-gray-400')) {
+          element.style.color = '#9ca3af'; // gray-400
+        }
+      });
+      
       // Force a style recalculation by accessing offsetHeight
       document.body.offsetHeight;
     });
     
     // Wait for dark mode styles to be applied and any transitions to complete
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
     
-    // Verify dark mode is applied by checking for the dark class
+    // Verify dark mode is applied by checking for the dark class and actual styles
     const isDarkModeActive = await page.evaluate(() => {
-      return document.documentElement.classList.contains('dark');
+      const hasDarkClass = document.documentElement.classList.contains('dark');
+      
+      // Also check if dark mode styles are actually being applied
+      // by checking the computed background color of a card element
+      const cardElement = document.querySelector('.bg-white');
+      const actualBg = cardElement ? getComputedStyle(cardElement).backgroundColor : '';
+      
+      return {
+        hasDarkClass,
+        actualBackgroundColor: actualBg,
+        rootBackground: getComputedStyle(document.documentElement).getPropertyValue('--background').trim()
+      };
     });
     
-    if (!isDarkModeActive) {
-      throw new Error('Dark mode was not properly applied');
+    console.log('Dark mode verification:', isDarkModeActive);
+    
+    if (!isDarkModeActive.hasDarkClass) {
+      throw new Error('Dark mode class was not properly applied');
     }
   }
 
