@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -71,6 +72,7 @@ func TestCheckForNewVideos_NoNewVideos(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
 		RecipientEmail: "test@example.com",
+		RSSConcurrency: 3,
 	}
 
 	mockEmailSender := NewMockEmailSender()
@@ -109,6 +111,7 @@ func TestCheckForNewVideos_WithNewVideos(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
 		RecipientEmail: "test@example.com",
+		RSSConcurrency: 3,
 	}
 
 	mockEmailSender := NewMockEmailSender()
@@ -197,6 +200,7 @@ func TestCheckForNewVideos_MixedResults(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
 		RecipientEmail: "test@example.com",
+		RSSConcurrency: 3,
 	}
 
 	mockEmailSender := NewMockEmailSender()
@@ -269,10 +273,136 @@ func contains(s, substr string) bool {
 	return len(s) > 0 && len(substr) > 0 && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || contains(s[1:], substr)))
 }
 
+func TestProcessChannelsConcurrently(t *testing.T) {
+	// Setup
+	mockProcessor := NewMockChannelProcessor()
+	ctx := context.Background()
+	
+	// Create test channels
+	channels := []store.Channel{
+		{ID: "channel-1", Title: "Channel 1"},
+		{ID: "channel-2", Title: "Channel 2"},
+		{ID: "channel-3", Title: "Channel 3"},
+		{ID: "channel-4", Title: "Channel 4"},
+	}
+	
+	// Set up expected results
+	video1 := &rss.Entry{Title: "Video 1", ID: "video-1"}
+	video2 := &rss.Entry{Title: "Video 2", ID: "video-2"}
+	
+	mockProcessor.results["channel-1"] = processor.ChannelResult{
+		ChannelID: "channel-1",
+		NewVideo:  video1,
+		Error:     nil,
+	}
+	mockProcessor.results["channel-2"] = processor.ChannelResult{
+		ChannelID: "channel-2",
+		NewVideo:  video2,
+		Error:     nil,
+	}
+	mockProcessor.results["channel-3"] = processor.ChannelResult{
+		ChannelID: "channel-3",
+		NewVideo:  nil,
+		Error:     nil,
+	}
+	mockProcessor.results["channel-4"] = processor.ChannelResult{
+		ChannelID: "channel-4",
+		NewVideo:  nil,
+		Error:     fmt.Errorf("test error"),
+	}
+	
+	// Test with concurrency level 2
+	results := processChannelsConcurrently(ctx, channels, mockProcessor, 2)
+	
+	// Verify all channels were processed
+	if len(results) != 4 {
+		t.Errorf("Expected 4 results, got %d", len(results))
+	}
+	
+	// Verify specific results
+	if result, ok := results["channel-1"]; !ok || result.NewVideo == nil || result.NewVideo.Title != "Video 1" {
+		t.Errorf("Channel 1 result incorrect: %+v", result)
+	}
+	
+	if result, ok := results["channel-2"]; !ok || result.NewVideo == nil || result.NewVideo.Title != "Video 2" {
+		t.Errorf("Channel 2 result incorrect: %+v", result)
+	}
+	
+	if result, ok := results["channel-3"]; !ok || result.NewVideo != nil {
+		t.Errorf("Channel 3 should have no new video: %+v", result)
+	}
+	
+	if result, ok := results["channel-4"]; !ok || result.Error == nil {
+		t.Errorf("Channel 4 should have an error: %+v", result)
+	}
+}
+
+func TestProcessChannelsConcurrently_EmptyChannels(t *testing.T) {
+	mockProcessor := NewMockChannelProcessor()
+	ctx := context.Background()
+	channels := []store.Channel{}
+	
+	results := processChannelsConcurrently(ctx, channels, mockProcessor, 5)
+	
+	if len(results) != 0 {
+		t.Errorf("Expected 0 results for empty channels, got %d", len(results))
+	}
+}
+
+func TestProcessChannelsConcurrently_ConcurrencyLimit(t *testing.T) {
+	mockProcessor := NewMockChannelProcessor()
+	ctx := context.Background()
+	
+	// Create 10 channels
+	channels := make([]store.Channel, 10)
+	for i := 0; i < 10; i++ {
+		channelID := fmt.Sprintf("channel-%d", i)
+		channels[i] = store.Channel{ID: channelID, Title: fmt.Sprintf("Channel %d", i)}
+		mockProcessor.results[channelID] = processor.ChannelResult{
+			ChannelID: channelID,
+			NewVideo:  nil,
+			Error:     nil,
+		}
+	}
+	
+	// Test that concurrency is limited correctly when we have more channels than workers
+	results := processChannelsConcurrently(ctx, channels, mockProcessor, 3)
+	
+	if len(results) != 10 {
+		t.Errorf("Expected 10 results, got %d", len(results))
+	}
+}
+
+func TestProcessChannelsConcurrently_MaxConcurrencyLimit(t *testing.T) {
+	mockProcessor := NewMockChannelProcessor()
+	ctx := context.Background()
+	
+	// Create 15 channels
+	channels := make([]store.Channel, 15)
+	for i := 0; i < 15; i++ {
+		channelID := fmt.Sprintf("channel-%d", i)
+		channels[i] = store.Channel{ID: channelID, Title: fmt.Sprintf("Channel %d", i)}
+		mockProcessor.results[channelID] = processor.ChannelResult{
+			ChannelID: channelID,
+			NewVideo:  nil,
+			Error:     nil,
+		}
+	}
+	
+	// Test that excessive concurrency is limited to max value (10)
+	// This should warn but still process all channels
+	results := processChannelsConcurrently(ctx, channels, mockProcessor, 15)
+	
+	if len(results) != 15 {
+		t.Errorf("Expected 15 results, got %d", len(results))
+	}
+}
+
 func TestCheckForNewVideos_FallbackToConfigEmail(t *testing.T) {
 	// Setup
 	cfg := &config.Config{
 		RecipientEmail: "fallback@example.com",
+		RSSConcurrency: 1,
 	}
 
 	mockEmailSender := NewMockEmailSender()
