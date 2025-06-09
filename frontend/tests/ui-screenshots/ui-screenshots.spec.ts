@@ -5,42 +5,35 @@ import { mockVideoEntries, mockChannels, mockSMTPConfig, emptyMockData } from '.
 test.describe('UI Screenshots for PR Review', () => {
   // Setup API mocking before each test
   test.beforeEach(async ({ page }) => {
-    // Mock API responses
-    await page.route('**/api/videos*', async (route) => {
-      const url = route.request().url();
-      if (url.includes('empty=true')) {
-        await route.fulfill({ 
-          json: { 
-            videos: [], 
-            lastRefresh: new Date().toISOString(),
-            totalCount: 0 
-          } 
-        });
-      } else {
-        await route.fulfill({ 
-          json: { 
-            videos: mockVideoEntries, 
-            lastRefresh: new Date().toISOString(),
-            totalCount: mockVideoEntries.length 
-          } 
-        });
-      }
+    // Mock Next.js config API route
+    await page.route('**/api/config', async (route) => {
+      await route.fulfill({ 
+        json: { 
+          apiUrl: 'http://localhost:8080/api' 
+        } 
+      });
     });
 
-    await page.route('**/api/channels*', async (route) => {
-      const url = route.request().url();
-      if (url.includes('empty=true')) {
-        await route.fulfill({ json: [] });
-      } else {
-        await route.fulfill({ json: mockChannels });
-      }
+    // Mock backend API responses - use the backend API URLs
+    await page.route('**/localhost:8080/api/videos*', async (route) => {
+      await route.fulfill({ 
+        json: { 
+          videos: mockVideoEntries, 
+          lastRefresh: new Date().toISOString(),
+          totalCount: mockVideoEntries.length 
+        } 
+      });
     });
 
-    await page.route('**/api/config/smtp*', async (route) => {
+    await page.route('**/localhost:8080/api/channels*', async (route) => {
+      await route.fulfill({ json: { channels: mockChannels } });
+    });
+
+    await page.route('**/localhost:8080/api/config/smtp*', async (route) => {
       await route.fulfill({ json: mockSMTPConfig });
     });
 
-    await page.route('**/api/newsletter/run*', async (route) => {
+    await page.route('**/localhost:8080/api/newsletter/run*', async (route) => {
       await route.fulfill({ 
         json: { 
           message: 'Newsletter run completed successfully',
@@ -53,7 +46,7 @@ test.describe('UI Screenshots for PR Review', () => {
     });
 
     // Mock video watch endpoint
-    await page.route('**/api/videos/**/watch', async (route) => {
+    await page.route('**/localhost:8080/api/videos/**/watch', async (route) => {
       await route.fulfill({ json: { success: true } });
     });
   });
@@ -101,7 +94,18 @@ test.describe('UI Screenshots for PR Review', () => {
     });
 
     test('should capture home page - empty state', async ({ page }) => {
-      await page.goto('/?empty=true');
+      // Mock empty videos response
+      await page.route('**/localhost:8080/api/videos*', async (route) => {
+        await route.fulfill({ 
+          json: { 
+            videos: [], 
+            lastRefresh: new Date().toISOString(),
+            totalCount: 0 
+          } 
+        });
+      });
+      
+      await page.goto('/');
       await waitForPageLoad(page);
       
       await expect(page).toHaveScreenshot('home-empty-light.png', {
@@ -139,7 +143,12 @@ test.describe('UI Screenshots for PR Review', () => {
     });
 
     test('should capture subscriptions page - empty state', async ({ page }) => {
-      await page.goto('/subscriptions?empty=true');
+      // Mock empty channels response
+      await page.route('**/localhost:8080/api/channels', async (route) => {
+        await route.fulfill({ json: { channels: [] } });
+      });
+      
+      await page.goto('/subscriptions');
       await waitForPageLoad(page);
       
       await page.waitForSelector('h1', { timeout: 10000 });
