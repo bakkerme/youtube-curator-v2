@@ -1,5 +1,9 @@
 import { test, expect, Page } from '@playwright/test';
 import { mockVideoEntries, mockChannels, mockSMTPConfig, emptyMockData } from './mock-data';
+import * as path from 'path';
+
+// Configuration: set DISABLE_VISUAL_REGRESSION=true to generate screenshots without comparison
+const DISABLE_VISUAL_REGRESSION = process.env.DISABLE_VISUAL_REGRESSION === 'true';
 
 // Test only runs on PRs, not on regular builds
 test.describe('UI Screenshots for PR Review', () => {
@@ -51,6 +55,29 @@ test.describe('UI Screenshots for PR Review', () => {
     });
   });
 
+  // Helper function to handle screenshots - supports both visual regression and generation modes
+  async function captureScreenshot(page: Page, filename: string, options: any = {}) {
+    if (DISABLE_VISUAL_REGRESSION) {
+      // Screenshot generation mode - save to artifacts without comparison
+      const screenshotsDir = path.join('test-results', 'screenshots');
+      const fs = require('fs');
+      if (!fs.existsSync(screenshotsDir)) {
+        fs.mkdirSync(screenshotsDir, { recursive: true });
+      }
+      await page.screenshot({ 
+        path: path.join(screenshotsDir, filename),
+        fullPage: options.fullPage || true 
+      });
+    } else {
+      // Visual regression mode - compare against baselines
+      await expect(page).toHaveScreenshot(filename, {
+        fullPage: true,
+        timeout: 15000,
+        ...options
+      });
+    }
+  }
+
   // Helper function to toggle dark mode
   async function toggleDarkMode(page: Page) {
     await page.evaluate(() => {
@@ -73,10 +100,7 @@ test.describe('UI Screenshots for PR Review', () => {
       // Wait for videos to load by checking for video cards
       await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('home-videos-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'home-videos-light.png');
     });
 
     test('should capture home page with videos - dark mode', async ({ page }) => {
@@ -87,10 +111,7 @@ test.describe('UI Screenshots for PR Review', () => {
       // Wait for videos to load
       await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('home-videos-dark.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'home-videos-dark.png');
     });
 
     test('should capture home page - empty state', async ({ page }) => {
@@ -108,10 +129,7 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.goto('/');
       await waitForPageLoad(page);
       
-      await expect(page).toHaveScreenshot('home-empty-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'home-empty-light.png');
     });
   });
 
@@ -123,10 +141,7 @@ test.describe('UI Screenshots for PR Review', () => {
       // Wait for the page title to ensure content is loaded
       await page.waitForSelector('h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('subscriptions-channels-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'subscriptions-channels-light.png');
     });
 
     test('should capture subscriptions page with channels - dark mode', async ({ page }) => {
@@ -136,10 +151,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await page.waitForSelector('h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('subscriptions-channels-dark.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'subscriptions-channels-dark.png');
     });
 
     test('should capture subscriptions page - empty state', async ({ page }) => {
@@ -153,10 +165,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await page.waitForSelector('h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('subscriptions-empty-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'subscriptions-empty-light.png');
     });
   });
 
@@ -168,10 +177,7 @@ test.describe('UI Screenshots for PR Review', () => {
       // Wait for forms to load
       await page.waitForSelector('form, h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('notifications-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'notifications-light.png');
     });
 
     test('should capture notifications page - dark mode', async ({ page }) => {
@@ -181,10 +187,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await page.waitForSelector('form, h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('notifications-dark.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'notifications-dark.png');
     });
   });
 
@@ -196,10 +199,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('mobile-home-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'mobile-home-light.png');
     });
 
     test('should capture tablet view - subscriptions page', async ({ page }) => {
@@ -209,10 +209,7 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await page.waitForSelector('h1', { timeout: 10000 });
       
-      await expect(page).toHaveScreenshot('tablet-subscriptions-light.png', {
-        fullPage: true,
-        timeout: 15000,
-      });
+      await captureScreenshot(page, 'tablet-subscriptions-light.png');
     });
   });
 });

@@ -87,6 +87,11 @@ jobs:
 
     - name: Run UI screenshot tests
       run: npm run test:screenshots
+      env:
+        # Visual Regression Mode (default): Tests fail if UI changes vs baselines
+        # Screenshot Generation Mode: Set to "true" to generate screenshots without comparison
+        # This is useful during rapid UI development or for pure PR review artifacts
+        DISABLE_VISUAL_REGRESSION: false
 
     - name: Upload screenshots as artifacts
       if: always()

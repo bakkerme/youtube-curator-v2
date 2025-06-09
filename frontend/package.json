@@ -13,7 +13,9 @@
     "test:ci": "jest --ci --coverage --maxWorkers=2",
     "test:screenshots": "playwright test",
     "test:screenshots:headed": "playwright test --headed",
-    "test:screenshots:ui": "playwright test --ui"
+    "test:screenshots:ui": "playwright test --ui",
+    "test:screenshots:update": "playwright test --update-snapshots",
+    "test:screenshots:generate": "DISABLE_VISUAL_REGRESSION=true playwright test"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.79.0",

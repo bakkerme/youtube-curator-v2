@@ -1,15 +1,39 @@
 # UI Screenshot Tests
 
-This directory contains automated UI screenshot tests for the YouTube Curator v2 frontend. These tests run only on Pull Requests to provide visual feedback on UI changes.
+This directory contains automated UI screenshot tests for the YouTube Curator v2 frontend. These tests support both **visual regression testing** and **screenshot generation** for PR reviews.
 
 ## Overview
 
 The screenshot tests capture images of all major pages and UI states:
 
-- **Home Page**: Videos list in light/dark mode, empty state, search/filter states
-- **Subscriptions Page**: Channel management in light/dark mode, empty state, import modal
-- **Notifications Page**: SMTP configuration and newsletter results
-- **Responsive Views**: Mobile and tablet layouts
+- **Home Page**: Videos list in light/dark mode, empty state
+- **Subscriptions Page**: Channel management in light/dark mode, empty state
+- **Notifications Page**: SMTP configuration and newsletter management  
+- **Responsive Views**: Mobile (iPhone SE) and tablet (iPad) layouts
+
+## Two Modes of Operation
+
+### 1. Visual Regression Testing (Default)
+Compares current UI against committed baseline screenshots and **fails tests** if changes are detected.
+
+```bash
+# Run visual regression tests
+npm run test:screenshots
+
+# Update baselines when UI changes are intentional
+npm run test:screenshots:update
+```
+
+### 2. Screenshot Generation Only
+Generates fresh screenshots for PR review **without** comparison - tests never fail due to UI changes.
+
+```bash
+# Generate screenshots without comparison
+npm run test:screenshots:generate
+
+# Or use environment variable
+DISABLE_VISUAL_REGRESSION=true npm run test:screenshots
+```
 
 ## Running Tests
 
@@ -25,30 +49,60 @@ The screenshot tests capture images of all major pages and UI states:
    npx playwright install chromium --with-deps
    ```
 
+### Initial Setup
+
+Generate baseline screenshots for visual regression testing:
+```bash
+npm run test:screenshots:update
+```
+
+This creates baseline images in `tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/`.
+
 ### Local Development
 
 ```bash
-# Run all screenshot tests
+# Visual regression testing (default)
 npm run test:screenshots
+
+# Screenshot generation only (for PR review)
+npm run test:screenshots:generate
 
 # Run tests with browser visible (headed mode)
 npm run test:screenshots:headed
 
 # Run tests with UI mode for debugging
 npm run test:screenshots:ui
+
+# Update baseline screenshots after UI changes
+npm run test:screenshots:update
 ```
 
 ### CI Behavior
 
 - Screenshot tests only run on **Pull Requests**, not on pushes to main
+- Currently configured for **visual regression mode** (fails on UI changes)
 - Generated screenshots are uploaded as GitHub Actions artifacts
-- Tests include both light and dark mode variations
-- Full page screenshots are captured with proper wait times
+- To switch to screenshot generation mode, set `DISABLE_VISUAL_REGRESSION: true` in the workflow
+
+## Switching Between Modes
+
+You can easily switch between visual regression testing and screenshot generation:
+
+### For Visual Regression Testing
+1. Ensure baseline screenshots exist: `npm run test:screenshots:update`
+2. Set `DISABLE_VISUAL_REGRESSION: false` in `.github/workflows/run-tests.yml`
+3. Tests will fail if UI changes vs baselines
+
+### For Screenshot Generation Only  
+1. Set `DISABLE_VISUAL_REGRESSION: true` in `.github/workflows/run-tests.yml`
+2. Tests generate screenshots but never fail due to UI changes
+3. Perfect for rapid UI development and PR review
 
 ## Test Structure
 
 - `mock-data.ts`: Mock API responses for consistent test data
-- `ui-screenshots.spec.ts`: Main test file with all screenshot scenarios
+- `ui-screenshots.spec.ts`: Main test file with configurable screenshot capture
+- `ui-screenshots.spec.ts-snapshots/`: Baseline screenshots directory (auto-generated)
 
 ## Configuration
 
@@ -57,6 +111,7 @@ The tests use:
 - Dark mode toggling for theme testing
 - Responsive viewport testing for mobile/tablet views
 - Network idle waiting to ensure page stability
+- Configurable behavior via `DISABLE_VISUAL_REGRESSION` environment variable
 
 ## Artifacts
 
@@ -65,7 +120,8 @@ Screenshots are stored as GitHub Actions artifacts named `ui-screenshots` and re
 ## Troubleshooting
 
 If tests fail:
-1. Check if the development server is running correctly
-2. Verify mock data matches current API response types
-3. Ensure UI elements haven't changed (selectors may need updates)
-4. Check for timing issues - add more wait time if needed
+1. **Visual Regression Mode**: Check if UI changes are intentional, then run `npm run test:screenshots:update`
+2. Check if the development server is running correctly
+3. Verify mock data matches current API response types
+4. Ensure UI elements haven't changed (selectors may need updates)
+5. Check for timing issues - add more wait time if needed
