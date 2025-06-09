@@ -90,10 +90,10 @@ func (p *DefaultChannelProcessor) ProcessChannelWithOptions(ctx context.Context,
 		// Check if the video is newer than the last checked timestamp
 		if entryCopy.Published.After(lastCheckedTimestamp) {
 			// Enrich new videos with yt-dlp data
-			if err := p.enricher.EnrichEntry(ctx, &entryCopy); err != nil {
-				log.Printf("Warning: Failed to enrich video %s with yt-dlp: %v", entryCopy.ID, err)
-				// Continue with RSS data only
-			}
+			// if err := p.enricher.EnrichEntry(ctx, &entryCopy); err != nil {
+			// 	log.Printf("Warning: Failed to enrich video %s with yt-dlp: %v", entryCopy.ID, err)
+			// 	// Continue with RSS data only
+			// }
 
 			// If this is the first new video found for this channel, or it's newer than the current latest
 			if latestVideoThisChannel == nil || entryCopy.Published.After(latestVideoThisChannel.Published) {
