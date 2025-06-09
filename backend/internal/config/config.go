@@ -99,6 +99,8 @@ func LoadConfig() (*Config, error) {
 	if rssConcurrencyStr != "" {
 		if parsed, err := parseIntEnv("RSS_CONCURRENCY", rssConcurrencyStr); err == nil && parsed > 0 {
 			rssConcurrency = parsed
+		} else {
+			fmt.Printf("Warning: Invalid RSS_CONCURRENCY value '%s'. Using default value: %d\n", rssConcurrencyStr, rssConcurrency)
 		}
 	}
 
