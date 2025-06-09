@@ -92,6 +92,8 @@ jobs:
         # Screenshot Generation Mode: Set to "true" to generate screenshots without comparison
         # This is useful during rapid UI development or for pure PR review artifacts
         DISABLE_VISUAL_REGRESSION: false
+        # Disable development tools in production-like environment for clean screenshots
+        NEXT_PUBLIC_DISABLE_DEVTOOLS: true
 
     - name: Upload screenshots as artifacts
       if: always()
