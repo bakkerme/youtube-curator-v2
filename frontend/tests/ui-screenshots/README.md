@@ -112,6 +112,19 @@ The tests use:
 - Responsive viewport testing for mobile/tablet views
 - Network idle waiting to ensure page stability
 - Configurable behavior via `DISABLE_VISUAL_REGRESSION` environment variable
+- **Production-like mode**: Development tools (React Query DevTools, Next.js dev tools) are automatically disabled during testing for clean screenshots
+
+### Environment Variables
+
+- `DISABLE_VISUAL_REGRESSION=true`: Switch to screenshot generation mode (no comparison)
+- `NEXT_PUBLIC_DISABLE_DEVTOOLS=true`: Disable React Query DevTools and other development tools (automatically set during testing)
+
+### Development Tools Disabled During Testing
+
+To ensure clean screenshots without development interference, the following are automatically disabled:
+- **React Query DevTools**: The floating dev panel is hidden
+- **Next.js Development Mode**: When running in CI, the app runs in production mode for clean output
+- **Dev Server Indicators**: Any development-only UI elements are suppressed
 
 ## Artifacts
 

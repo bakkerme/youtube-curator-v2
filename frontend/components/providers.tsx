@@ -17,10 +17,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
+  // Only show devtools in development mode and when not running screenshot tests
+  const showDevtools = process.env.NODE_ENV === 'development' && 
+                       process.env.NEXT_PUBLIC_DISABLE_DEVTOOLS !== 'true';
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools initialIsOpen={false} />
+      {showDevtools && <ReactQueryDevtools initialIsOpen={false} />}
     </QueryClientProvider>
   );
 } 
