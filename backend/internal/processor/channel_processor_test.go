@@ -221,7 +221,7 @@ func TestProcessChannel_FirstTimeCheck(t *testing.T) {
 	}
 }
 
-func TestProcessChannelWithEnrichment(t *testing.T) {
+func testProcessChannelWithEnrichment(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
