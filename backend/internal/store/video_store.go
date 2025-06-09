@@ -41,11 +41,17 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
 	vs.mutex.Lock()
 	defer vs.mutex.Unlock()
 
+	// Check if video already exists and preserve its watched state
+	var watched bool = false
+	if existingVideo, exists := vs.videos[entry.ID]; exists {
+		watched = existingVideo.Watched
+	}
+
 	vs.videos[entry.ID] = VideoEntry{
 		Entry:     entry,
 		ChannelID: channelID,
 		CachedAt:  time.Now(),
-		Watched:   false,
+		Watched:   watched,
 	}
 }
 
