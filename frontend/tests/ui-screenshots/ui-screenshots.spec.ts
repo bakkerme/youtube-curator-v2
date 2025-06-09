@@ -192,7 +192,9 @@ test.describe('UI Screenshots for PR Review', () => {
     await page.waitForTimeout(2000); 
   }
 
-  test.describe('Home Page (Videos) Screenshots', () => {
+  test.describe('Home Page (Videos) Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
     test('should capture home page with videos - light mode', async ({ page }) => {
       await page.goto('/');
       await waitForPageLoad(page);
@@ -203,18 +205,7 @@ test.describe('UI Screenshots for PR Review', () => {
       await captureScreenshot(page, 'home-videos-light.png');
     });
 
-    test('should capture home page with videos - dark mode', async ({ page }) => {
-      await page.goto('/');
-      await toggleDarkMode(page);
-      await waitForPageLoad(page);
-      
-      // Wait for videos to load
-      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
-      
-      await captureScreenshot(page, 'home-videos-dark.png');
-    });
-
-    test('should capture home page - empty state', async ({ page }) => {
+    test('should capture home page - empty state - light mode', async ({ page }) => {
       // Mock empty videos response
       await page.route('**/localhost:8080/api/videos*', async (route) => {
         await route.fulfill({ 
@@ -233,7 +224,43 @@ test.describe('UI Screenshots for PR Review', () => {
     });
   });
 
-  test.describe('Subscriptions Page Screenshots', () => {
+  test.describe('Home Page (Videos) Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('should capture home page with videos - dark mode', async ({ page }) => {
+      await page.goto('/');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      // Wait for videos to load
+      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'home-videos-dark.png');
+    });
+
+    test('should capture home page - empty state - dark mode', async ({ page }) => {
+      // Mock empty videos response
+      await page.route('**/localhost:8080/api/videos*', async (route) => {
+        await route.fulfill({ 
+          json: { 
+            videos: [], 
+            lastRefresh: new Date().toISOString(),
+            totalCount: 0 
+          } 
+        });
+      });
+      
+      await page.goto('/');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      await captureScreenshot(page, 'home-empty-dark.png');
+    });
+  });
+
+  test.describe('Subscriptions Page Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
     test('should capture subscriptions page with channels - light mode', async ({ page }) => {
       await page.goto('/subscriptions');
       await waitForPageLoad(page);
@@ -244,17 +271,7 @@ test.describe('UI Screenshots for PR Review', () => {
       await captureScreenshot(page, 'subscriptions-channels-light.png');
     });
 
-    test('should capture subscriptions page with channels - dark mode', async ({ page }) => {
-      await page.goto('/subscriptions');
-      await toggleDarkMode(page);
-      await waitForPageLoad(page);
-      
-      await page.waitForSelector('h1', { timeout: 10000 });
-      
-      await captureScreenshot(page, 'subscriptions-channels-dark.png');
-    });
-
-    test('should capture subscriptions page - empty state', async ({ page }) => {
+    test('should capture subscriptions page - empty state - light mode', async ({ page }) => {
       // Mock empty channels response
       await page.route('**/localhost:8080/api/channels', async (route) => {
         await route.fulfill({ json: { channels: [] } });
@@ -269,7 +286,38 @@ test.describe('UI Screenshots for PR Review', () => {
     });
   });
 
-  test.describe('Notifications/Settings Page Screenshots', () => {
+  test.describe('Subscriptions Page Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('should capture subscriptions page with channels - dark mode', async ({ page }) => {
+      await page.goto('/subscriptions');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'subscriptions-channels-dark.png');
+    });
+
+    test('should capture subscriptions page - empty state - dark mode', async ({ page }) => {
+      // Mock empty channels response
+      await page.route('**/localhost:8080/api/channels', async (route) => {
+        await route.fulfill({ json: { channels: [] } });
+      });
+      
+      await page.goto('/subscriptions');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'subscriptions-empty-dark.png');
+    });
+  });
+
+  test.describe('Notifications/Settings Page Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
     test('should capture notifications page - light mode', async ({ page }) => {
       await page.goto('/notifications');
       await waitForPageLoad(page);
@@ -279,10 +327,14 @@ test.describe('UI Screenshots for PR Review', () => {
       
       await captureScreenshot(page, 'notifications-light.png');
     });
+  });
+
+  test.describe('Notifications/Settings Page Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
 
     test('should capture notifications page - dark mode', async ({ page }) => {
       await page.goto('/notifications');
-      await toggleDarkMode(page);
+      // await toggleDarkMode(page);
       await waitForPageLoad(page);
       
       await page.waitForSelector('form, h1', { timeout: 10000 });
@@ -291,7 +343,9 @@ test.describe('UI Screenshots for PR Review', () => {
     });
   });
 
-  test.describe('Responsive Design Screenshots', () => {
+  test.describe('Responsive Design Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
     test('should capture mobile view - home page', async ({ page }) => {
       await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
       await page.goto('/');
@@ -310,6 +364,32 @@ test.describe('UI Screenshots for PR Review', () => {
       await page.waitForSelector('h1', { timeout: 10000 });
       
       await captureScreenshot(page, 'tablet-subscriptions-light.png');
+    });
+  });
+
+  test.describe('Responsive Design Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('should capture mobile view - home page - dark mode', async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
+      await page.goto('/');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('[data-testid="video-card"], .video-card, h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'mobile-home-dark.png');
+    });
+
+    test('should capture tablet view - subscriptions page - dark mode', async ({ page }) => {
+      await page.setViewportSize({ width: 768, height: 1024 }); // iPad
+      await page.goto('/subscriptions');
+      // await toggleDarkMode(page);
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'tablet-subscriptions-dark.png');
     });
   });
 });
