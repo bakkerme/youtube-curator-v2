@@ -5,10 +5,12 @@ info:
     Backend API for YouTube Curator v2 - a self-hosted application for monitoring YouTube channels and sending email notifications about new videos.
     
     This API allows you to:
-    - Manage subscribed YouTube channels
+    - Manage subscribed YouTube channels (add, remove, bulk import)
     - Configure the check interval for video monitoring
-    - Retrieve videos with some metadata
-    - Mark videos as watched
+    - Configure SMTP settings for email notifications
+    - Manually trigger newsletter runs
+    - Retrieve videos with metadata and mark them as watched
+    - Sort and filter videos by publication date and watch status
   version: 2.0.0
   contact:
     name: YouTube Curator v2
@@ -286,6 +288,84 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /config/smtp:
+    get:
+      summary: Get SMTP configuration
+      description: Retrieve the current SMTP configuration for email notifications (password field is omitted for security)
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Successfully retrieved SMTP configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMTPConfigResponse'
+              example:
+                server: "smtp.gmail.com"
+                port: "587"
+                username: "notifications@example.com"
+                recipientEmail: "user@example.com"
+                passwordSet: true
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Set SMTP configuration
+      description: |
+        Configure SMTP settings for email notifications.
+        All fields are required for proper email functionality.
+      tags:
+        - Configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SMTPConfigRequest'
+            example:
+              server: "smtp.gmail.com"
+              port: "587"
+              username: "notifications@example.com"
+              password: "your-app-password"
+              recipientEmail: "user@example.com"
+      responses:
+        '200':
+          description: SMTP configuration successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SMTPConfigResponse'
+              example:
+                server: "smtp.gmail.com"
+                port: "587"
+                username: "notifications@example.com"
+                recipientEmail: "user@example.com"
+                passwordSet: true
+        '400':
+          description: Bad request - missing required fields or invalid email format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_server:
+                  summary: Missing server field
+                  value:
+                    message: "Server is required"
+                invalid_email:
+                  summary: Invalid recipient email format
+                  value:
+                    message: "Invalid recipient email format"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /newsletter/run:
     post:
       summary: Manually trigger the newsletter run
@@ -391,11 +471,14 @@ paths:
               example:
                 videos:
                   - id: "yt:video:dQw4w9WgXcQ"
+                    channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+                    cachedAt: "2024-01-15T10:35:00Z"
+                    watched: false
                     title: "Amazing Video Title"
                     link:
                       href: "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                       rel: "alternate"
-                    publishedAt: "2024-01-15T10:30:00Z"
+                    published: "2024-01-15T10:30:00Z"
                     content: "Video description content here"
                     author:
                       name: "Channel Name"
@@ -412,13 +495,6 @@ paths:
                         width: "640"
                         height: "390"
                       mediaDescription: "Video description content here"
-                    channelId: "UCAYF6ZY9gWBR1GW3R7PX7yw"
-                    channelTitle: "Channel Name"
-                    cachedAt: "2024-01-15T10:35:00Z"
-                    duration: 300
-                    tags: ["technology", "tutorial"]
-                    topComments: ["Great video!", "Very helpful"]
-                    autoSubtitles: "https://example.com/subtitles.vtt"
                 totalCount: 1
                 lastRefresh: "2024-01-15T10:35:00Z"
         '500':
@@ -463,6 +539,86 @@ paths:
                 message: "Video with ID 'yt:video:xxxxxxxxxxx' not found."
         '500':
           description: Internal server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /config/openai:
+    get:
+      summary: Get OpenAI-compatible API configuration
+      description: Retrieve the current OpenAI-compatible API configuration for video summaries (API key field is omitted for security)
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Successfully retrieved OpenAI-compatible API configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIConfigResponse'
+              example:
+                endpoint: "https://api.openai.com/v1"
+                model: "gpt-3.5-turbo"
+                maxTokens: 500
+                temperature: "0.7"
+                apiKeySet: true
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Set OpenAI-compatible API configuration
+      description: |
+        Configure OpenAI-compatible API settings for video summary generation.
+        Supports OpenAI API and other compatible endpoints (like local LLM servers).
+        All fields are required for proper AI functionality.
+      tags:
+        - Configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenAIConfigRequest'
+            example:
+              endpoint: "https://api.openai.com/v1"
+              apiKey: "sk-..."
+              model: "gpt-3.5-turbo"
+              maxTokens: 500
+              temperature: "0.7"
+      responses:
+        '200':
+          description: OpenAI-compatible API configuration successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OpenAIConfigResponse'
+              example:
+                endpoint: "https://api.openai.com/v1"
+                model: "gpt-3.5-turbo"
+                maxTokens: 500
+                temperature: "0.7"
+                apiKeySet: true
+        '400':
+          description: Bad request - missing required fields or invalid values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missing_api_key:
+                  summary: Missing API key field
+                  value:
+                    message: "API key is required"
+                invalid_endpoint:
+                  summary: Invalid endpoint URL
+                  value:
+                    message: "Invalid endpoint URL format"
+        '500':
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -576,6 +732,68 @@ components:
           type: string
           description: Error message describing what went wrong
           example: "Invalid channel ID format"
+
+    SMTPConfigRequest:
+      type: object
+      required:
+        - server
+        - port
+        - username
+        - password
+        - recipientEmail
+      properties:
+        server:
+          type: string
+          description: SMTP server hostname
+          example: "smtp.gmail.com"
+        port:
+          type: string
+          description: SMTP server port
+          example: "587"
+        username:
+          type: string
+          description: SMTP username (typically an email address)
+          example: "notifications@example.com"
+        password:
+          type: string
+          description: SMTP password or app password
+          example: "your-app-password"
+        recipientEmail:
+          type: string
+          format: email
+          description: Email address where notifications will be sent
+          example: "user@example.com"
+
+    SMTPConfigResponse:
+      type: object
+      required:
+        - server
+        - port
+        - username
+        - recipientEmail
+        - passwordSet
+      properties:
+        server:
+          type: string
+          description: SMTP server hostname
+          example: "smtp.gmail.com"
+        port:
+          type: string
+          description: SMTP server port
+          example: "587"
+        username:
+          type: string
+          description: SMTP username (typically an email address)
+          example: "notifications@example.com"
+        recipientEmail:
+          type: string
+          format: email
+          description: Email address where notifications will be sent
+          example: "user@example.com"
+        passwordSet:
+          type: boolean
+          description: Whether a password is configured (actual password is never returned)
+          example: true
 
     ImportChannelsRequest:
       type: object
@@ -694,27 +912,41 @@ components:
       type: object
       required:
         - id
+        - channelId
+        - cachedAt
+        - watched
         - title
         - link
-        - publishedAt
+        - published
         - content
         - author
         - mediaGroup
-        - channelId
-        - channelTitle
-        - cachedAt
       properties:
         id:
           type: string
           description: "Video ID with yt:video: prefix"
           example: "yt:video:dQw4w9WgXcQ"
+        channelId:
+          type: string
+          description: YouTube channel ID
+          pattern: '^UC[a-zA-Z0-9_-]{22}$'
+          example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
+        cachedAt:
+          type: string
+          format: date-time
+          description: When this video was cached
+          example: "2024-01-15T10:35:00Z"
+        watched:
+          type: boolean
+          description: Whether the video has been marked as watched
+          example: false
         title:
           type: string
           description: Video title
           example: "Amazing Video Title"
         link:
           $ref: '#/components/schemas/VideoLink'
-        publishedAt:
+        published:
           type: string
           format: date-time
           description: Video publication date
@@ -727,40 +959,6 @@ components:
           $ref: '#/components/schemas/VideoAuthor'
         mediaGroup:
           $ref: '#/components/schemas/VideoMediaGroup'
-        channelId:
-          type: string
-          description: YouTube channel ID
-          pattern: '^UC[a-zA-Z0-9_-]{22}$'
-          example: "UCAYF6ZY9gWBR1GW3R7PX7yw"
-        channelTitle:
-          type: string
-          description: Channel title for easy reference
-          example: "Channel Name"
-        cachedAt:
-          type: string
-          format: date-time
-          description: When this video was cached
-          example: "2024-01-15T10:35:00Z"
-        duration:
-          type: integer
-          description: Video duration in seconds (from yt-dlp enhancement)
-          example: 300
-        tags:
-          type: array
-          items:
-            type: string
-          description: Video tags (from yt-dlp enhancement)
-          example: ["technology", "tutorial"]
-        topComments:
-          type: array
-          items:
-            type: string
-          description: Top comments (from yt-dlp enhancement)
-          example: ["Great video!", "Very helpful"]
-        autoSubtitles:
-          type: string
-          description: URL to auto-generated subtitles (from yt-dlp enhancement)
-          example: "https://example.com/subtitles.vtt"
 
     VideoLink:
       type: object
@@ -893,6 +1091,69 @@ components:
           description: Whether there is a previous page
           example: false
 
+    OpenAIConfigRequest:
+      type: object
+      required:
+        - endpoint
+        - apiKey
+        - model
+        - maxTokens
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: OpenAI-compatible API endpoint URL
+          example: "https://api.openai.com/v1"
+        apiKey:
+          type: string
+          description: API key for the OpenAI-compatible service
+          example: "sk-..."
+        model:
+          type: string
+          description: Model name to use for summaries (varies by provider)
+          example: "gpt-3.5-turbo"
+        maxTokens:
+          type: integer
+          description: Maximum tokens for summary generation
+          minimum: 100
+          maximum: 4000
+          example: 500
+        temperature:
+          type: string
+          description: Creativity/randomness of AI responses (0.0 to 1.0)
+          pattern: '^(0(\.\d+)?|1(\.0+)?)$'
+          example: "0.7"
+
+    OpenAIConfigResponse:
+      type: object
+      required:
+        - endpoint
+        - model
+        - maxTokens
+        - apiKeySet
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          description: OpenAI-compatible API endpoint URL
+          example: "https://api.openai.com/v1"
+        model:
+          type: string
+          description: Model name used for summaries
+          example: "gpt-3.5-turbo"
+        maxTokens:
+          type: integer
+          description: Maximum tokens for summary generation
+          example: 500
+        temperature:
+          type: string
+          description: Creativity/randomness of AI responses
+          example: "0.7"
+        apiKeySet:
+          type: boolean
+          description: Whether an API key is configured (actual key is never returned)
+          example: true
+
 tags:
   - name: Channels
     description: Operations for managing YouTube channel subscriptions
@@ -901,4 +1162,4 @@ tags:
   - name: Newsletter
     description: Operations for managing and triggering newsletter functions
   - name: Videos
-    description: Operations for managing and retrieving video data 
+    description: Operations for managing and retrieving video data
