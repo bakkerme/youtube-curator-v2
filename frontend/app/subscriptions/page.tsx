@@ -232,6 +232,13 @@ export default function SubscriptionsPage() {
         )}
       </div>
 
+      {/* Success Messages */}
+      {addChannelMutation.isSuccess && addChannelMutation.data && (
+        <div className="mb-4 p-4 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 rounded-lg text-green-700 dark:text-green-300">
+          Successfully added channel: {addChannelMutation.data.title}
+        </div>
+      )}
+
       {/* Error Messages */}
       {addChannelMutation.isError && (
         <div className="mb-4 p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-lg text-red-700 dark:text-red-300">
