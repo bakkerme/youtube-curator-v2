@@ -50,7 +50,7 @@ export default function VideosPage() {
   }, [refreshing]);
   
   // Update window title during refresh operations
-  useWindowTitle('Refreshing', refreshing);
+  useWindowTitle('Refreshing...', refreshing);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
