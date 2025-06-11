@@ -121,21 +121,28 @@ func main() {
 
 	// If DebugSkipCron is set, skip the scheduler feature
 	if cfg.DebugSkipCron {
-		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler. Exiting after one check.")
-		return
+		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler.")
+		// If API is enabled, we still need to keep the main thread alive
+		if cfg.EnableAPI {
+			fmt.Println("API server is running. Use Ctrl+C to stop.")
+			select {} // Block forever to keep API server running
+		} else {
+			fmt.Println("No API server enabled. Exiting.")
+			return
+		}
+	} else {
+		// Use robfig/cron for scheduling if CronSchedule is set
+		fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
+		c := cron.New()
+		_, err = c.AddFunc(cfg.CronSchedule, func() {
+			checkForNewVideos(cfg, emailSender, channelProcessor, db)
+		})
+		if err != nil {
+			log.Fatalf("Failed to add cron job: %v", err)
+		}
+		c.Start()
+		select {} // Block forever
 	}
-
-	// Use robfig/cron for scheduling if CronSchedule is set
-	fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
-	c := cron.New()
-	_, err = c.AddFunc(cfg.CronSchedule, func() {
-		checkForNewVideos(cfg, emailSender, channelProcessor, db)
-	})
-	if err != nil {
-		log.Fatalf("Failed to add cron job: %v", err)
-	}
-	c.Start()
-	select {} // Block forever
 }
 
 func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProcessor processor.ChannelProcessor, db store.Store) {
