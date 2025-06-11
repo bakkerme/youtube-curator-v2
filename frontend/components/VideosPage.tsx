@@ -7,6 +7,7 @@ import { VideoEntry, Channel } from '@/lib/types';
 import VideoCard from '@/components/VideoCard';
 import Pagination from '@/components/Pagination';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useWindowTitle } from '@/lib/hooks/useWindowTitle';
 
 const VIDEOS_PER_PAGE = 12;
 const WATCHED_VIDEOS_PER_PAGE = 8;
@@ -51,6 +52,9 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
   useEffect(() => {
     refreshingRef.current = refreshing;
   }, [refreshing]);
+  
+  // Update window title during refresh operations
+  useWindowTitle('Refreshing...', refreshing);
   
   // Get current page from URL params
   const currentPage = parseInt(searchParams.get('page') || '1', 10);
