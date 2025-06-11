@@ -11,7 +11,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 const VIDEOS_PER_PAGE = 12;
 const WATCHED_VIDEOS_PER_PAGE = 8;
 
-export default function VideosPage() {
+interface VideosPageProps {
+  enableAutoRefresh?: boolean;
+}
+
+export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -125,6 +129,11 @@ export default function VideosPage() {
 
   // Auto-refresh logic
   useEffect(() => {
+    // Skip auto-refresh if disabled via props
+    if (!enableAutoRefresh) {
+      return;
+    }
+
     const checkAndRefreshIfNeeded = () => {
       if (loadingRef.current || refreshingRef.current || !lastApiRefreshTimestamp) {
         console.log('Auto-refresh check: Skipping due to loading, refreshing, or no timestamp.');

@@ -9,9 +9,9 @@ import (
 
 func TestValidateYouTubeVideoID(t *testing.T) {
 	testCases := []struct {
-		name      string
-		videoID   string
-		expectErr bool
+		name        string
+		videoID     string
+		expectErr   bool
 		errContains string // Optional: check if error message contains this substring
 	}{
 		// Valid cases
@@ -83,12 +83,12 @@ func (m *MockResolver) ResolveChannelID(ctx context.Context, url string) (string
 
 func TestExtractChannelIDWithResolver(t *testing.T) {
 	testCases := []struct {
-		name         string
-		input        string
-		resolver     ChannelIDResolver
-		expectedID   string
-		expectErr    bool
-		errContains  string
+		name        string
+		input       string
+		resolver    ChannelIDResolver
+		expectedID  string
+		expectErr   bool
+		errContains string
 	}{
 		// Test cases that should work without resolver (backwards compatibility)
 		{
@@ -105,7 +105,7 @@ func TestExtractChannelIDWithResolver(t *testing.T) {
 			expectedID: "UCrAhw9Z8NI6GzO2WnvhYzCg",
 			expectErr:  false,
 		},
-		
+
 		// Test cases that require resolver
 		{
 			name:        "@username URL without resolver",
@@ -128,7 +128,7 @@ func TestExtractChannelIDWithResolver(t *testing.T) {
 			expectErr:   true,
 			errContains: "require a resolver",
 		},
-		
+
 		// Test cases with working resolver
 		{
 			name:       "@username URL with resolver",
@@ -151,7 +151,7 @@ func TestExtractChannelIDWithResolver(t *testing.T) {
 			expectedID: "UCUserChannel123456789cd",
 			expectErr:  false,
 		},
-		
+
 		// Test error cases
 		{
 			name:        "Resolver fails",
@@ -169,10 +169,11 @@ func TestExtractChannelIDWithResolver(t *testing.T) {
 		},
 	}
 
+	ctx := context.Background()
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			channelID, err := ExtractChannelIDWithResolver(tc.input, tc.resolver)
-			
+			channelID, err := ExtractChannelIDWithResolver(ctx, tc.input, tc.resolver)
+
 			if tc.expectErr {
 				if err == nil {
 					t.Errorf("ExtractChannelIDWithResolver(%q) expected error, but got nil", tc.input)

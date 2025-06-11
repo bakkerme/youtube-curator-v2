@@ -225,23 +225,25 @@ func transformVideos(videoEntries []store.VideoEntry, lastRefresh time.Time) Vid
 
 // Handlers contains the API handlers
 type Handlers struct {
-	store        store.Store
-	feedProvider rss.FeedProvider
-	emailSender  email.Sender
-	config       *config.Config
-	processor    processor.ChannelProcessor
-	videoStore   *store.VideoStore
+	store         store.Store
+	feedProvider  rss.FeedProvider
+	emailSender   email.Sender
+	config        *config.Config
+	processor     processor.ChannelProcessor
+	videoStore    *store.VideoStore
+	ytdlpEnricher ytdlp.Enricher
 }
 
 // NewHandlers creates a new instance of API handlers
-func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore) *Handlers {
+func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher) *Handlers {
 	return &Handlers{
-		store:        store,
-		feedProvider: feedProvider,
-		emailSender:  emailSender,
-		config:       cfg,
-		processor:    processor,
-		videoStore:   videoStore,
+		store:         store,
+		feedProvider:  feedProvider,
+		emailSender:   emailSender,
+		config:        cfg,
+		processor:     processor,
+		videoStore:    videoStore,
+		ytdlpEnricher: ytdlpEnricher,
 	}
 }
 
@@ -331,7 +333,7 @@ func (h *Handlers) AddChannel(c echo.Context) error {
 	}
 
 	// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
-	channelID, err := extractChannelIDWithYtdlpFallback(req.URL)
+	channelID, err := extractChannelIDWithYtdlpFallback(c.Request().Context(), h.ytdlpEnricher, req.URL)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -557,7 +559,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 		}
 
 		// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
-		channelID, err := extractChannelIDWithYtdlpFallback(channelImport.URL)
+		channelID, err := extractChannelIDWithYtdlpFallback(c.Request().Context(), h.ytdlpEnricher, channelImport.URL)
 		if err != nil {
 			failed = append(failed, ImportFailure{
 				Channel: channelImport,
@@ -787,21 +789,6 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 }
 
 // extractChannelIDWithYtdlpFallback tries ExtractChannelID first, then falls back to yt-dlp for unsupported URLs
-func extractChannelIDWithYtdlpFallback(url string) (string, error) {
-	// First try the regular extraction (for direct channel URLs and already valid channel IDs)
-	channelID, err := rss.ExtractChannelID(url)
-	if err == nil {
-		return channelID, nil
-	}
-
-	// If the error mentions that a resolver is needed, try with yt-dlp
-	if strings.Contains(err.Error(), "require a resolver") || 
-		strings.Contains(err.Error(), "not supported") {
-		// Create a yt-dlp enricher as resolver
-		enricher := ytdlp.NewDefaultEnricher()
-		return rss.ExtractChannelIDWithResolver(url, enricher)
-	}
-
-	// For other errors (like invalid format), return the original error
-	return "", err
+func extractChannelIDWithYtdlpFallback(ctx context.Context, enricher ytdlp.Enricher, url string) (string, error) {
+	return rss.ExtractChannelIDWithResolver(ctx, url, enricher)
 }

@@ -78,7 +78,7 @@ func ValidateChannelID(channelID string) error {
 }
 
 const (
-	youtubeVideoIDPrefix = "yt:video:"
+	youtubeVideoIDPrefix  = "yt:video:"
 	youtubeVideoIDPattern = `^[a-zA-Z0-9_-]{11}$`
 )
 
@@ -102,7 +102,7 @@ func ValidateYouTubeVideoID(videoID string) error {
 
 // ExtractChannelIDWithResolver extracts a YouTube channel ID from various URL formats using an optional resolver
 // This function can handle @username, /c/, and /user/ URLs when a resolver is provided
-func ExtractChannelIDWithResolver(input string, resolver ChannelIDResolver) (string, error) {
+func ExtractChannelIDWithResolver(ctx context.Context, input string, resolver ChannelIDResolver) (string, error) {
 	// First, check if input is already a valid channel ID (starts with UC and is 24 characters)
 	if isValidChannelID(input) {
 		return input, nil
@@ -138,31 +138,31 @@ func ExtractChannelIDWithResolver(input string, resolver ChannelIDResolver) (str
 		if resolver == nil {
 			return "", fmt.Errorf("custom URLs (/c/, /user/) require a resolver. Please provide a ChannelIDResolver or use the channel ID directly (starts with 'UC')")
 		}
-		return resolveWithFallback(input, resolver)
+		return resolveWithFallback(ctx, input, resolver)
 	default:
 		// Handle @username format
 		if strings.HasPrefix(pathParts[0], "@") {
 			if resolver == nil {
 				return "", fmt.Errorf("@username URLs require a resolver. Please provide a ChannelIDResolver or use the channel ID directly (starts with 'UC')")
 			}
-			return resolveWithFallback(input, resolver)
+			return resolveWithFallback(ctx, input, resolver)
 		}
 		return "", fmt.Errorf("unsupported YouTube URL format")
 	}
 }
 
 // resolveWithFallback uses the resolver to get a channel ID and validates it
-func resolveWithFallback(url string, resolver ChannelIDResolver) (string, error) {
+func resolveWithFallback(ctx context.Context, url string, resolver ChannelIDResolver) (string, error) {
 	// Use the resolver to get the channel ID
-	channelID, err := resolver.ResolveChannelID(context.Background(), url)
+	channelID, err := resolver.ResolveChannelID(ctx, url)
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve channel ID for URL %s: %w", url, err)
 	}
-	
+
 	// Validate the resolved channel ID
 	if !isValidChannelID(channelID) {
 		return "", fmt.Errorf("resolved channel ID %s is not in valid format", channelID)
 	}
-	
+
 	return channelID, nil
 }
