@@ -20,7 +20,7 @@ export function useWindowTitle(status: string, isActive: boolean) {
 
   useEffect(() => {
     // Store the original title on first usage across all instances
-    if (!globalOriginalTitle) {
+    if (globalOriginalTitle === null) {
       globalOriginalTitle = document.title;
     }
 
