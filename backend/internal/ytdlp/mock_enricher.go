@@ -45,3 +45,22 @@ func (m *MockEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) error 
 
 	return nil
 }
+
+// ResolveChannelID resolves a YouTube URL to a channel ID using mock data
+func (m *MockEnricher) ResolveChannelID(ctx context.Context, url string) (string, error) {
+	if m.ShouldFail {
+		return "", fmt.Errorf("mock enricher configured to fail")
+	}
+
+	// Return mock channel IDs based on URL patterns for testing
+	if contains := func(s, substr string) bool {
+		return len(s) >= len(substr) && s[len(s)-len(substr):] == substr
+	}; contains(url, "@ChinaTalkMedi") {
+		return "UCrAhw9Z8NI6GzO2WnvhYzCg", nil
+	} else if contains(url, "@TestChannel") {
+		return "UCTestChannelID123456789", nil
+	}
+
+	// Default mock channel ID for any other URL
+	return "UCMockChannelID1234567890", nil
+}

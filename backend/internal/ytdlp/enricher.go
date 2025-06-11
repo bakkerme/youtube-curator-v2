@@ -30,6 +30,7 @@ func (e *DefaultCommandExecutor) Execute(ctx context.Context, name string, args 
 // Enricher provides video enrichment using yt-dlp
 type Enricher interface {
 	EnrichEntry(ctx context.Context, entry *rss.Entry) error
+	ResolveChannelID(ctx context.Context, url string) (string, error)
 }
 
 // DefaultEnricher implements Enricher using yt-dlp command
@@ -211,6 +212,42 @@ func isRetryableError(err error) bool {
 		strings.Contains(errStr, "connection") ||
 		strings.Contains(errStr, "network") ||
 		strings.Contains(errStr, "temporary failure")
+}
+
+// ResolveChannelID resolves a YouTube URL (including @username, /c/, /user/ formats) to a channel ID using yt-dlp
+func (e *DefaultEnricher) ResolveChannelID(ctx context.Context, url string) (string, error) {
+	// Create context with timeout
+	resolveCtx, cancel := context.WithTimeout(ctx, e.timeout)
+	defer cancel()
+
+	// Build yt-dlp command to get channel information
+	args := []string{
+		"--dump-json",
+		"--playlist-items", "0", // Don't download any videos, just get channel info
+		url,
+	}
+
+	// Execute command
+	output, err := e.executor.Execute(resolveCtx, e.ytdlpPath, args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve channel URL %s: %w", url, err)
+	}
+
+	// Parse JSON output to extract channel ID
+	var ytdlpData struct {
+		ChannelID string `json:"channel_id"`
+		Channel   string `json:"channel"`
+	}
+	
+	if err := json.Unmarshal(output, &ytdlpData); err != nil {
+		return "", fmt.Errorf("failed to parse yt-dlp output for URL %s: %w", url, err)
+	}
+
+	if ytdlpData.ChannelID == "" {
+		return "", fmt.Errorf("no channel ID found for URL %s", url)
+	}
+
+	return ytdlpData.ChannelID, nil
 }
 
 // extractVideoID extracts YouTube video ID from entry ID

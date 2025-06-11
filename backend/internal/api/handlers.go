@@ -12,6 +12,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
 )
@@ -329,8 +330,8 @@ func (h *Handlers) AddChannel(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "URL is required")
 	}
 
-	// Extract channel ID from URL
-	channelID, err := rss.ExtractChannelID(req.URL)
+	// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
+	channelID, err := extractChannelIDWithYtdlpFallback(req.URL)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -555,8 +556,8 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 			continue
 		}
 
-		// Extract channel ID from URL
-		channelID, err := rss.ExtractChannelID(channelImport.URL)
+		// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
+		channelID, err := extractChannelIDWithYtdlpFallback(channelImport.URL)
 		if err != nil {
 			failed = append(failed, ImportFailure{
 				Channel: channelImport,
@@ -783,4 +784,24 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 	response := transformVideos(videos, h.videoStore.GetLastRefreshedAt())
 
 	return c.JSON(http.StatusOK, response)
+}
+
+// extractChannelIDWithYtdlpFallback tries ExtractChannelID first, then falls back to yt-dlp for unsupported URLs
+func extractChannelIDWithYtdlpFallback(url string) (string, error) {
+	// First try the regular extraction (for direct channel URLs and already valid channel IDs)
+	channelID, err := rss.ExtractChannelID(url)
+	if err == nil {
+		return channelID, nil
+	}
+
+	// If the error mentions that a resolver is needed, try with yt-dlp
+	if strings.Contains(err.Error(), "require a resolver") || 
+		strings.Contains(err.Error(), "not supported") {
+		// Create a yt-dlp enricher as resolver
+		enricher := ytdlp.NewDefaultEnricher()
+		return rss.ExtractChannelIDWithResolver(url, enricher)
+	}
+
+	// For other errors (like invalid format), return the original error
+	return "", err
 }

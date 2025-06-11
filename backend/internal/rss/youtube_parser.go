@@ -1,11 +1,17 @@
 package rss
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 )
+
+// ChannelIDResolver interface for resolving YouTube URLs to channel IDs
+type ChannelIDResolver interface {
+	ResolveChannelID(ctx context.Context, url string) (string, error)
+}
 
 // ExtractChannelID extracts a YouTube channel ID from various URL formats
 // Supports:
@@ -43,13 +49,12 @@ func ExtractChannelID(input string) (string, error) {
 		}
 		return channelID, nil
 	case "c", "user":
-		// Custom URL or user URL - these cannot be resolved without the YouTube API
-		// Return an error asking the user to provide the channel ID directly
-		return "", fmt.Errorf("custom URLs (@username, /c/, /user/) are not supported. Please provide the channel ID directly (starts with 'UC')")
+		// Custom URL or user URL - these cannot be resolved without yt-dlp
+		return "", fmt.Errorf("custom URLs (/c/, /user/) are not supported. Please provide the channel ID directly (starts with 'UC') or use ExtractChannelIDWithResolver")
 	default:
 		// Handle @username format
 		if strings.HasPrefix(pathParts[0], "@") {
-			return "", fmt.Errorf("@username URLs are not supported. Please provide the channel ID directly (starts with 'UC')")
+			return "", fmt.Errorf("@username URLs are not supported. Please provide the channel ID directly (starts with 'UC') or use ExtractChannelIDWithResolver")
 		}
 		return "", fmt.Errorf("unsupported YouTube URL format")
 	}
@@ -93,4 +98,71 @@ func ValidateYouTubeVideoID(videoID string) error {
 	}
 
 	return nil
+}
+
+// ExtractChannelIDWithResolver extracts a YouTube channel ID from various URL formats using an optional resolver
+// This function can handle @username, /c/, and /user/ URLs when a resolver is provided
+func ExtractChannelIDWithResolver(input string, resolver ChannelIDResolver) (string, error) {
+	// First, check if input is already a valid channel ID (starts with UC and is 24 characters)
+	if isValidChannelID(input) {
+		return input, nil
+	}
+
+	// Parse as URL
+	parsedURL, err := url.Parse(input)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL or channel ID: %w", err)
+	}
+
+	// Handle different YouTube URL formats
+	path := strings.TrimPrefix(parsedURL.Path, "/")
+	pathParts := strings.Split(path, "/")
+
+	if len(pathParts) < 1 {
+		return "", fmt.Errorf("invalid YouTube URL format")
+	}
+
+	switch pathParts[0] {
+	case "channel":
+		// Direct channel URL: https://www.youtube.com/channel/CHANNEL_ID
+		if len(pathParts) < 2 {
+			return "", fmt.Errorf("invalid YouTube URL format: missing channel ID")
+		}
+		channelID := pathParts[1]
+		if !isValidChannelID(channelID) {
+			return "", fmt.Errorf("invalid channel ID format: %s", channelID)
+		}
+		return channelID, nil
+	case "c", "user":
+		// Custom URL or user URL - use resolver if provided
+		if resolver == nil {
+			return "", fmt.Errorf("custom URLs (/c/, /user/) require a resolver. Please provide a ChannelIDResolver or use the channel ID directly (starts with 'UC')")
+		}
+		return resolveWithFallback(input, resolver)
+	default:
+		// Handle @username format
+		if strings.HasPrefix(pathParts[0], "@") {
+			if resolver == nil {
+				return "", fmt.Errorf("@username URLs require a resolver. Please provide a ChannelIDResolver or use the channel ID directly (starts with 'UC')")
+			}
+			return resolveWithFallback(input, resolver)
+		}
+		return "", fmt.Errorf("unsupported YouTube URL format")
+	}
+}
+
+// resolveWithFallback uses the resolver to get a channel ID and validates it
+func resolveWithFallback(url string, resolver ChannelIDResolver) (string, error) {
+	// Use the resolver to get the channel ID
+	channelID, err := resolver.ResolveChannelID(context.Background(), url)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve channel ID for URL %s: %w", url, err)
+	}
+	
+	// Validate the resolved channel ID
+	if !isValidChannelID(channelID) {
+		return "", fmt.Errorf("resolved channel ID %s is not in valid format", channelID)
+	}
+	
+	return channelID, nil
 }
