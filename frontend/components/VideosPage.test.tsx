@@ -847,7 +847,7 @@ describe('VideosPage', () => {
 
     // Verify title updates to show refreshing status
     await waitFor(() => {
-      expect(document.title).toBe(`Refreshing - ${originalTitle}`);
+      expect(document.title).toBe(`Refreshing... - ${originalTitle}`);
     });
 
     // Resolve the refresh promise
