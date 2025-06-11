@@ -12,6 +12,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
 )
@@ -224,23 +225,25 @@ func transformVideos(videoEntries []store.VideoEntry, lastRefresh time.Time) Vid
 
 // Handlers contains the API handlers
 type Handlers struct {
-	store        store.Store
-	feedProvider rss.FeedProvider
-	emailSender  email.Sender
-	config       *config.Config
-	processor    processor.ChannelProcessor
-	videoStore   *store.VideoStore
+	store         store.Store
+	feedProvider  rss.FeedProvider
+	emailSender   email.Sender
+	config        *config.Config
+	processor     processor.ChannelProcessor
+	videoStore    *store.VideoStore
+	ytdlpEnricher ytdlp.Enricher
 }
 
 // NewHandlers creates a new instance of API handlers
-func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore) *Handlers {
+func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher) *Handlers {
 	return &Handlers{
-		store:        store,
-		feedProvider: feedProvider,
-		emailSender:  emailSender,
-		config:       cfg,
-		processor:    processor,
-		videoStore:   videoStore,
+		store:         store,
+		feedProvider:  feedProvider,
+		emailSender:   emailSender,
+		config:        cfg,
+		processor:     processor,
+		videoStore:    videoStore,
+		ytdlpEnricher: ytdlpEnricher,
 	}
 }
 
@@ -329,8 +332,8 @@ func (h *Handlers) AddChannel(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "URL is required")
 	}
 
-	// Extract channel ID from URL
-	channelID, err := rss.ExtractChannelID(req.URL)
+	// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
+	channelID, err := extractChannelIDWithYtdlpFallback(c.Request().Context(), h.ytdlpEnricher, req.URL)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
@@ -555,8 +558,8 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 			continue
 		}
 
-		// Extract channel ID from URL
-		channelID, err := rss.ExtractChannelID(channelImport.URL)
+		// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
+		channelID, err := extractChannelIDWithYtdlpFallback(c.Request().Context(), h.ytdlpEnricher, channelImport.URL)
 		if err != nil {
 			failed = append(failed, ImportFailure{
 				Channel: channelImport,
@@ -783,4 +786,9 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 	response := transformVideos(videos, h.videoStore.GetLastRefreshedAt())
 
 	return c.JSON(http.StatusOK, response)
+}
+
+// extractChannelIDWithYtdlpFallback tries ExtractChannelID first, then falls back to yt-dlp for unsupported URLs
+func extractChannelIDWithYtdlpFallback(ctx context.Context, enricher ytdlp.Enricher, url string) (string, error) {
+	return rss.ExtractChannelIDWithResolver(ctx, url, enricher)
 }

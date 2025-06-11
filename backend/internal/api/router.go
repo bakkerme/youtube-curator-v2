@@ -6,13 +6,14 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 // SetupRouter creates and configures the Echo router with all API endpoints
-func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor, videoStore *store.VideoStore) *echo.Echo {
+func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -21,7 +22,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	e.Use(middleware.CORS())
 
 	// Create handlers
-	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore)
+	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher)
 
 	// API routes
 	api := e.Group("/api")

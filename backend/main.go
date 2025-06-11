@@ -16,6 +16,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/robfig/cron/v3"
 )
@@ -77,11 +78,15 @@ func main() {
 		emailSender = email.NewEmailSender(cfg.SMTPServer, cfg.SMTPPort, cfg.SMTPUsername, cfg.SMTPPassword)
 	}
 
+	var ytdlpEnricher ytdlp.Enricher
+	fmt.Println("Using YTDLP Enricher")
+	ytdlpEnricher = ytdlp.NewDefaultEnricher()
+
 	// Start API server if enabled
 	if cfg.EnableAPI {
 		go func() {
 			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
-			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore)
+			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher)
 			if err := e.Start(":" + cfg.APIPort); err != nil {
 				log.Printf("API server error: %v", err)
 			}
@@ -212,7 +217,7 @@ func processChannelsConcurrently(ctx context.Context, channels []store.Channel, 
 	// which could trigger rate limiting
 	maxConcurrency := 10
 	if concurrency > maxConcurrency {
-		log.Printf("Warning: RSS_CONCURRENCY=%d exceeds recommended maximum of %d, limiting to %d", 
+		log.Printf("Warning: RSS_CONCURRENCY=%d exceeds recommended maximum of %d, limiting to %d",
 			concurrency, maxConcurrency, maxConcurrency)
 		concurrency = maxConcurrency
 	}
@@ -235,7 +240,7 @@ func processChannelsConcurrently(ctx context.Context, channels []store.Channel, 
 			for job := range jobs {
 				// Process the channel
 				result := channelProcessor.ProcessChannel(ctx, job.channelID)
-				
+
 				// Store result safely
 				resultsMutex.Lock()
 				results[job.channelID] = result

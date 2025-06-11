@@ -143,7 +143,20 @@ const mockVideoAPIResponse: VideosAPIResponse = { // Used for most tests
 
 const VIDEOS_PER_PAGE = 12; // From VideosPage.tsx
 
+// Helper function to render VideosPage with auto-refresh disabled for tests
+const renderVideosPage = () => render(<VideosPage enableAutoRefresh={false} />);
+
 describe('VideosPage', () => {
+  beforeAll(() => {
+    // Mock timers to prevent auto-refresh intervals from interfering with tests
+    jest.useFakeTimers();
+  });
+
+  afterAll(() => {
+    // Restore real timers after all tests
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     // Reset the state of the navigation mocks before each test
     // Clear the *contents* of moduleLevelSearchParams, don't reassign the variable itself
@@ -165,12 +178,12 @@ describe('VideosPage', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    // Reset window title state after each test
+    jest.clearAllTimers();
     resetOriginalTitle();
   });
 
   test('does not call APIs multiple times on mount (prevents infinite re-render)', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for loading to finish
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
@@ -185,7 +198,7 @@ describe('VideosPage', () => {
   });
 
   test('renders and initially filters videos for the current day (Today Mode)', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for loading to finish
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
@@ -203,7 +216,7 @@ describe('VideosPage', () => {
   });
 
   test('"Per Day" mode filters videos for the selected date', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
     // Click filter button to cycle from "Today" to "Per Day"
@@ -238,7 +251,7 @@ describe('VideosPage', () => {
   });
 
   test('"All" mode displays all videos', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
     const filterButton = screen.getByTestId('filter-mode-button');
@@ -263,7 +276,7 @@ describe('VideosPage', () => {
   });
 
   test('filter button cycles modes and date input visibility is correct', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
     const filterButton = screen.getByTestId('filter-mode-button');
@@ -311,7 +324,7 @@ describe('VideosPage', () => {
   });
 
   test('handles invalid date input for "Per Day" mode', async () => {
-    render(<VideosPage />);
+    renderVideosPage();
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
     const filterButton = screen.getByTestId('filter-mode-button');
@@ -355,7 +368,7 @@ describe('VideosPage', () => {
         // Ensure default mocks are used for these generic search tests
         (videoAPI.getAll as jest.Mock).mockResolvedValue(mockVideoAPIResponse);
         (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels);
-        render(<VideosPage />);
+        renderVideosPage();
         await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
         const filterButton = screen.getByTestId('filter-mode-button');
@@ -444,7 +457,7 @@ describe('VideosPage', () => {
       (videoAPI.getAll as jest.Mock).mockResolvedValue(paginatedVideoResponse);
       (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels); // Use existing mockChannels
 
-      render(<VideosPage />);
+      renderVideosPage();
       await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
 
       // Verify first page content
@@ -562,7 +575,7 @@ describe('VideosPage', () => {
 
     (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels); // Standard channels
 
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for initial load and verify initial video
     await waitFor(() => {
@@ -608,7 +621,7 @@ describe('VideosPage', () => {
     // Mock channelAPI.getAll to succeed (as it's called in Promise.all)
     (channelAPI.getAll as jest.Mock).mockResolvedValue([]);
 
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for error UI to appear
     await waitFor(() => {
@@ -650,7 +663,8 @@ describe('VideosPage', () => {
 
     const videosResponse: VideosAPIResponse = {
       videos: [mockUnwatchedVideo],
-      lastRefresh: today
+      lastRefresh: today,
+      totalCount: 1
     };
 
     (videoAPI.getAll as jest.Mock).mockResolvedValue(videosResponse);
@@ -660,7 +674,7 @@ describe('VideosPage', () => {
     (videoAPI.getAll as jest.Mock).mockClear();
 
     // Render component
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for initial load
     await waitFor(() => {
@@ -737,14 +751,15 @@ describe('VideosPage', () => {
 
     const videosResponse: VideosAPIResponse = {
       videos: [mockWatchedVideo],
-      lastRefresh: today
+      lastRefresh: today,
+      totalCount: 1
     };
 
     (videoAPI.getAll as jest.Mock).mockResolvedValue(videosResponse);
     (channelAPI.getAll as jest.Mock).mockResolvedValue([mockChannel]);
 
     // Render component
-    render(<VideosPage />);
+    renderVideosPage();
 
     // Wait for initial load and watched section to appear
     await waitFor(() => {

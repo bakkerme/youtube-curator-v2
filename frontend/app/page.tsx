@@ -15,7 +15,7 @@ function LoadingFallback() {
 export default function Home() {
   return (
     <Suspense fallback={<LoadingFallback />}>
-      <VideosPage />
+      <VideosPage enableAutoRefresh={true} />
     </Suspense>
   );
 }
