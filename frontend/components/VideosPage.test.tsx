@@ -4,6 +4,7 @@ import '@testing-library/jest-dom';
 import VideosPage from './VideosPage';
 import { videoAPI, channelAPI } from '@/lib/api'; // To be mocked
 import { VideoEntry, Channel, VideosAPIResponse } from '@/lib/types';
+import { resetOriginalTitle } from '@/lib/hooks/useWindowTitle';
 
 // --- Mocking next/navigation ---
 // Use a single instance of URLSearchParams that is mutated, not reassigned.
@@ -151,6 +152,9 @@ describe('VideosPage', () => {
     });
     mockRouterPush.mockClear();
 
+    // Reset window title state for clean tests
+    resetOriginalTitle();
+
     // Default mock for most tests, can be overridden in specific tests
     (videoAPI.getAll as jest.Mock).mockResolvedValue(mockVideoAPIResponse);
     (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels);
@@ -161,6 +165,8 @@ describe('VideosPage', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    // Reset window title state after each test
+    resetOriginalTitle();
   });
 
   test('does not call APIs multiple times on mount (prevents infinite re-render)', async () => {
@@ -768,6 +774,92 @@ describe('VideosPage', () => {
     await waitFor(() => {
       expect(accordionButton).toHaveAttribute('aria-expanded', 'false');
       expect(screen.queryByText('Test Watched Video')).not.toBeInTheDocument();
+    });
+  });
+
+  it('updates window title during refresh operations', async () => {
+    const originalTitle = 'Test Original Title';
+    document.title = originalTitle;
+
+    // Get today's date for videos to pass the "today" filter
+    const today = new Date();
+    const todayISOString = today.toISOString();
+
+    const mockInitialVideoEntry: VideoEntry[] = [{
+      id: 'initial-video',
+      channelId: 'channel1',
+      watched: false,
+      title: 'Initial Video',
+      link: { href: 'https://www.youtube.com/watch?v=initialvideo', rel: 'alternate' },
+      published: todayISOString,
+      content: 'Content for initial video',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://images.example.com/initial_thumb1.jpg', width: '120', height: '90' },
+        mediaTitle: 'Initial Video',
+        mediaContent: { url: 'https://videos.example.com/initial_content1.mp4', type: 'video/mp4', width: '640', height: '360' },
+        mediaDescription: 'Description for initial video',
+      },
+      cachedAt: todayISOString,
+    }];
+
+    const mockRefreshedVideoEntry: VideoEntry[] = [{
+      id: 'refreshed-video',
+      channelId: 'channel1',
+      watched: false,
+      title: 'Refreshed Video',
+      link: { href: 'https://www.youtube.com/watch?v=refreshedvideo', rel: 'alternate' },
+      published: todayISOString,
+      content: 'Content for refreshed video',
+      author: { name: 'Channel One', uri: 'uri_channel1' },
+      mediaGroup: {
+        mediaThumbnail: { url: 'https://images.example.com/refreshed_thumb1.jpg', width: '120', height: '90' },
+        mediaTitle: 'Refreshed Video',
+        mediaContent: { url: 'https://videos.example.com/refreshed_content1.mp4', type: 'video/mp4', width: '640', height: '360' },
+        mediaDescription: 'Description for refreshed video',
+      },
+      cachedAt: todayISOString,
+    }];
+
+    // Mock API calls with delays to simulate refresh time
+    let resolveRefresh: (value: VideosAPIResponse) => void;
+    const refreshPromise = new Promise<VideosAPIResponse>((resolve) => {
+      resolveRefresh = resolve;
+    });
+
+    (videoAPI.getAll as jest.Mock)
+      .mockResolvedValueOnce({ videos: mockInitialVideoEntry, lastRefresh: todayISOString }) // Initial load
+      .mockReturnValueOnce(refreshPromise); // Manual refresh - returns a promise we control
+
+    (channelAPI.getAll as jest.Mock).mockResolvedValue(mockChannels);
+
+    render(<VideosPage />);
+
+    // Wait for initial load and verify title is original
+    await waitFor(() => {
+      expect(screen.getByText('Initial Video')).toBeInTheDocument();
+    });
+    expect(document.title).toBe(originalTitle);
+
+    // Click refresh button
+    const refreshButton = screen.getByRole('button', { name: /Refresh/i });
+    fireEvent.click(refreshButton);
+
+    // Verify title updates to show refreshing status
+    await waitFor(() => {
+      expect(document.title).toBe(`Refreshing... - ${originalTitle}`);
+    });
+
+    // Resolve the refresh promise
+    resolveRefresh!({ videos: mockRefreshedVideoEntry, lastRefresh: todayISOString });
+
+    // Wait for refresh to complete and verify title is restored
+    await waitFor(() => {
+      expect(screen.getByText('Refreshed Video')).toBeInTheDocument();
+    });
+    
+    await waitFor(() => {
+      expect(document.title).toBe(originalTitle);
     });
   });
 });
