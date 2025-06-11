@@ -11,6 +11,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
 	"go.uber.org/mock/gomock"
@@ -98,7 +99,7 @@ func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
 
 	// Create test request
 	e := echo.New()
@@ -162,7 +163,7 @@ func TestGetVideos_WithRefreshParameter(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
 
 	// Create test request with refresh=true
 	e := echo.New()
@@ -229,7 +230,7 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 	videoStore.AddVideo("channel1", cachedVideo)
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
 
 	// Create test request without refresh parameter
 	e := echo.New()
@@ -304,7 +305,7 @@ func TestGetVideos_WithRefreshParameter_PreservesWatchedState(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore)
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
 
 	// Create test request with refresh=true
 	e := echo.New()
