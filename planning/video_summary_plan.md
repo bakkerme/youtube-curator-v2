@@ -9,7 +9,7 @@ This document outlines the technical plan for implementing a video summarization
 ### 2.1. Public Video Summary Endpoint
 
 *   **Endpoint:** `GET /videos/{videoID}/summary`
-*   **Description:** Retrieves a previously generated summary for the specified video. If a summary is not available or is considered stale, it triggers the generation process.
+*   **Description:** Retrieves a previously generated summary for the specified video. If a summary is not available, it triggers the generation process.
 *   **Method:** `GET`
 *   **Path Parameters:**
     *   `videoID` (string, required): The unique identifier of the YouTube video.
@@ -22,7 +22,20 @@ This document outlines the technical plan for implementing a video summarization
               "videoId": "string",
               "summary": "string",
               "sourceLanguage": "string", // e.g., "en", "es"
-              "generatedAt": "datetime" // ISO 8601 format
+              "generatedAt": "datetime", // ISO 8601 format
+              "tracked": "bool"
+            }
+            ```
+    *   `200 OK`: Summary successfully retrieved for arbitrary video.
+        *   Content-Type: `application/json`
+        *   Body:
+            ```json
+            {
+              "videoId": "string",
+              "summary": "string",
+              "sourceLanguage": "string", // e.g., "en", "es"
+              "generatedAt": "datetime", // ISO 8601 format
+              "tracked": false
             }
             ```
 *   **Error Responses:**
@@ -66,7 +79,7 @@ This document outlines the technical plan for implementing a video summarization
 ## 3. System Design and Flow
 
 1.  **Request:** Client requests `GET /videos/{videoID}/summary`.
-2.  **Cache Check:** The system checks the local cache/database for an existing, non-stale summary for `videoID`.
+2.  **Cache Check:** The system checks the local cache/database for an existing summary for `videoID`.
     *   If found and valid, return the cached summary.
 3.  **Subtitle Download:** If no valid summary exists:
     *   The system uses the existing `yt-dlp` integration to download subtitles for `videoID`.
@@ -122,3 +135,54 @@ To facilitate development and testing without actual external dependencies, mock
     *   It will return a predefined static summary, or a simple transformation of the input (e.g., "Mock summary for video with subtitles starting: [first 50 chars of input text]...").
     *   This allows testing the flow of data to and from the LLM service without incurring costs or relying on network connectivity.
     *   Different mock responses can be configured based on parts of the input text or specific video IDs to test various LLM output scenarios.
+
+## 6. Arbitrary Video Summarization
+
+To allow summarization of arbitrary YouTube videos, the system will be updated to handle videos that are not part of the tracked channels. These videos will not be saved to the videos database, and the response will include `tracked: false`.
+
+### 6.1. API Endpoint Behavior
+
+* **Endpoint:** `GET /videos/{videoID}/summary`
+* **Behavior for Arbitrary Videos:**
+  * If the `videoID` does not belong to a tracked channel, the system will still attempt to generate a summary.
+  * The generated summary will not be cached or stored in the database.
+  * The response will include `tracked: false` to indicate that the video is not part of the tracked channels.
+
+### 6.2. System Design and Flow Updates
+
+1. **Request:** Client requests `GET /videos/{videoID}/summary`.
+2. **Cache Check:**
+   * If the `videoID` belongs to a tracked channel, the system checks the local cache/database for an existing summary.
+   * If the `videoID` does not belong to a tracked channel, skip the cache check.
+3. **Subtitle Download:**
+   * The system uses the existing `yt-dlp` integration to download subtitles for `videoID`.
+   * Priority will be given to user-selected language or auto-generated English subtitles if specific language is not available.
+   * If subtitles cannot be fetched, return `404 Not Found` or an appropriate error.
+4. **LLM Invocation:**
+   * The downloaded subtitle text is sent to the configured LLM service endpoint.
+   * The prompt will be engineered to request a concise, informative summary.
+5. **Response:**
+   * For tracked videos, the summary is cached and returned to the client.
+   * For arbitrary videos, the summary is returned directly without caching, and the response includes `tracked: false`.
+
+### 6.3. Updates to API Endpoint Specifications
+
+#### Public Video Summary Endpoint
+
+* **Success Responses:**
+  * `200 OK`: Summary successfully retrieved.
+    * Content-Type: `application/json`
+    * Body:
+      ```json
+      {
+        "videoId": "string",
+        "summary": "string",
+        "sourceLanguage": "string", // e.g., "en", "es"
+        "generatedAt": "datetime", // ISO 8601 format
+        "tracked": false
+      }
+      ```
+* **Error Responses:**
+  * `404 Not Found`: The video ID is not found, or subtitles are unavailable for the video.
+  * `500 Internal Server Error`: An unexpected error occurred during summary generation or retrieval (e.g., LLM service unavailable, `yt-dlp` error).
+  * `503 Service Unavailable`: The summary generation is in progress, and the client should retry later.

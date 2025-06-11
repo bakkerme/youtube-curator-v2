@@ -11,6 +11,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/summary"
 	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
@@ -99,7 +100,7 @@ func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
 
 	// Create test request
 	e := echo.New()
@@ -163,7 +164,7 @@ func TestGetVideos_WithRefreshParameter(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
 
 	// Create test request with refresh=true
 	e := echo.New()
@@ -230,7 +231,7 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 	videoStore.AddVideo("channel1", cachedVideo)
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
 
 	// Create test request without refresh parameter
 	e := echo.New()
@@ -305,7 +306,7 @@ func TestGetVideos_WithRefreshParameter_PreservesWatchedState(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher())
+	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
 
 	// Create test request with refresh=true
 	e := echo.New()

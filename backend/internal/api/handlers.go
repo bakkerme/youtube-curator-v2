@@ -12,6 +12,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/summary"
 	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
@@ -100,6 +101,14 @@ type VideoResponse struct {
 	Content    string                  `json:"content"`
 	Author     VideoAuthorResponse     `json:"author"`
 	MediaGroup VideoMediaGroupResponse `json:"mediaGroup"`
+	Summary    *VideoSummaryInfo       `json:"summary,omitempty"` // Video summary if available
+}
+
+// VideoSummaryInfo represents summary information in video responses
+type VideoSummaryInfo struct {
+	Text               string `json:"text"`
+	SourceLanguage     string `json:"sourceLanguage"`
+	SummaryGeneratedAt string `json:"summaryGeneratedAt"` // ISO 8601 format
 }
 
 // VideosResponse represents the response for GET /api/videos
@@ -150,6 +159,15 @@ func transformChannels(channels []store.Channel) ChannelsResponse {
 func transformVideoEntry(videoEntry store.VideoEntry) VideoResponse {
 	entry := videoEntry.Entry
 
+	var summaryInfo *VideoSummaryInfo
+	if entry.Summary != nil {
+		summaryInfo = &VideoSummaryInfo{
+			Text:               entry.Summary.Text,
+			SourceLanguage:     entry.Summary.SourceLanguage,
+			SummaryGeneratedAt: entry.Summary.SummaryGeneratedAt.Format(time.RFC3339),
+		}
+	}
+
 	return VideoResponse{
 		ID:         entry.ID,
 		ChannelID:  videoEntry.ChannelID,
@@ -161,6 +179,7 @@ func transformVideoEntry(videoEntry store.VideoEntry) VideoResponse {
 		Content:    entry.Content,
 		Author:     transformVideoAuthor(entry.Author),
 		MediaGroup: transformVideoMediaGroup(entry.MediaGroup),
+		Summary:    summaryInfo,
 	}
 }
 
@@ -225,25 +244,27 @@ func transformVideos(videoEntries []store.VideoEntry, lastRefresh time.Time) Vid
 
 // Handlers contains the API handlers
 type Handlers struct {
-	store         store.Store
-	feedProvider  rss.FeedProvider
-	emailSender   email.Sender
-	config        *config.Config
-	processor     processor.ChannelProcessor
-	videoStore    *store.VideoStore
-	ytdlpEnricher ytdlp.Enricher
+	store          store.Store
+	feedProvider   rss.FeedProvider
+	emailSender    email.Sender
+	config         *config.Config
+	processor      processor.ChannelProcessor
+	videoStore     *store.VideoStore
+	ytdlpEnricher  ytdlp.Enricher
+	summaryService summary.SummaryServiceInterface // Use summary service interface
 }
 
 // NewHandlers creates a new instance of API handlers
-func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher) *Handlers {
+func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, processor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher, summaryService summary.SummaryServiceInterface) *Handlers {
 	return &Handlers{
-		store:         store,
-		feedProvider:  feedProvider,
-		emailSender:   emailSender,
-		config:        cfg,
-		processor:     processor,
-		videoStore:    videoStore,
-		ytdlpEnricher: ytdlpEnricher,
+		store:          store,
+		feedProvider:   feedProvider,
+		emailSender:    emailSender,
+		config:         cfg,
+		processor:      processor,
+		videoStore:     videoStore,
+		ytdlpEnricher:  ytdlpEnricher,
+		summaryService: summaryService,
 	}
 }
 
@@ -281,6 +302,29 @@ type SMTPConfigResponse struct {
 	Username       string `json:"username"`
 	RecipientEmail string `json:"recipientEmail"`
 	PasswordSet    bool   `json:"passwordSet"`
+}
+
+// LLMConfigRequest represents a request to update LLM configuration
+type LLMConfigRequest struct {
+	EndpointURL string `json:"endpointUrl" validate:"required"`
+	APIKey      string `json:"apiKey" validate:"required"`
+	Model       string `json:"model" validate:"required"`
+}
+
+// LLMConfigResponse represents LLM configuration in API responses (without API key)
+type LLMConfigResponse struct {
+	EndpointURL string `json:"endpointUrl"`
+	Model       string `json:"model"`
+	APIKeySet   bool   `json:"apiKeySet"`
+}
+
+// VideoSummaryResponse represents a video summary in API responses
+type VideoSummaryResponse struct {
+	VideoID        string `json:"videoId"`
+	Summary        string `json:"summary"`
+	SourceLanguage string `json:"sourceLanguage"`
+	GeneratedAt    string `json:"generatedAt"` // ISO 8601 format
+	Tracked        bool   `json:"tracked"`     // Whether this video is from a tracked channel
 }
 
 // ImportChannelsRequest represents a request to import multiple channels
@@ -450,12 +494,39 @@ func (h *Handlers) GetSMTPConfig(c echo.Context) error {
 	return c.JSON(http.StatusOK, response)
 }
 
+// GetLLMConfig handles GET /api/config/llm
+func (h *Handlers) GetLLMConfig(c echo.Context) error {
+	config, err := h.store.GetLLMConfig()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve LLM configuration")
+	}
+
+	// If no config exists, return empty response
+	if config == nil {
+		return c.JSON(http.StatusOK, LLMConfigResponse{
+			APIKeySet: false,
+		})
+	}
+
+	// Return config without API key
+	response := LLMConfigResponse{
+		EndpointURL: config.EndpointURL,
+		Model:       config.Model,
+		APIKeySet:   config.APIKey != "",
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
 // MarkVideoAsWatched handles POST /api/videos/:videoId/watch
 func (h *Handlers) MarkVideoAsWatched(c echo.Context) error {
-	videoID := c.Param("videoId")
-	if videoID == "" {
+	rawVideoID := c.Param("videoId")
+	if rawVideoID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
+
+	// Convert raw video ID to the format expected by the system (yt:video:ID)
+	videoID := "yt:video:" + rawVideoID
 
 	// Validate video ID format using the dedicated validator
 	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
@@ -528,6 +599,46 @@ func (h *Handlers) SetSMTPConfig(c echo.Context) error {
 		Username:       req.Username,
 		RecipientEmail: req.RecipientEmail,
 		PasswordSet:    true,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// SetLLMConfig handles PUT /api/config/llm
+func (h *Handlers) SetLLMConfig(c echo.Context) error {
+	var req LLMConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	// Validate required fields
+	if req.EndpointURL == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Endpoint URL is required")
+	}
+	if req.APIKey == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "API key is required")
+	}
+	if req.Model == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Model is required")
+	}
+
+	// Create LLM config
+	llmConfig := &store.LLMConfig{
+		EndpointURL: req.EndpointURL,
+		APIKey:      req.APIKey,
+		Model:       req.Model,
+	}
+
+	// Save to store
+	if err := h.store.SetLLMConfig(llmConfig); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save LLM configuration")
+	}
+
+	// Return response without API key
+	response := LLMConfigResponse{
+		EndpointURL: req.EndpointURL,
+		Model:       req.Model,
+		APIKeySet:   true,
 	}
 
 	return c.JSON(http.StatusOK, response)
@@ -784,6 +895,59 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 
 	// Prepare response using the transformation function
 	response := transformVideos(videos, h.videoStore.GetLastRefreshedAt())
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// GetVideoSummary handles GET /api/videos/:videoId/summary
+func (h *Handlers) GetVideoSummary(c echo.Context) error {
+	rawVideoID := c.Param("videoId")
+	if rawVideoID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
+	}
+
+	// Convert raw video ID to the format expected by the system (yt:video:ID)
+	videoID := "yt:video:" + rawVideoID
+
+	// Validate video ID format using the dedicated validator
+	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
+	// Check if summary service is available
+	if h.summaryService == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Summary service not available")
+	}
+
+	// Get or generate summary
+	ctx := c.Request().Context()
+	result := h.summaryService.GetOrGenerateSummary(ctx, videoID)
+
+	if result.Error != nil {
+		// Handle different types of errors
+		switch {
+		case strings.Contains(result.Error.Error(), "LLM not configured"):
+			return echo.NewHTTPError(http.StatusServiceUnavailable, "LLM service not configured")
+		case strings.Contains(result.Error.Error(), "no subtitles available"):
+			return echo.NewHTTPError(http.StatusNotFound, "No subtitles available for this video")
+		default:
+			return echo.NewHTTPError(http.StatusInternalServerError, result.Error.Error())
+		}
+	}
+
+	// Create response - extract raw video ID from the full format for API response
+	responseVideoID := rawVideoID // Use the original raw video ID from the request
+	if strings.HasPrefix(result.VideoID, "yt:video:") {
+		responseVideoID = strings.TrimPrefix(result.VideoID, "yt:video:")
+	}
+
+	response := VideoSummaryResponse{
+		VideoID:        responseVideoID,
+		Summary:        result.Summary,
+		SourceLanguage: result.SourceLanguage,
+		GeneratedAt:    result.GeneratedAt.Format(time.RFC3339),
+		Tracked:        result.Tracked,
+	}
 
 	return c.JSON(http.StatusOK, response)
 }

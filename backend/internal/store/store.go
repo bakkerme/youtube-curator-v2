@@ -40,6 +40,10 @@ type Store interface {
 	// SMTP configuration methods
 	GetSMTPConfig() (*SMTPConfig, error)
 	SetSMTPConfig(config *SMTPConfig) error
+
+	// LLM configuration methods
+	GetLLMConfig() (*LLMConfig, error)
+	SetLLMConfig(config *LLMConfig) error
 }
 
 // SMTPConfig holds SMTP configuration
@@ -49,6 +53,13 @@ type SMTPConfig struct {
 	Username       string `json:"username"`
 	Password       string `json:"password"`
 	RecipientEmail string `json:"recipient_email"`
+}
+
+// LLMConfig holds LLM configuration for video summarization
+type LLMConfig struct {
+	EndpointURL string `json:"endpointUrl"` // LLM API endpoint URL
+	APIKey      string `json:"apiKey"`      // API key for the LLM service
+	Model       string `json:"model"`       // Model name to use (e.g., "gpt-3.5-turbo")
 }
 
 // BadgerStore handles database operations
@@ -287,6 +298,48 @@ func (s *BadgerStore) SetSMTPConfig(config *SMTPConfig) error {
 		configBytes, err := json.Marshal(config)
 		if err != nil {
 			return fmt.Errorf("failed to marshal SMTP configuration: %w", err)
+		}
+		return txn.Set(key, configBytes)
+	})
+}
+
+// GetLLMConfig retrieves the LLM configuration
+func (s *BadgerStore) GetLLMConfig() (*LLMConfig, error) {
+	var config LLMConfig
+	key := []byte("llm_config")
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			return nil // No configuration yet
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get LLM configuration: %w", err)
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &config)
+		})
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if we have any configuration data
+	if config.EndpointURL == "" && config.APIKey == "" && config.Model == "" {
+		return nil, nil // No configuration yet
+	}
+
+	return &config, nil
+}
+
+// SetLLMConfig stores the LLM configuration
+func (s *BadgerStore) SetLLMConfig(config *LLMConfig) error {
+	key := []byte("llm_config")
+	return s.db.Update(func(txn *badger.Txn) error {
+		configBytes, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal LLM configuration: %w", err)
 		}
 		return txn.Set(key, configBytes)
 	})

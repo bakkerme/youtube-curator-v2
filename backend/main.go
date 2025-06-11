@@ -13,9 +13,11 @@ import (
 	"youtube-curator-v2/internal/api"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
+	"youtube-curator-v2/internal/openai"
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/summary"
 	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/robfig/cron/v3"
@@ -82,11 +84,32 @@ func main() {
 	fmt.Println("Using YTDLP Enricher")
 	ytdlpEnricher = ytdlp.NewDefaultEnricher()
 
+	var summaryService summary.SummaryServiceInterface
+
+	if cfg.DebugSkipSummary {
+		fmt.Println("DEBUG_SKIP_SUMMARY is set: Skipping summary generation.")
+		summaryService = summary.NewMockService(db)
+	} else {
+		fmt.Println("Using Summary Service")
+
+		llmConfig, err := db.GetLLMConfig()
+		if err != nil {
+			log.Printf("Warning: Failed to get LLM configuration: %v", err)
+		}
+
+		if llmConfig == nil || llmConfig.EndpointURL == "" {
+			log.Println("LLM not configured, skipping summary service")
+		} else {
+			openAIClient := openai.New(llmConfig.EndpointURL, llmConfig.APIKey, llmConfig.Model)
+			summaryService = summary.NewService(db, ytdlpEnricher, openAIClient)
+		}
+	}
+
 	// Start API server if enabled
 	if cfg.EnableAPI {
 		go func() {
 			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
-			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher)
+			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher, summaryService)
 			if err := e.Start(":" + cfg.APIPort); err != nil {
 				log.Printf("API server error: %v", err)
 			}
