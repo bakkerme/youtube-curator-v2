@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"sort"
 
@@ -42,7 +41,7 @@ func (h *NewsletterHandlers) RunNewsletter(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "maxItems must be non-negative")
 	}
 
-	ctx := context.Background()
+	ctx := c.Request().Context()
 	var channels []store.Channel
 	var err error
 

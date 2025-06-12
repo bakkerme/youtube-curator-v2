@@ -56,7 +56,7 @@ func (h *ChannelHandlers) AddChannel(c echo.Context) error {
 	title := req.Title
 	if title == "" {
 		// Fetch title from RSS feed
-		ctx := context.Background()
+		ctx := c.Request().Context()
 		feed, err := h.feedProvider.FetchFeed(ctx, channelID)
 		if err != nil {
 			return echo.NewHTTPError(http.StatusBadRequest, "Could not fetch channel title from RSS feed: "+err.Error())
