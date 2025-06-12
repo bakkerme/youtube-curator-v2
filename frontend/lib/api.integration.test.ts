@@ -208,18 +208,26 @@ describe('API Integration Tests', () => {
       const response = await apiClient.get('/api/config/smtp');
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('host', 'smtp.gmail.com');
-      expect(response.data).toHaveProperty('port', 587);
+      expect(response.data).toHaveProperty('server', 'smtp.gmail.com');
+      expect(response.data).toHaveProperty('port', '587');
+      expect(response.data).toHaveProperty('passwordSet', true);
     });
 
     test('POST /api/config/smtp updates SMTP config', async () => {
-      const updateData = { host: 'smtp.new.com', port: 465 };
+      const updateData = { 
+        server: 'smtp.new.com', 
+        port: '465', 
+        username: 'user@new.com',
+        password: 'newpass',
+        recipientEmail: 'recipient@new.com'
+      };
 
       const response = await apiClient.post('/api/config/smtp', updateData);
 
       expect(response.status).toBe(200);
-      expect(response.data).toHaveProperty('host', 'smtp.new.com');
-      expect(response.data).toHaveProperty('port', 465);
+      expect(response.data).toHaveProperty('server', 'smtp.new.com');
+      expect(response.data).toHaveProperty('port', '465');
+      expect(response.data).toHaveProperty('passwordSet', true);
     });
 
     test('POST /api/config/smtp/test sends test SMTP email', async () => {
@@ -227,6 +235,30 @@ describe('API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(response.data).toEqual({ message: 'Test email sent successfully' });
+    });
+
+    test('GET /api/config/llm returns LLM config', async () => {
+      const response = await apiClient.get('/api/config/llm');
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty('endpointUrl', 'https://api.openai.com/v1');
+      expect(response.data).toHaveProperty('model', 'gpt-3.5-turbo');
+      expect(response.data).toHaveProperty('apiKeySet', true);
+    });
+
+    test('POST /api/config/llm updates LLM config', async () => {
+      const updateData = { 
+        endpoint: 'https://api.anthropic.com/v1', 
+        apiKey: 'test-key', 
+        model: 'claude-3-sonnet' 
+      };
+
+      const response = await apiClient.post('/api/config/llm', updateData);
+
+      expect(response.status).toBe(200);
+      expect(response.data).toHaveProperty('endpointUrl', 'https://api.anthropic.com/v1');
+      expect(response.data).toHaveProperty('model', 'claude-3-sonnet');
+      expect(response.data).toHaveProperty('apiKeySet', true);
     });
   });
 });
@@ -366,15 +398,11 @@ describe('Response Validation', () => {
 
     expect(response.data).toEqual(
       expect.objectContaining({
-        host: expect.any(String),
-        port: expect.any(Number),
+        server: expect.any(String),
+        port: expect.any(String),
         username: expect.any(String),
-        password: expect.any(String),
-        fromAddress: expect.any(String),
         recipientEmail: expect.any(String),
-        emailHour: expect.any(Number),
-        emailMinute: expect.any(Number),
-        emailTimezone: expect.any(String),
+        passwordSet: expect.any(Boolean),
       })
     );
   });

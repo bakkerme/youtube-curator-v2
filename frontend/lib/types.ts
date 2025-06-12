@@ -54,7 +54,7 @@ export interface LLMConfigRequest {
 }
 
 export interface LLMConfigResponse {
-  endpoint: string;
+  endpointUrl: string;
   model: string;
   apiKeySet: boolean;
 }
