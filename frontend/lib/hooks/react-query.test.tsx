@@ -212,15 +212,11 @@ describe('React Query Hooks Integration Tests', () => {
 
       expect(result.current.isSuccess).toBe(true);
       expect(result.current.data).toEqual({
-        host: 'smtp.gmail.com',
-        port: 587,
+        server: 'smtp.gmail.com',
+        port: '587',
         username: 'test@example.com',
-        password: '',
-        fromAddress: 'test@example.com',
         recipientEmail: 'recipient@example.com',
-        emailHour: 9,
-        emailMinute: 0,
-        emailTimezone: 'America/New_York',
+        passwordSet: true,
       });
     });
   });
