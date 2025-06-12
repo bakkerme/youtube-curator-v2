@@ -47,6 +47,18 @@ export interface SMTPConfigResponse {
   passwordSet: boolean;
 }
 
+export interface LLMConfigRequest {
+  endpoint: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface LLMConfigResponse {
+  endpoint: string;
+  model: string;
+  apiKeySet: boolean;
+}
+
 export interface ApiError {
   message: string;
 }

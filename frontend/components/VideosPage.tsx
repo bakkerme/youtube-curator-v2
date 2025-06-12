@@ -30,7 +30,11 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    return yesterday.toISOString().split('T')[0];
+    // Format as YYYY-MM-DD in local timezone, not UTC
+    const year = yesterday.getFullYear();
+    const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+    const day = String(yesterday.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   });
   const [lastApiRefreshTimestamp, setLastApiRefreshTimestamp] = useState<string | null>(null);
   const [isWatchedAccordionOpen, setIsWatchedAccordionOpen] = useState(false); // Accordion collapsed by default
@@ -39,6 +43,19 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
   const allVideosRef = useRef<VideoEntry[]>([]);
   const loadingRef = useRef(true);
   const refreshingRef = useRef(false);
+
+  // Helper function to normalize dates to local timezone (00:00:00)
+  const normalizeToLocalDate = useCallback((date: Date): Date => {
+    const newDate = new Date(date);
+    newDate.setHours(0, 0, 0, 0);
+    return newDate;
+  }, []);
+
+  // Helper function to create a local date from YYYY-MM-DD string
+  const createLocalDateFromString = useCallback((dateString: string): Date => {
+    // Parse as local date by appending T00:00:00 (no timezone offset)
+    return new Date(dateString + 'T00:00:00');
+  }, []);
   
   // Update refs whenever state changes
   useEffect(() => {
@@ -207,41 +224,32 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
   const { unwatchedVideos, watchedVideos } = useMemo(() => {
     let dateFilteredVideos = allVideos;
 
-    const normalizeDate = (date: Date): Date => {
-      const newDate = new Date(date);
-      newDate.setHours(0, 0, 0, 0);
-      return newDate;
-    };
-
     // Apply date filtering based on filterMode
     if (filterMode === 'today') {
-      const todayNormalized = normalizeDate(new Date());
+      const todayNormalized = normalizeToLocalDate(new Date());
       dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
         const videoDate = new Date(video.published);
-        return normalizeDate(videoDate).getTime() === todayNormalized.getTime();
+        return normalizeToLocalDate(videoDate).getTime() === todayNormalized.getTime();
       });
     } else if (filterMode === 'perDay') {
       if (selectedDate) {
         try {
-          // selectedDate is YYYY-MM-DD. Need to parse it correctly.
-          // Appending T00:00:00 to ensure it's parsed as local time, not UTC.
-          const perDayDate = new Date(selectedDate + 'T00:00:00');
+          const perDayDate = createLocalDateFromString(selectedDate);
           if (isNaN(perDayDate.getTime())) {
-            // Handle invalid date string if necessary, though input type="date" helps
             console.warn("Invalid selectedDate (parsed as NaN):", selectedDate);
             dateFilteredVideos = [];
           } else {
-            const perDayNormalized = normalizeDate(perDayDate);
+            const perDayNormalized = normalizeToLocalDate(perDayDate);
             dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
               const videoDate = new Date(video.published);
-              return normalizeDate(videoDate).getTime() === perDayNormalized.getTime();
+              return normalizeToLocalDate(videoDate).getTime() === perDayNormalized.getTime();
             });
           }
         } catch (e) {
           console.error("Error parsing selectedDate catch:", e);
-          dateFilteredVideos = []; // Also empty list on error
+          dateFilteredVideos = [];
         }
-      } else { // selectedDate is an empty string (or null/undefined, though state is string)
+      } else {
         console.warn("selectedDate is empty, showing no videos for perDay mode.");
         dateFilteredVideos = [];
       }
@@ -265,7 +273,7 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
     const watched = searchFilteredVideos.filter(video => video.watched);
 
     return { unwatchedVideos: unwatched, watchedVideos: watched };
-  }, [allVideos, channels, searchQuery, filterMode, selectedDate]);
+  }, [allVideos, channels, searchQuery, filterMode, selectedDate, normalizeToLocalDate, createLocalDateFromString]);
 
   // Calculate pagination for unwatched videos
   const totalUnwatchedPages = unwatchedVideos.length > 0 ? Math.ceil(unwatchedVideos.length / VIDEOS_PER_PAGE) : 1;

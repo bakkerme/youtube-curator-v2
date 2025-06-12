@@ -19,12 +19,14 @@ type Config struct {
 	SMTPPassword   string
 	RecipientEmail string
 	CheckInterval  time.Duration
-	DebugMockRSS   bool
-	DebugSkipCron  bool
 	APIPort        string // Port for the API server
 	EnableAPI      bool   // Whether to enable the API server
 	CronSchedule   string // e.g. '0 0 * * *' for daily at midnight
 	RSSConcurrency int    // Number of concurrent RSS fetches, default 5
+
+	DebugMockRSS     bool
+	DebugSkipCron    bool
+	DebugSkipSummary bool
 }
 
 // LoadConfig loads configuration from environment variables
@@ -78,6 +80,9 @@ func LoadConfig() (*Config, error) {
 	debugSkipCronStr := os.Getenv("DEBUG_SKIP_CRON")
 	debugSkipCron := strings.ToLower(debugSkipCronStr) == "true"
 
+	debugSkipSummaryStr := os.Getenv("DEBUG_SKIP_SUMMARY")
+	debugSkipSummary := strings.ToLower(debugSkipSummaryStr) == "true"
+
 	cronSchedule := os.Getenv("CRON_SCHEDULE")
 	if cronSchedule == "" {
 		cronSchedule = "0 0 * * *" // Default to daily at midnight
@@ -112,12 +117,14 @@ func LoadConfig() (*Config, error) {
 		SMTPPassword:   smtpPassword,
 		RecipientEmail: recipientEmail,
 		CheckInterval:  checkInterval,
-		DebugMockRSS:   debugMockRSS,
-		DebugSkipCron:  debugSkipCron,
 		APIPort:        apiPort,
 		EnableAPI:      enableAPI,
 		CronSchedule:   cronSchedule,
 		RSSConcurrency: rssConcurrency,
+
+		DebugMockRSS:     debugMockRSS,
+		DebugSkipCron:    debugSkipCron,
+		DebugSkipSummary: debugSkipSummary,
 	}, nil
 }
 

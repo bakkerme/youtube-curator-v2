@@ -6,6 +6,7 @@ import (
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/summary"
 	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/labstack/echo/v4"
@@ -13,7 +14,7 @@ import (
 )
 
 // SetupRouter creates and configures the Echo router with all API endpoints
-func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher) *echo.Echo {
+func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender email.Sender, cfg *config.Config, channelProcessor processor.ChannelProcessor, videoStore *store.VideoStore, ytdlpEnricher ytdlp.Enricher, summaryService summary.SummaryServiceInterface) *echo.Echo {
 	e := echo.New()
 
 	// Middleware
@@ -22,7 +23,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	e.Use(middleware.CORS())
 
 	// Create handlers
-	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher)
+	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher, summaryService)
 
 	// API routes
 	api := e.Group("/api")
@@ -38,6 +39,8 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	api.PUT("/config/interval", handlers.SetCheckInterval)
 	api.GET("/config/smtp", handlers.GetSMTPConfig)
 	api.PUT("/config/smtp", handlers.SetSMTPConfig)
+	api.GET("/config/llm", handlers.GetLLMConfig)
+	api.PUT("/config/llm", handlers.SetLLMConfig)
 
 	// Newsletter endpoints
 	api.POST("/newsletter/run", handlers.RunNewsletter)
@@ -45,6 +48,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	// Video endpoints
 	api.GET("/videos", handlers.GetVideos)
 	api.POST("/videos/:videoId/watch", handlers.MarkVideoAsWatched)
+	api.GET("/videos/:videoId/summary", handlers.GetVideoSummary)
 
 	return e
 }

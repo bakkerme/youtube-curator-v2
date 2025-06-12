@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { newsletterAPI, channelAPI, configAPI } from '@/lib/api';
-import { Channel, SMTPConfigRequest, RunNewsletterRequest } from '@/lib/types';
+import { Channel, SMTPConfigRequest, LLMConfigRequest, RunNewsletterRequest } from '@/lib/types';
 
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -25,9 +25,20 @@ export default function NotificationsPage() {
   const [isSavingSMTP, setIsSavingSMTP] = useState(false);
   const [smtpResult, setSMTPResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
+  // LLM Configuration State
+  const [llmConfig, setLLMConfig] = useState<LLMConfigRequest>({
+    endpoint: '',
+    apiKey: '',
+    model: ''
+  });
+  const [isLoadingLLM, setIsLoadingLLM] = useState(true);
+  const [isSavingLLM, setIsSavingLLM] = useState(false);
+  const [llmResult, setLLMResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
   useEffect(() => {
     loadChannels();
     loadSMTPConfig();
+    loadLLMConfig();
   }, []);
 
   const loadChannels = async () => {
@@ -55,6 +66,21 @@ export default function NotificationsPage() {
       console.error('Failed to load SMTP configuration:', error);
     } finally {
       setIsLoadingSMTP(false);
+    }
+  };
+
+  const loadLLMConfig = async () => {
+    try {
+      const data = await configAPI.getLLM();
+      setLLMConfig({
+        endpoint: data.endpoint || '',
+        apiKey: '', // API key is never returned from API
+        model: data.model || ''
+      });
+    } catch (error) {
+      console.error('Failed to load LLM configuration:', error);
+    } finally {
+      setIsLoadingLLM(false);
     }
   };
 
@@ -104,6 +130,24 @@ export default function NotificationsPage() {
       });
     } finally {
       setIsSavingSMTP(false);
+    }
+  };
+
+  const handleSaveLLM = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingLLM(true);
+    setLLMResult(null);
+
+    try {
+      await configAPI.setLLM(llmConfig);
+      setLLMResult({ type: 'success', message: 'LLM configuration saved successfully!' });
+    } catch (error) {
+      setLLMResult({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to save LLM configuration' 
+      });
+    } finally {
+      setIsSavingLLM(false);
     }
   };
 
@@ -244,7 +288,7 @@ export default function NotificationsPage() {
       </div>
       
       {/* SMTP Configuration */}
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-6">
         <div className="p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold mb-2">SMTP Configuration</h2>
           <p className="text-gray-600 dark:text-gray-400">
@@ -399,6 +443,134 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
+
+      {/* LLM Configuration */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-6">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold mb-2">LLM Configuration</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Configure your OpenAI-compatible LLM API settings for video summaries and analysis.
+          </p>
+        </div>
+        <div className="p-6">
+          {isLoadingLLM ? (
+            <div className="flex justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveLLM} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="llm-endpoint" className="block text-sm font-medium mb-2">
+                    API Endpoint
+                  </label>
+                  <input
+                    id="llm-endpoint"
+                    type="url"
+                    value={llmConfig.endpoint}
+                    onChange={(e) => setLLMConfig({ ...llmConfig, endpoint: e.target.value })}
+                    placeholder="https://api.openai.com/v1"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    OpenAI API or compatible endpoint (e.g., local LLM server)
+                  </p>
+                </div>
+                
+                <div>
+                  <label htmlFor="llm-model" className="block text-sm font-medium mb-2">
+                    Model
+                  </label>
+                  <input
+                    id="llm-model"
+                    type="text"
+                    value={llmConfig.model}
+                    onChange={(e) => setLLMConfig({ ...llmConfig, model: e.target.value })}
+                    placeholder="gpt-3.5-turbo"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    required
+                  />
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Model name (varies by provider)
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="llm-api-key" className="block text-sm font-medium mb-2">
+                  API Key
+                </label>
+                <input
+                  id="llm-api-key"
+                  type="password"
+                  value={llmConfig.apiKey}
+                  onChange={(e) => setLLMConfig({ ...llmConfig, apiKey: e.target.value })}
+                  placeholder="sk-..."
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Your API key for the LLM service
+                </p>
+              </div>
+
+              {llmResult && (
+                <div className={`p-4 rounded-md border ${
+                  llmResult.type === 'success' 
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {llmResult.type === 'success' ? (
+                      <svg className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                    )}
+                    <div>
+                      <p className={`${
+                        llmResult.type === 'success' 
+                          ? 'text-green-700 dark:text-green-300' 
+                          : 'text-red-700 dark:text-red-300'
+                      }`}>
+                        {llmResult.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSavingLLM}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {isSavingLLM ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Configuration'
+                )}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
       
       <div className="mt-6 bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4">
         <p className="text-yellow-800 dark:text-yellow-200">
@@ -407,4 +579,4 @@ export default function NotificationsPage() {
       </div>
     </div>
   );
-} 
+}

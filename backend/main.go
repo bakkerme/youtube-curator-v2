@@ -13,9 +13,11 @@ import (
 	"youtube-curator-v2/internal/api"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
+	"youtube-curator-v2/internal/openai"
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
 	"youtube-curator-v2/internal/store"
+	"youtube-curator-v2/internal/summary"
 	"youtube-curator-v2/internal/ytdlp"
 
 	"github.com/robfig/cron/v3"
@@ -82,37 +84,62 @@ func main() {
 	fmt.Println("Using YTDLP Enricher")
 	ytdlpEnricher = ytdlp.NewDefaultEnricher()
 
+	var summaryService summary.SummaryServiceInterface
+
+	if cfg.DebugSkipSummary {
+		fmt.Println("DEBUG_SKIP_SUMMARY is set: Skipping summary generation.")
+		summaryService = summary.NewMockService(db)
+	} else {
+		fmt.Println("Using Summary Service")
+
+		llmConfig, err := db.GetLLMConfig()
+		if err != nil {
+			log.Printf("Warning: Failed to get LLM configuration: %v", err)
+		}
+
+		if llmConfig == nil || llmConfig.EndpointURL == "" {
+			log.Println("LLM not configured, skipping summary service")
+		} else {
+			openAIClient := openai.New(llmConfig.EndpointURL, llmConfig.APIKey, llmConfig.Model)
+			summaryService = summary.NewService(db, ytdlpEnricher, openAIClient)
+		}
+	}
+
 	// Start API server if enabled
 	if cfg.EnableAPI {
 		go func() {
 			fmt.Printf("Starting API server on port %s...\n", cfg.APIPort)
-			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher)
+			e := api.SetupRouter(db, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher, summaryService)
 			if err := e.Start(":" + cfg.APIPort); err != nil {
 				log.Printf("API server error: %v", err)
 			}
 		}()
 	}
 
-	// Run the check immediately on startup
-	// checkForNewVideos(cfg, emailSender, channelProcessor, db)
-
 	// If DebugSkipCron is set, skip the scheduler feature
 	if cfg.DebugSkipCron {
-		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler. Exiting after one check.")
-		return
+		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler.")
+		// If API is enabled, we still need to keep the main thread alive
+		if cfg.EnableAPI {
+			fmt.Println("API server is running. Use Ctrl+C to stop.")
+			select {} // Block forever to keep API server running
+		} else {
+			fmt.Println("No API server enabled. Exiting.")
+			return
+		}
+	} else {
+		// Use robfig/cron for scheduling if CronSchedule is set
+		fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
+		c := cron.New()
+		_, err = c.AddFunc(cfg.CronSchedule, func() {
+			checkForNewVideos(cfg, emailSender, channelProcessor, db)
+		})
+		if err != nil {
+			log.Fatalf("Failed to add cron job: %v", err)
+		}
+		c.Start()
+		select {} // Block forever
 	}
-
-	// Use robfig/cron for scheduling if CronSchedule is set
-	fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
-	c := cron.New()
-	_, err = c.AddFunc(cfg.CronSchedule, func() {
-		checkForNewVideos(cfg, emailSender, channelProcessor, db)
-	})
-	if err != nil {
-		log.Fatalf("Failed to add cron job: %v", err)
-	}
-	c.Start()
-	select {} // Block forever
 }
 
 func checkForNewVideos(cfg *config.Config, emailSender email.Sender, channelProcessor processor.ChannelProcessor, db store.Store) {

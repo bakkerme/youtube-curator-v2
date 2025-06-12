@@ -41,6 +41,16 @@ type Entry struct {
 	Tags          []string `json:"tags,omitempty"`          // Video tags
 	TopComments   []string `json:"topComments,omitempty"`   // Top comments
 	AutoSubtitles string   `json:"autoSubtitles,omitempty"` // Auto-generated English subtitles
+
+	// Video summary information (optional fields)
+	Summary *Summary `json:"summary,omitempty"` // Video summary data
+}
+
+// Summary represents video summary information
+type Summary struct {
+	Text               string    `json:"text"`               // The generated summary text
+	SourceLanguage     string    `json:"sourceLanguage"`     // Language of subtitles used (e.g., "en", "es")
+	SummaryGeneratedAt time.Time `json:"summaryGeneratedAt"` // When the summary was generated
 }
 
 // Author represents the author element in RSS feeds

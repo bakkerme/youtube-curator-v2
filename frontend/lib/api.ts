@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideosAPIResponse } from './types';
+import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, LLMConfigRequest, LLMConfigResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideosAPIResponse } from './types';
 import { getRuntimeConfig } from './config';
 
 // Create axios instance that will be configured with runtime config
@@ -113,6 +113,20 @@ export const configAPI = {
       return data;
     });
   },
+
+  getLLM: async (): Promise<LLMConfigResponse> => {
+    return makeRequest(async () => {
+      const { data } = await api.get('/config/llm');
+      return data;
+    });
+  },
+
+  setLLM: async (config: LLMConfigRequest): Promise<LLMConfigResponse> => {
+    return makeRequest(async () => {
+      const { data } = await api.put('/config/llm', config);
+      return data;
+    });
+  },
 };
 
 // Newsletter APIs
@@ -142,4 +156,4 @@ export const videoAPI = {
   },
 };
 
-export default api; 
+export default api;
