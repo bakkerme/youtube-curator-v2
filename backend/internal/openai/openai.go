@@ -33,6 +33,7 @@ type OpenAIClient interface {
 	// maxTokens: Optional max tokens parameter to limit the response length (0 means no limit)
 	// returns: Channel that will receive the response or error
 	ChatCompletion(
+		ctx context.Context,
 		systemPrompt string,
 		userPrompts []string,
 		imageURLs []string,
