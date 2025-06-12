@@ -236,6 +236,7 @@ func (s *Service) parseSubtitleContent(content string) string {
 	vttTimingPattern := regexp.MustCompile(`^\d{2}:\d{2}:\d{2}\.\d{3} --> \d{2}:\d{2}:\d{2}\.\d{3}`)
 	srtTimingPattern := regexp.MustCompile(`^\d{2}:\d{2}:\d{2},\d{3} --> \d{2}:\d{2}:\d{2},\d{3}`)
 
+	numericPattern := regexp.MustCompile(`^\d+$`) // Matches numeric lines (SRT sequence numbers)
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
@@ -255,7 +256,7 @@ func (s *Service) parseSubtitleContent(content string) string {
 		}
 
 		// Skip numeric lines (SRT sequence numbers)
-		if regexp.MustCompile(`^\d+$`).MatchString(line) {
+		if numericPattern.MatchString(line) {
 			continue
 		}
 
