@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"youtube-curator-v2/internal/api/handlers"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/processor"
 	"youtube-curator-v2/internal/rss"
@@ -100,7 +101,8 @@ func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	baseHandlers := handlers.NewBaseHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	videoHandlers := handlers.NewVideoHandlers(baseHandlers)
 
 	// Create test request
 	e := echo.New()
@@ -109,7 +111,7 @@ func TestGetVideos_EmptyCache_FetchesFromChannels(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// Execute
-	err := handlers.GetVideos(c)
+	err := videoHandlers.GetVideos(c)
 
 	// Verify
 	if err != nil {
@@ -164,7 +166,8 @@ func TestGetVideos_WithRefreshParameter(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	baseHandlers := handlers.NewBaseHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	videoHandlers := handlers.NewVideoHandlers(baseHandlers)
 
 	// Create test request with refresh=true
 	e := echo.New()
@@ -173,7 +176,7 @@ func TestGetVideos_WithRefreshParameter(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// Execute
-	err := handlers.GetVideos(c)
+	err := videoHandlers.GetVideos(c)
 
 	// Verify
 	if err != nil {
@@ -231,7 +234,8 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 	videoStore.AddVideo("channel1", cachedVideo)
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	baseHandlers := handlers.NewBaseHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	videoHandlers := handlers.NewVideoHandlers(baseHandlers)
 
 	// Create test request without refresh parameter
 	e := echo.New()
@@ -240,7 +244,7 @@ func TestGetVideos_UsesCache_WhenNotExpired(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// Execute
-	err := handlers.GetVideos(c)
+	err := videoHandlers.GetVideos(c)
 
 	// Verify
 	if err != nil {
@@ -306,7 +310,8 @@ func TestGetVideos_WithRefreshParameter_PreservesWatchedState(t *testing.T) {
 	}
 
 	// Create handlers
-	handlers := NewHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	baseHandlers := handlers.NewBaseHandlers(mockStore, mockFeedProvider, mockEmailSender, cfg, mockProcessor, videoStore, ytdlp.NewMockEnricher(), summary.NewMockService(mockStore))
+	videoHandlers := handlers.NewVideoHandlers(baseHandlers)
 
 	// Create test request with refresh=true
 	e := echo.New()
@@ -315,7 +320,7 @@ func TestGetVideos_WithRefreshParameter_PreservesWatchedState(t *testing.T) {
 	c := e.NewContext(req, rec)
 
 	// Execute
-	err := handlers.GetVideos(c)
+	err := videoHandlers.GetVideos(c)
 
 	// Verify
 	if err != nil {
