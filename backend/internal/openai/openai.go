@@ -97,6 +97,7 @@ func isModelLoadingError(err error) bool {
 
 // ChatCompletion sends a request to the OpenAI API with the given prompts, optional images, and schema
 func (c *Client) ChatCompletion(
+	ctx context.Context,
 	systemPrompt string,
 	userPrompts []string,
 	imageURLs []string,
@@ -182,7 +183,7 @@ func (c *Client) ChatCompletion(
 		return c.client.Chat.Completions.New(ctx, params)
 	}
 
-	resp, err := retry.RetryWithBackoff(context.Background(), c.retry, ChatCompletionFn, shouldRetry)
+	resp, err := retry.RetryWithBackoff(ctx, c.retry, ChatCompletionFn, shouldRetry)
 
 	if err != nil {
 		var errMsg string

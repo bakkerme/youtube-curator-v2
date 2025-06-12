@@ -155,6 +155,7 @@ Please create a summary that:
 
 	// Call the LLM
 	go client.ChatCompletion(
+		ctx,
 		systemPrompt,
 		[]string{userPrompt},
 		nil, // no images
