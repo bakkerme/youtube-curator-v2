@@ -251,7 +251,7 @@ func TestEnrichEntry_RetryLogic(t *testing.T) {
 
 	enricher := &DefaultEnricher{
 		ytdlpPath:  "yt-dlp",
-		timeout:    1 * time.Second,
+		timeout:    100 * time.Millisecond,
 		maxRetries: 2,
 		executor:   mockExecutor,
 	}
