@@ -14,7 +14,7 @@
     "test:screenshots": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true playwright test",
     "test:screenshots:headed": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true playwright test --headed",
     "test:screenshots:ui": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true playwright test --ui",
-    "test:screenshots:update": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true playwright test --update-snapshots",
+    "test:screenshots:update": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true CI=true playwright test --update-snapshots",
     "test:screenshots:generate": "NEXT_PUBLIC_DISABLE_DEVTOOLS=true DISABLE_VISUAL_REGRESSION=true playwright test"
   },
   "dependencies": {
