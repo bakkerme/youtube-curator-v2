@@ -87,13 +87,7 @@ var youtubeVideoIDRegexp = regexp.MustCompile(youtubeVideoIDPattern)
 // ValidateYouTubeVideoID checks if a string is a valid YouTube video ID with the "yt:video:" prefix.
 // The actual ID part must be 11 characters long and consist of alphanumeric characters, underscores, and hyphens.
 func ValidateYouTubeVideoID(videoID string) error {
-	if !strings.HasPrefix(videoID, youtubeVideoIDPrefix) {
-		return fmt.Errorf("invalid video ID format. Expected prefix '%s'", youtubeVideoIDPrefix)
-	}
-
-	actualID := strings.TrimPrefix(videoID, youtubeVideoIDPrefix)
-
-	if !youtubeVideoIDRegexp.MatchString(actualID) {
+	if !youtubeVideoIDRegexp.MatchString(videoID) {
 		return fmt.Errorf("invalid video ID format. Expected format: %s<11_alphanumeric_chars_hyphens_underscores>", youtubeVideoIDPrefix)
 	}
 

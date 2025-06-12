@@ -8,8 +8,10 @@ info:
     - Manage subscribed YouTube channels (add, remove, bulk import)
     - Configure the check interval for video monitoring
     - Configure SMTP settings for email notifications
+    - Configure LLM settings for AI-powered video summarization
     - Manually trigger newsletter runs
     - Retrieve videos with metadata and mark them as watched
+    - Generate AI summaries for YouTube videos using subtitles
     - Sort and filter videos by publication date and watch status
   version: 2.0.0
   contact:
@@ -544,10 +546,96 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /config/openai:
+  /videos/{videoId}/summary:
     get:
-      summary: Get OpenAI-compatible API configuration
-      description: Retrieve the current OpenAI-compatible API configuration for video summaries (API key field is omitted for security)
+      summary: Get video summary
+      description: |
+        Retrieve or generate a summary for the specified video using AI/LLM services.
+        
+        - For tracked videos (from subscribed channels), summaries are cached and returned from the database if available.
+        - For arbitrary videos (not from tracked channels), summaries are generated on-demand without caching.
+        - The response includes a `tracked` field indicating whether the video belongs to a tracked channel.
+        
+        Video subtitles are downloaded using yt-dlp and sent to the configured LLM service for summarization.
+      tags:
+        - Videos
+      parameters:
+        - name: videoId
+          in: path
+          required: true
+          description: The YouTube video ID (without the 'yt:video:' prefix)
+          schema:
+            type: string
+            pattern: '^[a-zA-Z0-9_-]{11}$'
+          example: "dQw4w9WgXcQ"
+      responses:
+        '200':
+          description: Video summary successfully retrieved or generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoSummaryResponse'
+              examples:
+                tracked_video:
+                  summary: Summary for a video from a tracked channel
+                  value:
+                    videoId: "dQw4w9WgXcQ"
+                    summary: "This video is a classic internet meme featuring Rick Astley's 'Never Gonna Give You Up'. The video shows Rick Astley performing the song with his distinctive dance moves and has become synonymous with 'rickrolling' - a popular internet prank."
+                    sourceLanguage: "en"
+                    generatedAt: "2024-01-15T10:35:00Z"
+                    tracked: true
+                arbitrary_video:
+                  summary: Summary for an arbitrary video (not tracked)
+                  value:
+                    videoId: "abc123defgh"
+                    summary: "This educational video explains the basics of machine learning, covering supervised and unsupervised learning techniques with practical examples."
+                    sourceLanguage: "en"
+                    generatedAt: "2024-01-15T10:35:00Z"
+                    tracked: false
+        '400':
+          description: Bad request - Invalid video ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid video ID format. Video ID should be 11 characters long."
+        '404':
+          description: No subtitles available for this video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "No subtitles available for this video"
+        '500':
+          description: Internal server error during summary generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                llm_error:
+                  summary: LLM service error
+                  value:
+                    message: "Failed to generate summary: LLM service temporarily unavailable"
+                ytdlp_error:
+                  summary: Subtitle download error
+                  value:
+                    message: "Failed to download video subtitles"
+        '503':
+          description: LLM service not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "LLM service not configured"
+
+  /config/llm:
+    get:
+      summary: Get LLM API configuration
+      description: Retrieve the current OpenAI-compatible LLM API configuration for video summaries (API key field is omitted for security)
       tags:
         - Configuration
       responses:
@@ -560,8 +648,6 @@ paths:
               example:
                 endpoint: "https://api.openai.com/v1"
                 model: "gpt-3.5-turbo"
-                maxTokens: 500
-                temperature: "0.7"
                 apiKeySet: true
         '500':
           description: Internal server error
@@ -587,8 +673,6 @@ paths:
               endpoint: "https://api.openai.com/v1"
               apiKey: "sk-..."
               model: "gpt-3.5-turbo"
-              maxTokens: 500
-              temperature: "0.7"
       responses:
         '200':
           description: OpenAI-compatible API configuration successfully updated
@@ -599,8 +683,6 @@ paths:
               example:
                 endpoint: "https://api.openai.com/v1"
                 model: "gpt-3.5-turbo"
-                maxTokens: 500
-                temperature: "0.7"
                 apiKeySet: true
         '400':
           description: Bad request - missing required fields or invalid values
@@ -1091,13 +1173,44 @@ components:
           description: Whether there is a previous page
           example: false
 
+    VideoSummaryResponse:
+      type: object
+      required:
+        - videoId
+        - summary
+        - sourceLanguage
+        - generatedAt
+        - tracked
+      properties:
+        videoId:
+          type: string
+          description: YouTube video ID (without 'yt:video:' prefix)
+          pattern: '^[a-zA-Z0-9_-]{11}$'
+          example: "dQw4w9WgXcQ"
+        summary:
+          type: string
+          description: AI-generated summary of the video content
+          example: "This video is a classic internet meme featuring Rick Astley's 'Never Gonna Give You Up'. The video shows Rick Astley performing the song with his distinctive dance moves and has become synonymous with 'rickrolling' - a popular internet prank."
+        sourceLanguage:
+          type: string
+          description: Language code of the source subtitles used for summarization
+          example: "en"
+        generatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the summary was generated (ISO 8601 format)
+          example: "2024-01-15T10:35:00Z"
+        tracked:
+          type: boolean
+          description: Whether this video belongs to a tracked channel (tracked videos have cached summaries)
+          example: true
+
     OpenAIConfigRequest:
       type: object
       required:
         - endpoint
         - apiKey
         - model
-        - maxTokens
       properties:
         endpoint:
           type: string
@@ -1112,24 +1225,12 @@ components:
           type: string
           description: Model name to use for summaries (varies by provider)
           example: "gpt-3.5-turbo"
-        maxTokens:
-          type: integer
-          description: Maximum tokens for summary generation
-          minimum: 100
-          maximum: 4000
-          example: 500
-        temperature:
-          type: string
-          description: Creativity/randomness of AI responses (0.0 to 1.0)
-          pattern: '^(0(\.\d+)?|1(\.0+)?)$'
-          example: "0.7"
-
+        
     OpenAIConfigResponse:
       type: object
       required:
         - endpoint
         - model
-        - maxTokens
         - apiKeySet
       properties:
         endpoint:
@@ -1141,14 +1242,6 @@ components:
           type: string
           description: Model name used for summaries
           example: "gpt-3.5-turbo"
-        maxTokens:
-          type: integer
-          description: Maximum tokens for summary generation
-          example: 500
-        temperature:
-          type: string
-          description: Creativity/randomness of AI responses
-          example: "0.7"
         apiKeySet:
           type: boolean
           description: Whether an API key is configured (actual key is never returned)

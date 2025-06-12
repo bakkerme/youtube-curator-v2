@@ -116,9 +116,6 @@ func main() {
 		}()
 	}
 
-	// Run the check immediately on startup
-	// checkForNewVideos(cfg, emailSender, channelProcessor, db)
-
 	// If DebugSkipCron is set, skip the scheduler feature
 	if cfg.DebugSkipCron {
 		fmt.Println("DEBUG_SKIP_CRON is set: Skipping scheduler.")

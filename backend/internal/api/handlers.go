@@ -306,7 +306,7 @@ type SMTPConfigResponse struct {
 
 // LLMConfigRequest represents a request to update LLM configuration
 type LLMConfigRequest struct {
-	EndpointURL string `json:"endpointUrl" validate:"required"`
+	EndpointURL string `json:"endpoint" validate:"required"`
 	APIKey      string `json:"apiKey" validate:"required"`
 	Model       string `json:"model" validate:"required"`
 }
@@ -901,13 +901,10 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 
 // GetVideoSummary handles GET /api/videos/:videoId/summary
 func (h *Handlers) GetVideoSummary(c echo.Context) error {
-	rawVideoID := c.Param("videoId")
-	if rawVideoID == "" {
+	videoID := c.Param("videoId")
+	if videoID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
-
-	// Convert raw video ID to the format expected by the system (yt:video:ID)
-	videoID := "yt:video:" + rawVideoID
 
 	// Validate video ID format using the dedicated validator
 	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
@@ -935,14 +932,8 @@ func (h *Handlers) GetVideoSummary(c echo.Context) error {
 		}
 	}
 
-	// Create response - extract raw video ID from the full format for API response
-	responseVideoID := rawVideoID // Use the original raw video ID from the request
-	if strings.HasPrefix(result.VideoID, "yt:video:") {
-		responseVideoID = strings.TrimPrefix(result.VideoID, "yt:video:")
-	}
-
 	response := VideoSummaryResponse{
-		VideoID:        responseVideoID,
+		VideoID:        videoID,
 		Summary:        result.Summary,
 		SourceLanguage: result.SourceLanguage,
 		GeneratedAt:    result.GeneratedAt.Format(time.RFC3339),

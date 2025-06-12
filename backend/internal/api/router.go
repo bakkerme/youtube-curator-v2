@@ -39,8 +39,8 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	api.PUT("/config/interval", handlers.SetCheckInterval)
 	api.GET("/config/smtp", handlers.GetSMTPConfig)
 	api.PUT("/config/smtp", handlers.SetSMTPConfig)
-	// api.GET("/config/llm", handlers.GetLLMConfig)
-	// api.PUT("/config/llm", handlers.SetLLMConfig)
+	api.GET("/config/llm", handlers.GetLLMConfig)
+	api.PUT("/config/llm", handlers.SetLLMConfig)
 
 	// Newsletter endpoints
 	api.POST("/newsletter/run", handlers.RunNewsletter)
@@ -48,7 +48,7 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	// Video endpoints
 	api.GET("/videos", handlers.GetVideos)
 	api.POST("/videos/:videoId/watch", handlers.MarkVideoAsWatched)
-	// api.GET("/videos/:videoId/summary", handlers.GetVideoSummary)
+	api.GET("/videos/:videoId/summary", handlers.GetVideoSummary)
 
 	return e
 }
