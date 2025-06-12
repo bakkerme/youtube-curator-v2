@@ -108,10 +108,13 @@ func (h *VideoHandlers) MarkVideoAsWatched(c echo.Context) error {
 
 // GetVideoSummary handles GET /api/videos/:videoId/summary
 func (h *VideoHandlers) GetVideoSummary(c echo.Context) error {
-	videoID := c.Param("videoId")
-	if videoID == "" {
+	rawVideoID := c.Param("videoId")
+	if rawVideoID == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
+
+	// Convert raw video ID to the format expected by the system (yt:video:ID)
+	videoID := "yt:video:" + rawVideoID
 
 	// Validate video ID format using the dedicated validator
 	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {

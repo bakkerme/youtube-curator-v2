@@ -139,6 +139,16 @@ export const newsletterAPI = {
   },
 };
 
+// Helper function to extract raw video ID from full format
+function extractRawVideoId(fullVideoId: string): string {
+  // If the video ID starts with 'yt:video:', extract the raw part
+  if (fullVideoId.startsWith('yt:video:')) {
+    return fullVideoId.substring('yt:video:'.length);
+  }
+  // If it's already a raw ID, return as-is
+  return fullVideoId;
+}
+
 // Video APIs
 export const videoAPI = {
   getAll: async (refresh?: boolean): Promise<VideosAPIResponse> => {
@@ -151,7 +161,8 @@ export const videoAPI = {
 
   markAsWatched: async (videoId: string): Promise<void> => {
     return makeRequest(async () => {
-      await api.post(`/videos/${videoId}/watch`);
+      const rawVideoId = extractRawVideoId(videoId);
+      await api.post(`/videos/${rawVideoId}/watch`);
     });
   },
 };
