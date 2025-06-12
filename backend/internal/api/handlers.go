@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"youtube-curator-v2/internal/api/types"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
 	"youtube-curator-v2/internal/processor"
@@ -16,212 +17,6 @@ import (
 
 	"github.com/labstack/echo/v4"
 )
-
-// ErrorResponse represents a standard error response
-type ErrorResponse struct {
-	Error   string                 `json:"error"`
-	Code    string                 `json:"code,omitempty"`
-	Details map[string]interface{} `json:"details,omitempty"`
-}
-
-// Pagination represents pagination information
-type Pagination struct {
-	CurrentPage  int  `json:"currentPage"`
-	TotalPages   int  `json:"totalPages"`
-	TotalItems   int  `json:"totalItems"`
-	ItemsPerPage int  `json:"itemsPerPage"`
-	HasNext      bool `json:"hasNext"`
-	HasPrevious  bool `json:"hasPrevious"`
-}
-
-// ChannelResponse represents a channel in API responses
-type ChannelResponse struct {
-	ID                   string    `json:"id"`
-	Title                string    `json:"title"`
-	CustomURL            string    `json:"customUrl,omitempty"`
-	ThumbnailURL         string    `json:"thumbnailUrl,omitempty"`
-	CreatedAt            time.Time `json:"createdAt"`
-	LastVideoPublishedAt time.Time `json:"lastVideoPublishedAt,omitempty"`
-	VideoCount           int       `json:"videoCount"`
-	IsActive             bool      `json:"isActive"`
-}
-
-// ChannelsResponse represents the response for GET /api/channels
-type ChannelsResponse struct {
-	Channels    []ChannelResponse `json:"channels"`
-	TotalCount  int               `json:"totalCount"`
-	LastUpdated time.Time         `json:"lastUpdated"`
-}
-
-// VideoLinkResponse represents a video link in API responses
-type VideoLinkResponse struct {
-	Href string `json:"href"`
-	Rel  string `json:"rel"`
-}
-
-// VideoAuthorResponse represents a video author in API responses
-type VideoAuthorResponse struct {
-	Name string `json:"name"`
-	URI  string `json:"uri"`
-}
-
-// VideoMediaThumbnailResponse represents a video thumbnail in API responses
-type VideoMediaThumbnailResponse struct {
-	URL    string `json:"url"`
-	Width  string `json:"width"`
-	Height string `json:"height"`
-}
-
-// VideoMediaContentResponse represents video media content in API responses
-type VideoMediaContentResponse struct {
-	URL    string `json:"url"`
-	Type   string `json:"type"`
-	Width  string `json:"width"`
-	Height string `json:"height"`
-}
-
-// VideoMediaGroupResponse represents video media group in API responses
-type VideoMediaGroupResponse struct {
-	MediaThumbnail   VideoMediaThumbnailResponse `json:"mediaThumbnail"`
-	MediaTitle       string                      `json:"mediaTitle"`
-	MediaContent     VideoMediaContentResponse   `json:"mediaContent"`
-	MediaDescription string                      `json:"mediaDescription"`
-}
-
-// VideoResponse represents a video in API responses matching the frontend VideoEntry interface
-type VideoResponse struct {
-	ID         string                  `json:"id"`
-	ChannelID  string                  `json:"channelId"`
-	CachedAt   time.Time               `json:"cachedAt"`
-	Watched    bool                    `json:"watched"`
-	Title      string                  `json:"title"`
-	Link       VideoLinkResponse       `json:"link"`
-	Published  time.Time               `json:"published"`
-	Content    string                  `json:"content"`
-	Author     VideoAuthorResponse     `json:"author"`
-	MediaGroup VideoMediaGroupResponse `json:"mediaGroup"`
-}
-
-// VideosResponse represents the response for GET /api/videos
-type VideosResponse struct {
-	Videos      []VideoResponse `json:"videos"`
-	TotalCount  int             `json:"totalCount"`
-	LastRefresh time.Time       `json:"lastRefresh"`
-	Pagination  *Pagination     `json:"pagination,omitempty"`
-}
-
-// NewsletterRunResponse represents the response from triggering a newsletter run
-type NewsletterRunResponse struct {
-	Message           string `json:"message"`
-	ChannelsProcessed int    `json:"channelsProcessed"`
-	ChannelsWithError int    `json:"channelsWithError"`
-	NewVideosFound    int    `json:"newVideosFound"`
-	EmailSent         bool   `json:"emailSent"`
-}
-
-// Transformation functions to convert internal types to API response types
-
-// transformChannel converts a store.Channel to ChannelResponse
-func transformChannel(channel store.Channel) ChannelResponse {
-	return ChannelResponse{
-		ID:         channel.ID,
-		Title:      channel.Title,
-		CreatedAt:  time.Now(), // TODO: Add CreatedAt to store.Channel if needed
-		IsActive:   true,       // TODO: Add IsActive to store.Channel if needed
-		VideoCount: 0,          // TODO: Calculate video count if needed
-	}
-}
-
-// transformChannels converts a slice of store.Channel to ChannelsResponse
-func transformChannels(channels []store.Channel) ChannelsResponse {
-	channelResponses := make([]ChannelResponse, len(channels))
-	for i, channel := range channels {
-		channelResponses[i] = transformChannel(channel)
-	}
-
-	return ChannelsResponse{
-		Channels:    channelResponses,
-		TotalCount:  len(channels),
-		LastUpdated: time.Now(),
-	}
-}
-
-// transformVideoEntry converts a store.VideoEntry to VideoResponse matching the frontend VideoEntry interface
-func transformVideoEntry(videoEntry store.VideoEntry) VideoResponse {
-	entry := videoEntry.Entry
-
-	return VideoResponse{
-		ID:         entry.ID,
-		ChannelID:  videoEntry.ChannelID,
-		CachedAt:   videoEntry.CachedAt,
-		Watched:    videoEntry.Watched,
-		Title:      entry.Title,
-		Link:       transformVideoLink(entry.Link),
-		Published:  entry.Published,
-		Content:    entry.Content,
-		Author:     transformVideoAuthor(entry.Author),
-		MediaGroup: transformVideoMediaGroup(entry.MediaGroup),
-	}
-}
-
-// transformVideoLink converts rss.Link to VideoLinkResponse
-func transformVideoLink(link rss.Link) VideoLinkResponse {
-	return VideoLinkResponse{
-		Href: link.Href,
-		Rel:  link.Rel,
-	}
-}
-
-// transformVideoAuthor converts rss.Author to VideoAuthorResponse
-func transformVideoAuthor(author rss.Author) VideoAuthorResponse {
-	return VideoAuthorResponse{
-		Name: author.Name,
-		URI:  author.URI,
-	}
-}
-
-// transformVideoMediaGroup converts rss.MediaGroup to VideoMediaGroupResponse
-func transformVideoMediaGroup(mediaGroup rss.MediaGroup) VideoMediaGroupResponse {
-	return VideoMediaGroupResponse{
-		MediaThumbnail:   transformVideoMediaThumbnail(mediaGroup.MediaThumbnail),
-		MediaTitle:       mediaGroup.MediaTitle,
-		MediaContent:     transformVideoMediaContent(mediaGroup.MediaContent),
-		MediaDescription: mediaGroup.MediaDescription,
-	}
-}
-
-// transformVideoMediaThumbnail converts rss.MediaThumbnail to VideoMediaThumbnailResponse
-func transformVideoMediaThumbnail(thumbnail rss.MediaThumbnail) VideoMediaThumbnailResponse {
-	return VideoMediaThumbnailResponse{
-		URL:    thumbnail.URL,
-		Width:  thumbnail.Width,
-		Height: thumbnail.Height,
-	}
-}
-
-// transformVideoMediaContent converts rss.MediaContent to VideoMediaContentResponse
-func transformVideoMediaContent(content rss.MediaContent) VideoMediaContentResponse {
-	return VideoMediaContentResponse{
-		URL:    content.URL,
-		Type:   content.Type,
-		Width:  content.Width,
-		Height: content.Height,
-	}
-}
-
-// transformVideos converts video entries to VideosResponse
-func transformVideos(videoEntries []store.VideoEntry, lastRefresh time.Time) VideosResponse {
-	videoResponses := make([]VideoResponse, len(videoEntries))
-	for i, videoEntry := range videoEntries {
-		videoResponses[i] = transformVideoEntry(videoEntry)
-	}
-
-	return VideosResponse{
-		Videos:      videoResponses,
-		TotalCount:  len(videoEntries),
-		LastRefresh: lastRefresh,
-	}
-}
 
 // Handlers contains the API handlers
 type Handlers struct {
@@ -247,65 +42,6 @@ func NewHandlers(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	}
 }
 
-// Channel represents a channel in API responses (legacy, use ChannelResponse instead)
-type Channel struct {
-	ID    string `json:"id"`
-	Title string `json:"title"`
-}
-
-// ChannelRequest represents a request to add a channel
-// Title is optional; if not provided, it will be fetched from RSS
-type ChannelRequest struct {
-	URL   string `json:"url" validate:"required"`
-	Title string `json:"title,omitempty"`
-}
-
-// ConfigInterval represents the check interval configuration
-type ConfigInterval struct {
-	Interval string `json:"interval"`
-}
-
-// SMTPConfigRequest represents a request to update SMTP configuration
-type SMTPConfigRequest struct {
-	Server         string `json:"server" validate:"required"`
-	Port           string `json:"port" validate:"required"`
-	Username       string `json:"username" validate:"required"`
-	Password       string `json:"password" validate:"required"`
-	RecipientEmail string `json:"recipientEmail" validate:"required,email"`
-}
-
-// SMTPConfigResponse represents SMTP configuration in API responses (without password)
-type SMTPConfigResponse struct {
-	Server         string `json:"server"`
-	Port           string `json:"port"`
-	Username       string `json:"username"`
-	RecipientEmail string `json:"recipientEmail"`
-	PasswordSet    bool   `json:"passwordSet"`
-}
-
-// ImportChannelsRequest represents a request to import multiple channels
-type ImportChannelsRequest struct {
-	Channels []ChannelImport `json:"channels" validate:"required"`
-}
-
-// ChannelImport represents a channel to be imported
-type ChannelImport struct {
-	URL   string `json:"url" validate:"required"`
-	Title string `json:"title,omitempty"`
-}
-
-// ImportChannelsResponse represents the response from importing channels
-type ImportChannelsResponse struct {
-	Imported []ChannelResponse `json:"imported"`
-	Failed   []ImportFailure   `json:"failed"`
-}
-
-// ImportFailure represents a failed channel import
-type ImportFailure struct {
-	Channel ChannelImport `json:"channel"`
-	Error   string        `json:"error"`
-}
-
 // GetChannels handles GET /api/channels
 func (h *Handlers) GetChannels(c echo.Context) error {
 	channels, err := h.store.GetChannels()
@@ -317,13 +53,13 @@ func (h *Handlers) GetChannels(c echo.Context) error {
 		channels = []store.Channel{}
 	}
 
-	response := transformChannels(channels)
+	response := types.TransformChannels(channels)
 	return c.JSON(http.StatusOK, response)
 }
 
 // AddChannel handles POST /api/channels
 func (h *Handlers) AddChannel(c echo.Context) error {
-	var req ChannelRequest
+	var req types.ChannelRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
@@ -357,7 +93,7 @@ func (h *Handlers) AddChannel(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to add channel")
 	}
 
-	response := transformChannel(channel)
+	response := types.TransformChannel(channel)
 	return c.JSON(http.StatusCreated, response)
 }
 
@@ -388,12 +124,12 @@ func (h *Handlers) GetCheckInterval(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve check interval")
 	}
 
-	return c.JSON(http.StatusOK, ConfigInterval{Interval: interval.String()})
+	return c.JSON(http.StatusOK, types.ConfigInterval{Interval: interval.String()})
 }
 
 // SetCheckInterval handles PUT /api/config/interval
 func (h *Handlers) SetCheckInterval(c echo.Context) error {
-	var req ConfigInterval
+	var req types.ConfigInterval
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
@@ -421,7 +157,7 @@ func (h *Handlers) SetCheckInterval(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to set check interval")
 	}
 
-	return c.JSON(http.StatusOK, ConfigInterval{Interval: duration.String()})
+	return c.JSON(http.StatusOK, types.ConfigInterval{Interval: duration.String()})
 }
 
 // GetSMTPConfig handles GET /api/config/smtp
@@ -433,13 +169,13 @@ func (h *Handlers) GetSMTPConfig(c echo.Context) error {
 
 	// If no config exists, return empty response
 	if config == nil {
-		return c.JSON(http.StatusOK, SMTPConfigResponse{
+		return c.JSON(http.StatusOK, types.SMTPConfigResponse{
 			PasswordSet: false,
 		})
 	}
 
 	// Return config without password
-	response := SMTPConfigResponse{
+	response := types.SMTPConfigResponse{
 		Server:         config.Server,
 		Port:           config.Port,
 		Username:       config.Username,
@@ -480,7 +216,7 @@ func (h *Handlers) MarkVideoAsWatched(c echo.Context) error {
 
 // SetSMTPConfig handles PUT /api/config/smtp
 func (h *Handlers) SetSMTPConfig(c echo.Context) error {
-	var req SMTPConfigRequest
+	var req types.SMTPConfigRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
@@ -522,7 +258,7 @@ func (h *Handlers) SetSMTPConfig(c echo.Context) error {
 	}
 
 	// Return response without password
-	response := SMTPConfigResponse{
+	response := types.SMTPConfigResponse{
 		Server:         req.Server,
 		Port:           req.Port,
 		Username:       req.Username,
@@ -535,7 +271,7 @@ func (h *Handlers) SetSMTPConfig(c echo.Context) error {
 
 // ImportChannels handles POST /api/channels/import
 func (h *Handlers) ImportChannels(c echo.Context) error {
-	var req ImportChannelsRequest
+	var req types.ImportChannelsRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
@@ -544,14 +280,14 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "At least one channel is required")
 	}
 
-	var imported []ChannelResponse
-	var failed []ImportFailure
+	var imported []types.ChannelResponse
+	var failed []types.ImportFailure
 
 	ctx := context.Background()
 
 	for _, channelImport := range req.Channels {
 		if channelImport.URL == "" {
-			failed = append(failed, ImportFailure{
+			failed = append(failed, types.ImportFailure{
 				Channel: channelImport,
 				Error:   "URL is required",
 			})
@@ -561,7 +297,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 		// Extract channel ID from URL, with yt-dlp fallback for @username, /c/, /user/ URLs
 		channelID, err := extractChannelIDWithYtdlpFallback(c.Request().Context(), h.ytdlpEnricher, channelImport.URL)
 		if err != nil {
-			failed = append(failed, ImportFailure{
+			failed = append(failed, types.ImportFailure{
 				Channel: channelImport,
 				Error:   err.Error(),
 			})
@@ -573,7 +309,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 			// Fetch title from RSS feed
 			feed, err := h.feedProvider.FetchFeed(ctx, channelID)
 			if err != nil {
-				failed = append(failed, ImportFailure{
+				failed = append(failed, types.ImportFailure{
 					Channel: channelImport,
 					Error:   "Could not fetch channel title from RSS feed: " + err.Error(),
 				})
@@ -581,7 +317,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 			}
 			title = feed.Title
 			if title == "" {
-				failed = append(failed, ImportFailure{
+				failed = append(failed, types.ImportFailure{
 					Channel: channelImport,
 					Error:   "Channel title could not be determined from RSS feed",
 				})
@@ -591,7 +327,7 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 
 		channel := store.Channel{ID: channelID, Title: title}
 		if err := h.store.AddChannel(channel); err != nil {
-			failed = append(failed, ImportFailure{
+			failed = append(failed, types.ImportFailure{
 				Channel: channelImport,
 				Error:   "Failed to add channel to database: " + err.Error(),
 			})
@@ -599,10 +335,10 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 		}
 
 		storeChannel := store.Channel{ID: channelID, Title: title}
-		imported = append(imported, transformChannel(storeChannel))
+		imported = append(imported, types.TransformChannel(storeChannel))
 	}
 
-	response := ImportChannelsResponse{
+	response := types.ImportChannelsResponse{
 		Imported: imported,
 		Failed:   failed,
 	}
@@ -616,16 +352,9 @@ func (h *Handlers) ImportChannels(c echo.Context) error {
 	return c.JSON(statusCode, response)
 }
 
-// RunNewsletterRequest represents a request to manually trigger newsletter run
-type RunNewsletterRequest struct {
-	ChannelID         string `json:"channelId,omitempty"`
-	IgnoreLastChecked bool   `json:"ignoreLastChecked,omitempty"`
-	MaxItems          int    `json:"maxItems,omitempty"`
-}
-
 // RunNewsletter handles POST /api/newsletter/run
 func (h *Handlers) RunNewsletter(c echo.Context) error {
-	var req RunNewsletterRequest
+	var req types.RunNewsletterRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
 	}
@@ -725,7 +454,7 @@ func (h *Handlers) RunNewsletter(c echo.Context) error {
 	}
 
 	// Return response with stats
-	response := NewsletterRunResponse{
+	response := types.NewsletterRunResponse{
 		Message:           "Newsletter run completed",
 		ChannelsProcessed: processedCount,
 		ChannelsWithError: errorCount,
@@ -783,7 +512,7 @@ func (h *Handlers) GetVideos(c echo.Context) error {
 	})
 
 	// Prepare response using the transformation function
-	response := transformVideos(videos, h.videoStore.GetLastRefreshedAt())
+	response := types.TransformVideos(videos, h.videoStore.GetLastRefreshedAt())
 
 	return c.JSON(http.StatusOK, response)
 }
