@@ -1,6 +1,7 @@
 package api
 
 import (
+	"youtube-curator-v2/internal/api/handlers"
 	"youtube-curator-v2/internal/config"
 	"youtube-curator-v2/internal/email"
 	"youtube-curator-v2/internal/processor"
@@ -22,33 +23,39 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	e.Use(middleware.Recover())
 	e.Use(middleware.CORS())
 
-	// Create handlers
-	handlers := NewHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher, summaryService)
+	// Create base handlers with shared dependencies
+	baseHandlers := handlers.NewBaseHandlers(store, feedProvider, emailSender, cfg, channelProcessor, videoStore, ytdlpEnricher, summaryService)
+
+	// Create domain-specific handlers
+	channelHandlers := handlers.NewChannelHandlers(baseHandlers)
+	configHandlers := handlers.NewConfigHandlers(baseHandlers)
+	videoHandlers := handlers.NewVideoHandlers(baseHandlers)
+	newsletterHandlers := handlers.NewNewsletterHandlers(baseHandlers)
 
 	// API routes
 	api := e.Group("/api")
 
 	// Channel management endpoints
-	api.GET("/channels", handlers.GetChannels)
-	api.POST("/channels", handlers.AddChannel)
-	api.POST("/channels/import", handlers.ImportChannels)
-	api.DELETE("/channels/:id", handlers.RemoveChannel)
+	api.GET("/channels", channelHandlers.GetChannels)
+	api.POST("/channels", channelHandlers.AddChannel)
+	api.POST("/channels/import", channelHandlers.ImportChannels)
+	api.DELETE("/channels/:id", channelHandlers.RemoveChannel)
 
 	// Configuration endpoints
-	api.GET("/config/interval", handlers.GetCheckInterval)
-	api.PUT("/config/interval", handlers.SetCheckInterval)
-	api.GET("/config/smtp", handlers.GetSMTPConfig)
-	api.PUT("/config/smtp", handlers.SetSMTPConfig)
-	api.GET("/config/llm", handlers.GetLLMConfig)
-	api.PUT("/config/llm", handlers.SetLLMConfig)
+	api.GET("/config/interval", configHandlers.GetCheckInterval)
+	api.PUT("/config/interval", configHandlers.SetCheckInterval)
+	api.GET("/config/smtp", configHandlers.GetSMTPConfig)
+	api.PUT("/config/smtp", configHandlers.SetSMTPConfig)
+	api.GET("/config/llm", configHandlers.GetLLMConfig)
+	api.PUT("/config/llm", configHandlers.SetLLMConfig)
 
 	// Newsletter endpoints
-	api.POST("/newsletter/run", handlers.RunNewsletter)
+	api.POST("/newsletter/run", newsletterHandlers.RunNewsletter)
 
 	// Video endpoints
-	api.GET("/videos", handlers.GetVideos)
-	api.POST("/videos/:videoId/watch", handlers.MarkVideoAsWatched)
-	api.GET("/videos/:videoId/summary", handlers.GetVideoSummary)
+	api.GET("/videos", videoHandlers.GetVideos)
+	api.POST("/videos/:videoId/watch", videoHandlers.MarkVideoAsWatched)
+	api.GET("/videos/:videoId/summary", videoHandlers.GetVideoSummary)
 
 	return e
 }
