@@ -24,6 +24,7 @@ export default function NotificationsPage() {
   const [isLoadingSMTP, setIsLoadingSMTP] = useState(true);
   const [isSavingSMTP, setIsSavingSMTP] = useState(false);
   const [smtpResult, setSMTPResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [smtpPasswordSet, setSMTPPasswordSet] = useState(false);
 
   // LLM Configuration State
   const [llmConfig, setLLMConfig] = useState<LLMConfigRequest>({
@@ -34,6 +35,7 @@ export default function NotificationsPage() {
   const [isLoadingLLM, setIsLoadingLLM] = useState(true);
   const [isSavingLLM, setIsSavingLLM] = useState(false);
   const [llmResult, setLLMResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+  const [llmApiKeySet, setLLMApiKeySet] = useState(false);
 
   useEffect(() => {
     loadChannels();
@@ -62,6 +64,7 @@ export default function NotificationsPage() {
         password: '', // Password is never returned from API
         recipientEmail: data.recipientEmail || ''
       });
+      setSMTPPasswordSet(data.passwordSet || false);
     } catch (error) {
       console.error('Failed to load SMTP configuration:', error);
     } finally {
@@ -73,10 +76,11 @@ export default function NotificationsPage() {
     try {
       const data = await configAPI.getLLM();
       setLLMConfig({
-        endpoint: data.endpoint || '',
+        endpoint: data.endpointUrl || '',
         apiKey: '', // API key is never returned from API
         model: data.model || ''
       });
+      setLLMApiKeySet(data.apiKeySet || false);
     } catch (error) {
       console.error('Failed to load LLM configuration:', error);
     } finally {
@@ -123,6 +127,7 @@ export default function NotificationsPage() {
     try {
       await configAPI.setSMTP(smtpConfig);
       setSMTPResult({ type: 'success', message: 'SMTP configuration saved successfully!' });
+      setSMTPPasswordSet(true); // Password is now set
     } catch (error) {
       setSMTPResult({ 
         type: 'error', 
@@ -141,6 +146,7 @@ export default function NotificationsPage() {
     try {
       await configAPI.setLLM(llmConfig);
       setLLMResult({ type: 'success', message: 'LLM configuration saved successfully!' });
+      setLLMApiKeySet(true); // API key is now set
     } catch (error) {
       setLLMResult({ 
         type: 'error', 
@@ -362,12 +368,12 @@ export default function NotificationsPage() {
                     type="password"
                     value={smtpConfig.password}
                     onChange={(e) => setSMTPConfig({ ...smtpConfig, password: e.target.value })}
-                    placeholder="••••••••"
+                    placeholder={smtpPasswordSet ? "••••••••" : "Enter password"}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     required
                   />
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    For Gmail, use an app-specific password
+                    {smtpPasswordSet ? "Password is already configured. Leave blank to keep current password." : "For Gmail, use an app-specific password"}
                   </p>
                 </div>
               </div>
@@ -509,12 +515,12 @@ export default function NotificationsPage() {
                   type="password"
                   value={llmConfig.apiKey}
                   onChange={(e) => setLLMConfig({ ...llmConfig, apiKey: e.target.value })}
-                  placeholder="sk-..."
+                  placeholder={llmApiKeySet ? "••••••••" : "sk-..."}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  Your API key for the LLM service
+                  {llmApiKeySet ? "API key is already configured. Leave blank to keep current key." : "Your API key for the LLM service"}
                 </p>
               </div>
 

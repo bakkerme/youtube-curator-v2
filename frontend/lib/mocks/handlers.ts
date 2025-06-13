@@ -89,15 +89,16 @@ export const mockVideos = [
 
 export const mockConfig = {
   smtp: {
-    host: 'smtp.gmail.com',
-    port: 587,
+    server: 'smtp.gmail.com',
+    port: '587',
     username: 'test@example.com',
-    password: '',
-    fromAddress: 'test@example.com',
     recipientEmail: 'recipient@example.com',
-    emailHour: 9,
-    emailMinute: 0,
-    emailTimezone: 'America/New_York',
+    passwordSet: true,
+  },
+  llm: {
+    endpointUrl: 'https://api.openai.com/v1',
+    model: 'gpt-3.5-turbo',
+    apiKeySet: true,
   },
 }
 
@@ -208,10 +209,29 @@ export const handlers = [
 
   http.post('/api/config/smtp', async ({ request }) => {
     const body = await request.json() as Record<string, unknown>
-    return HttpResponse.json({ ...mockConfig.smtp, ...body })
+    return HttpResponse.json({ 
+      server: body.server || mockConfig.smtp.server,
+      port: body.port || mockConfig.smtp.port,
+      username: body.username || mockConfig.smtp.username,
+      recipientEmail: body.recipientEmail || mockConfig.smtp.recipientEmail,
+      passwordSet: true
+    })
   }),
 
   http.post('/api/config/smtp/test', () => {
     return HttpResponse.json({ message: 'Test email sent successfully' })
+  }),
+
+  http.get('/api/config/llm', () => {
+    return HttpResponse.json(mockConfig.llm)
+  }),
+
+  http.post('/api/config/llm', async ({ request }) => {
+    const body = await request.json() as Record<string, unknown>
+    return HttpResponse.json({ 
+      endpointUrl: body.endpoint || mockConfig.llm.endpointUrl,
+      model: body.model || mockConfig.llm.model,
+      apiKeySet: true 
+    })
   }),
 ] 
