@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, LLMConfigRequest, LLMConfigResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideosAPIResponse } from './types';
+import { Channel, ChannelRequest, ConfigInterval, ImportChannelsRequest, ImportChannelsResponse, LLMConfigRequest, LLMConfigResponse, RunNewsletterRequest, RunNewsletterResponse, SMTPConfigRequest, SMTPConfigResponse, VideosAPIResponse, VideoSummaryResponse } from './types';
 import { getRuntimeConfig } from './config';
 
 // Create axios instance that will be configured with runtime config
@@ -149,6 +149,33 @@ function extractRawVideoId(fullVideoId: string): string {
   return fullVideoId;
 }
 
+// Helper function to extract video ID from YouTube URLs or return ID as-is
+export function extractVideoId(input: string): string {
+  // Remove whitespace
+  input = input.trim();
+  
+  // If it's already a video ID (11 characters, alphanumeric with - and _)
+  if (/^[a-zA-Z0-9_-]{11}$/.test(input)) {
+    return input;
+  }
+  
+  // YouTube URL patterns
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    /youtube\.com\/.*[?&]v=([a-zA-Z0-9_-]{11})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = input.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  
+  // If no pattern matches, return the input as-is (might still be a valid ID)
+  return input;
+}
+
 // Video APIs
 export const videoAPI = {
   getAll: async (refresh?: boolean): Promise<VideosAPIResponse> => {
@@ -163,6 +190,14 @@ export const videoAPI = {
     return makeRequest(async () => {
       const rawVideoId = extractRawVideoId(videoId);
       await api.post(`/videos/${rawVideoId}/watch`);
+    });
+  },
+
+  getSummary: async (videoId: string): Promise<VideoSummaryResponse> => {
+    return makeRequest(async () => {
+      const rawVideoId = extractRawVideoId(videoId);
+      const { data } = await api.get<VideoSummaryResponse>(`/videos/${rawVideoId}/summary`);
+      return data;
     });
   },
 };

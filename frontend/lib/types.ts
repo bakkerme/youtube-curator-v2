@@ -127,3 +127,8 @@ export interface VideosAPIResponse {
   lastRefresh: string;
   totalCount: number;
 }
+
+export interface VideoSummaryResponse {
+  summary: string;
+  thinking?: string;
+}

@@ -132,6 +132,7 @@ type LLMConfigResponse struct {
 type VideoSummaryResponse struct {
 	VideoID        string `json:"videoId"`
 	Summary        string `json:"summary"`
+	Thinking       string `json:"thinking,omitempty"`  // LLM thinking content from <think> blocks
 	SourceLanguage string `json:"sourceLanguage"`
 	GeneratedAt    string `json:"generatedAt"` // ISO 8601 format
 	Tracked        bool   `json:"tracked"`     // Whether this video is from a tracked channel

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import Link from "next/link";
-import { Bell, Home, Settings } from "lucide-react";
+import { Bell, Home, Settings, FileText } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Curator",
@@ -39,6 +39,10 @@ export default function RootLayout({
                       <Link href="/subscriptions" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Bell className="w-4 h-4" />
                         <span className="hidden sm:inline">Subscriptions</span>
+                      </Link>
+                      <Link href="/summary" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
+                        <FileText className="w-4 h-4" />
+                        <span className="hidden sm:inline">Summary</span>
                       </Link>
                       <Link href="/notifications" className="flex items-center space-x-2 hover:text-gray-600 dark:hover:text-gray-300">
                         <Settings className="w-4 h-4" />

@@ -2,10 +2,12 @@ package summary
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -25,6 +27,7 @@ type SummaryServiceInterface interface {
 type SummaryResult struct {
 	VideoID        string
 	Summary        string
+	Thinking       string
 	SourceLanguage string
 	GeneratedAt    time.Time
 	Tracked        bool
@@ -77,13 +80,14 @@ func (s *Service) GetOrGenerateSummary(ctx context.Context, videoID string) *Sum
 	}
 
 	// Generate new summary
-	generatedSummary, sourceLanguage, err := s.generateSummary(ctx, videoID, llmConfig)
+	generatedSummary, thinking, sourceLanguage, err := s.generateSummary(ctx, videoID, llmConfig)
 	if err != nil {
 		result.Error = err
 		return result
 	}
 
 	result.Summary = generatedSummary
+	result.Thinking = thinking
 	result.SourceLanguage = sourceLanguage
 	result.GeneratedAt = time.Now()
 	result.Tracked = false // For now, arbitrary videos are not tracked
@@ -100,39 +104,42 @@ func (s *Service) findExistingSummary(videoID string) (*rss.Summary, bool) {
 }
 
 // generateSummary generates a new summary for a video
-func (s *Service) generateSummary(ctx context.Context, videoID string, llmConfig *store.LLMConfig) (string, string, error) {
+func (s *Service) generateSummary(ctx context.Context, videoID string, llmConfig *store.LLMConfig) (string, string, string, error) {
 	// Create a temporary entry to enrich with subtitles
 	entry := &rss.Entry{
-		ID: fmt.Sprintf("yt:video:%s", videoID),
+		ID: videoID, // videoID should already be in yt:video:ID format from the handler
 	}
 
 	// Use yt-dlp to fetch subtitles
 	err := s.ytdlpEnricher.EnrichEntry(ctx, entry)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch video metadata: %w", err)
+		return "", "", "", fmt.Errorf("failed to fetch video metadata: %w", err)
 	}
 
 	// Check if we have subtitles
 	if entry.AutoSubtitles == "" {
-		return "", "", fmt.Errorf("no subtitles available for video")
+		return "", "", "", fmt.Errorf("no subtitles available for video")
 	}
 
 	// Fetch and parse actual subtitle content from the URL
 	subtitleText, err := s.fetchSubtitleText(ctx, entry.AutoSubtitles)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch subtitle content: %w", err)
+		return "", "", "", fmt.Errorf("failed to fetch subtitle content: %w", err)
 	}
 
 	// Generate summary using LLM
-	summary, err := s.callLLMForSummary(ctx, subtitleText, llmConfig)
+	rawResponse, err := s.callLLMForSummary(ctx, subtitleText, llmConfig)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate summary: %w", err)
+		return "", "", "", fmt.Errorf("failed to generate summary: %w", err)
 	}
+
+	// Parse thinking blocks from the response
+	thinking, summary := parseThinkingBlocks(rawResponse)
 
 	// Assume English for now - in a real implementation, you'd detect language
 	sourceLanguage := "en"
 
-	return summary, sourceLanguage, nil
+	return summary, thinking, sourceLanguage, nil
 }
 
 // callLLMForSummary calls the LLM to generate a summary
@@ -140,15 +147,9 @@ func (s *Service) callLLMForSummary(ctx context.Context, subtitleText string, ll
 	// Create OpenAI client with the configured settings
 	client := openai.New(llmConfig.EndpointURL, llmConfig.APIKey, llmConfig.Model)
 
-	systemPrompt := `You are a helpful assistant that creates concise, informative summaries of YouTube video content based on their subtitles. 
+	systemPrompt := `Summarize the provided YouTube video, providing all the key points of the video and any related insights. Don't be afraid to go in-depth with the details.`
 
-Please create a summary that:
-- Captures the main points and key insights
-- Is approximately 2-4 sentences long
-- Focuses on the most important information
-- Is written in a clear, engaging style`
-
-	userPrompt := fmt.Sprintf("Please summarize this YouTube video based on its subtitles:\n\n%s", subtitleText)
+	userPrompt := subtitleText
 
 	// Create a channel to receive the result
 	resultChan := make(chan customerrors.ErrorString, 1)
@@ -221,7 +222,10 @@ func (s *Service) fetchSubtitleText(ctx context.Context, subtitleURL string) (st
 		return "", fmt.Errorf("no text content found in subtitles")
 	}
 
-	return subtitleText, nil
+	// Optimize text for token efficiency
+	optimizedText := s.optimizeSubtitleText(subtitleText)
+
+	return optimizedText, nil
 }
 
 // parseSubtitleContent parses subtitle content from VTT or SRT format
@@ -283,4 +287,235 @@ func (s *Service) parseSubtitleContent(content string) string {
 
 	// Join all text lines with spaces
 	return strings.Join(textLines, " ")
+}
+
+// JSONSubtitleSegment represents a segment in JSON subtitle format
+type JSONSubtitleSegment struct {
+	UTF8      string `json:"utf8"`
+	TOffsetMs int    `json:"tOffsetMs"`
+	AcAsrConf int    `json:"acAsrConf"`
+}
+
+// JSONSubtitleEvent represents an event in JSON subtitle format
+type JSONSubtitleEvent struct {
+	TStartMs    int                   `json:"tStartMs"`
+	DDurationMs int                   `json:"dDurationMs"`
+	WwinId      int                   `json:"wWinId"`
+	AAppend     int                   `json:"aAppend"`
+	Segs        []JSONSubtitleSegment `json:"segs"`
+}
+
+// JSONSubtitleRoot represents the root of JSON subtitle format
+type JSONSubtitleRoot struct {
+	Events []JSONSubtitleEvent `json:"events"`
+}
+
+// optimizeSubtitleText performs comprehensive optimization of subtitle text
+func (s *Service) optimizeSubtitleText(text string) string {
+	// First try to parse as JSON format (YouTube's new format)
+	if strings.HasPrefix(strings.TrimSpace(text), "{") {
+		if jsonText := s.parseJSONSubtitles(text); jsonText != "" {
+			text = jsonText
+		}
+	}
+
+	// Remove common filler words and patterns
+	text = s.removeFillerWords(text)
+
+	// Remove consecutive duplicate sentences
+	text = s.removeDuplicateSentences(text)
+
+	// Apply length limits for very long content
+	text = s.truncateIfTooLong(text)
+
+	return strings.TrimSpace(text)
+}
+
+// parseJSONSubtitles extracts text from YouTube's JSON subtitle format
+func (s *Service) parseJSONSubtitles(jsonContent string) string {
+	var subtitleData JSONSubtitleRoot
+
+	if err := json.Unmarshal([]byte(jsonContent), &subtitleData); err != nil {
+		// If JSON parsing fails, return empty string to fall back to original parsing
+		return ""
+	}
+
+	var textSegments []string
+
+	// Extract text from all events, sorted by timestamp
+	type TimedText struct {
+		Text      string
+		Timestamp int
+	}
+
+	var timedTexts []TimedText
+
+	for _, event := range subtitleData.Events {
+		for _, seg := range event.Segs {
+			if seg.UTF8 != "" && seg.UTF8 != "\n" {
+				// Skip music/sound effect markers
+				if strings.HasPrefix(seg.UTF8, "[") && strings.HasSuffix(seg.UTF8, "]") {
+					continue
+				}
+
+				timedTexts = append(timedTexts, TimedText{
+					Text:      seg.UTF8,
+					Timestamp: event.TStartMs + seg.TOffsetMs,
+				})
+			}
+		}
+	}
+
+	// Sort by timestamp to maintain chronological order
+	sort.Slice(timedTexts, func(i, j int) bool {
+		return timedTexts[i].Timestamp < timedTexts[j].Timestamp
+	})
+
+	// Combine text segments
+	for _, timed := range timedTexts {
+		textSegments = append(textSegments, timed.Text)
+	}
+
+	return strings.Join(textSegments, " ")
+}
+
+// removeFillerWords removes common filler words and patterns
+func (s *Service) removeFillerWords(text string) string {
+	// Common filler words and patterns in auto-generated subtitles
+	fillerPatterns := []struct{ pattern, replacement string }{
+		{` um `, ` `}, {` uh `, ` `}, {` like `, ` `},
+		{` you know `, ` `}, {` I mean `, ` `}, {` so `, ` `},
+		{` well `, ` `}, {` basically `, ` `}, {` actually `, ` `},
+		{`[Music]`, ``}, {`[Applause]`, ``}, {`[Laughter]`, ``},
+		{`[Sound Effects]`, ``}, {`[Background Music]`, ``},
+	}
+
+	for _, pattern := range fillerPatterns {
+		text = strings.ReplaceAll(text, pattern.pattern, pattern.replacement)
+	}
+
+	// Compress multiple spaces into single spaces
+	text = regexp.MustCompile(`\s+`).ReplaceAllString(text, ` `)
+
+	return text
+}
+
+// removeDuplicateSentences removes consecutive duplicate or very similar sentences
+func (s *Service) removeDuplicateSentences(text string) string {
+	sentences := strings.Split(text, `. `)
+	if len(sentences) <= 1 {
+		return text
+	}
+
+	var uniqueSentences []string
+	lastSentence := ""
+
+	for _, sentence := range sentences {
+		sentence = strings.TrimSpace(sentence)
+
+		// Skip very short fragments
+		if len(sentence) < 10 {
+			continue
+		}
+
+		// Check if this sentence is very similar to the last one
+		if !s.isSimilarSentence(sentence, lastSentence) {
+			uniqueSentences = append(uniqueSentences, sentence)
+			lastSentence = sentence
+		}
+	}
+
+	return strings.Join(uniqueSentences, `. `)
+}
+
+// isSimilarSentence checks if two sentences are very similar (likely duplicates)
+func (s *Service) isSimilarSentence(sentence1, sentence2 string) bool {
+	if sentence1 == sentence2 {
+		return true
+	}
+
+	// Check for high word overlap (simple similarity check)
+	words1 := strings.Fields(strings.ToLower(sentence1))
+	words2 := strings.Fields(strings.ToLower(sentence2))
+
+	if len(words1) == 0 || len(words2) == 0 {
+		return false
+	}
+
+	// Count common words
+	wordCount1 := make(map[string]int)
+	for _, word := range words1 {
+		wordCount1[word]++
+	}
+
+	commonWords := 0
+	for _, word := range words2 {
+		if wordCount1[word] > 0 {
+			commonWords++
+			wordCount1[word]--
+		}
+	}
+
+	// If more than 70% of words are common, consider similar
+	maxLen := len(words1)
+	if len(words2) > maxLen {
+		maxLen = len(words2)
+	}
+
+	similarity := float64(commonWords) / float64(maxLen)
+	return similarity > 0.7
+}
+
+// truncateIfTooLong limits the text length for very long videos
+func (s *Service) truncateIfTooLong(text string) string {
+	// Rough estimation: 1 token ≈ 4 characters
+	// Target max ~3000 tokens (12000 characters) for input
+	maxChars := 12000
+
+	if len(text) <= maxChars {
+		return text
+	}
+
+	// For very long content, take first 40%, middle 20%, last 40%
+	firstPart := text[:int(float64(maxChars)*0.4)]
+	lastPart := text[len(text)-int(float64(maxChars)*0.4):]
+
+	// Find a good break point (end of sentence) for cleaner truncation
+	if lastDot := strings.LastIndex(firstPart, `. `); lastDot > len(firstPart)-100 {
+		firstPart = firstPart[:lastDot+2]
+	}
+
+	if firstDot := strings.Index(lastPart, `. `); firstDot < 100 && firstDot > 0 {
+		lastPart = lastPart[firstDot+2:]
+	}
+
+	return firstPart + ` [content abbreviated] ` + lastPart
+}
+
+// parseThinkingBlocks extracts <think></think> blocks from LLM response and returns separated content
+func parseThinkingBlocks(response string) (thinking string, summary string) {
+	// Use regex to find and extract thinking blocks
+	thinkingPattern := regexp.MustCompile(`(?s)<think>(.*?)</think>`)
+	
+	// Extract all thinking content
+	thinkingMatches := thinkingPattern.FindAllStringSubmatch(response, -1)
+	var thinkingParts []string
+	
+	for _, match := range thinkingMatches {
+		if len(match) > 1 {
+			thinkingParts = append(thinkingParts, strings.TrimSpace(match[1]))
+		}
+	}
+	
+	// Remove thinking blocks from the response to get clean summary
+	cleanSummary := thinkingPattern.ReplaceAllString(response, "")
+	cleanSummary = strings.TrimSpace(cleanSummary)
+	
+	// Clean up any multiple newlines that might be left
+	cleanSummary = regexp.MustCompile(`\n\s*\n`).ReplaceAllString(cleanSummary, "\n\n")
+	
+	// Join thinking parts if multiple blocks exist
+	thinking = strings.Join(thinkingParts, "\n\n")
+	
+	return thinking, cleanSummary
 }

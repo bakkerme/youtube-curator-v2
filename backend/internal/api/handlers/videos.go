@@ -145,6 +145,7 @@ func (h *VideoHandlers) GetVideoSummary(c echo.Context) error {
 	response := types.VideoSummaryResponse{
 		VideoID:        videoID,
 		Summary:        result.Summary,
+		Thinking:       result.Thinking,
 		SourceLanguage: result.SourceLanguage,
 		GeneratedAt:    result.GeneratedAt.Format(time.RFC3339),
 		Tracked:        result.Tracked,
