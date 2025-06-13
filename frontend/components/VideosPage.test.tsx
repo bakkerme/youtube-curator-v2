@@ -866,7 +866,7 @@ describe('VideosPage', () => {
     });
 
     // Resolve the refresh promise
-    resolveRefresh!({ videos: mockRefreshedVideoEntry, lastRefresh: todayISOString });
+    resolveRefresh!({ videos: mockRefreshedVideoEntry, lastRefresh: todayISOString, totalCount: mockRefreshedVideoEntry.length });
 
     // Wait for refresh to complete and verify title is restored
     await waitFor(() => {

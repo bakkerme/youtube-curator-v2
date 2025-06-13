@@ -291,4 +291,139 @@ test.describe('UI Screenshots for PR Review', () => {
       await captureScreenshot(page, 'tablet-subscriptions-dark.png');
     });
   });
+
+  test.describe('Watch Page Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
+    test('should capture watch page with valid video - light mode', async ({ page }) => {
+      await page.goto('/watch/dQw4w9WgXcQ');
+      await waitForPageLoad(page);
+      
+      // Wait for video title to load
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'watch-video-light.png');
+    });
+
+    test('should capture watch page with video not found - light mode', async ({ page }) => {
+      await page.goto('/watch/nonexistent-video-id');
+      await waitForPageLoad(page);
+      
+      // Wait for "Video Not Found" message
+      await page.waitForSelector('h1:has-text("Video Not Found")', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'watch-not-found-light.png');
+    });
+
+    test('should capture watch page loading state - light mode', async ({ page }) => {
+      // Delay the API response to capture loading state
+      await page.route('**/localhost:8080/api/videos*', async (route) => {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await route.fulfill({ 
+          json: { 
+            videos: mockVideoEntries, 
+            lastRefresh: new Date().toISOString(),
+            totalCount: mockVideoEntries.length 
+          } 
+        });
+      });
+      
+      await page.goto('/watch/dQw4w9WgXcQ');
+      
+      // Wait for loading skeleton to appear
+      await page.waitForSelector('.animate-pulse', { timeout: 5000 });
+      
+      await captureScreenshot(page, 'watch-loading-light.png');
+    });
+  });
+
+  test.describe('Watch Page Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('should capture watch page with valid video - dark mode', async ({ page }) => {
+      await page.goto('/watch/dQw4w9WgXcQ');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'watch-video-dark.png');
+    });
+
+    test('should capture watch page with video not found - dark mode', async ({ page }) => {
+      await page.goto('/watch/nonexistent-video-id');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1:has-text("Video Not Found")', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'watch-not-found-dark.png');
+    });
+
+    test('should capture watch page loading state - dark mode', async ({ page }) => {
+      // Delay the API response to capture loading state
+      await page.route('**/localhost:8080/api/videos*', async (route) => {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        await route.fulfill({ 
+          json: { 
+            videos: mockVideoEntries, 
+            lastRefresh: new Date().toISOString(),
+            totalCount: mockVideoEntries.length 
+          } 
+        });
+      });
+      
+      await page.goto('/watch/dQw4w9WgXcQ');
+      
+      await page.waitForSelector('.animate-pulse', { timeout: 5000 });
+      
+      await captureScreenshot(page, 'watch-loading-dark.png');
+    });
+  });
+
+  test.describe('Watch Page Responsive Screenshots - Light Mode', () => {
+    test.use({ colorScheme: 'light' });
+
+    test('should capture mobile view - watch page - light mode', async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
+      await page.goto('/watch/abc123def45');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'mobile-watch-light.png');
+    });
+
+    test('should capture tablet view - watch page - light mode', async ({ page }) => {
+      await page.setViewportSize({ width: 768, height: 1024 }); // iPad
+      await page.goto('/watch/xyz789ghi01');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'tablet-watch-light.png');
+    });
+  });
+
+  test.describe('Watch Page Responsive Screenshots - Dark Mode', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('should capture mobile view - watch page - dark mode', async ({ page }) => {
+      await page.setViewportSize({ width: 375, height: 667 }); // iPhone SE
+      await page.goto('/watch/abc123def45');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'mobile-watch-dark.png');
+    });
+
+    test('should capture tablet view - watch page - dark mode', async ({ page }) => {
+      await page.setViewportSize({ width: 768, height: 1024 }); // iPad
+      await page.goto('/watch/xyz789ghi01');
+      await waitForPageLoad(page);
+      
+      await page.waitForSelector('h1', { timeout: 10000 });
+      
+      await captureScreenshot(page, 'tablet-watch-dark.png');
+    });
+  });
 });
