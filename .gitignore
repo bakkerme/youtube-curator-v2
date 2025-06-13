@@ -38,3 +38,5 @@ backend/youtube-curator
 backend/youtube-curator-v2
 backend/tmp/build-errors.log
 backend/tmp/main
+backend/cache
+backend/internal/ytdlp/cache
