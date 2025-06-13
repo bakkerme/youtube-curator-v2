@@ -3,6 +3,17 @@ import { videoAPI } from '@/lib/api'; // Import videoAPI
 import { useState, useEffect } from 'react'; // Import useState and useEffect
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
+import Link from 'next/link';
+
+// Helper function to extract raw video ID from full format
+function extractRawVideoId(fullVideoId: string): string {
+  // If the video ID starts with 'yt:video:', extract the raw part
+  if (fullVideoId.startsWith('yt:video:')) {
+    return fullVideoId.substring('yt:video:'.length);
+  }
+  // If it's already a raw ID, return as-is
+  return fullVideoId;
+}
 
 interface VideoCardProps {
   video: VideoEntry;
@@ -90,28 +101,38 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
           </div>
         </div>
         
-        {/* Watch button and Watched checkbox */}
-        <div className="mt-3 flex items-center justify-between">
-          <a
-            href={video.link.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-          >
-            Watch on YouTube
-          </a>
-          
-          <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
-            <span>Watched</span>
-            <input
-              type="checkbox"
-              id={`watched-${video.id}`}
-              name={`watched-${video.id}`}
-              checked={isChecked}
-              onChange={handleCheckboxChange}
-              className="form-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-red-600 dark:ring-offset-gray-800"
-            />
-          </label>
+        {/* Watch buttons and Watched checkbox */}
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex space-x-2">
+              <Link
+                href={`/watch/${extractRawVideoId(video.id)}`}
+                className="inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors whitespace-nowrap"
+              >
+                Watch in Curator
+              </Link>
+              <a
+                href={video.link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors whitespace-nowrap"
+              >
+                Watch on YouTube
+              </a>
+            </div>
+            
+            <label htmlFor={`watched-${video.id}`} className="flex items-center space-x-1 cursor-pointer text-xs text-gray-500 dark:text-gray-400">
+              <span>Watched</span>
+              <input
+                type="checkbox"
+                id={`watched-${video.id}`}
+                name={`watched-${video.id}`}
+                checked={isChecked}
+                onChange={handleCheckboxChange}
+                className="form-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500 dark:border-gray-600 dark:bg-gray-700 dark:focus:ring-red-600 dark:ring-offset-gray-800"
+              />
+            </label>
+          </div>
         </div>
       </div>
     </div>
