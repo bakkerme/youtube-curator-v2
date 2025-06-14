@@ -309,7 +309,7 @@ describe('VideoCard', () => {
     expect(titleLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('should position watched checkbox next to Watch on YouTube button', () => {
+  it('should position watched checkbox and buttons correctly', () => {
     // Act
     render(
       <VideoCard 
@@ -319,19 +319,25 @@ describe('VideoCard', () => {
       { wrapper: TestWrapper }
     );
 
-    // Assert - Find the container that has both the button and checkbox
-    const watchButton = screen.getByRole('link', { name: /watch on youtube/i });
+    // Assert - Find the buttons and checkbox
+    const watchInCuratorButton = screen.getByRole('link', { name: /watch in curator/i });
+    const watchOnYouTubeButton = screen.getByRole('link', { name: /watch on youtube/i });
     const watchedCheckbox = screen.getByRole('checkbox');
     
-    // Get the parent container that should contain both elements
-    const buttonContainer = watchButton.closest('div');
-    const checkboxContainer = watchedCheckbox.closest('div');
+    // Verify both buttons exist
+    expect(watchInCuratorButton).toBeInTheDocument();
+    expect(watchOnYouTubeButton).toBeInTheDocument();
+    expect(watchedCheckbox).toBeInTheDocument();
     
-    // Both should be in the same container (the flex container)
-    expect(buttonContainer).toBe(checkboxContainer);
+    // Get the container that has both buttons
+    const buttonsContainer = watchInCuratorButton.closest('div');
+    const youtubeButtonContainer = watchOnYouTubeButton.closest('div');
     
-    // Verify the container has flex layout classes
-    expect(buttonContainer).toHaveClass('flex', 'items-center', 'justify-between');
+    // Both buttons should be in the same container
+    expect(buttonsContainer).toBe(youtubeButtonContainer);
+    
+    // Verify the buttons container has flex layout classes
+    expect(buttonsContainer).toHaveClass('flex', 'space-x-2');
   });
 
   it('should use flexbox layout to position controls at bottom of card', () => {
