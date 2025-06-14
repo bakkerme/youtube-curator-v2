@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/api/types"
-	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 
 	"github.com/labstack/echo/v4"
 )
@@ -82,13 +82,12 @@ func (h *VideoHandlers) MarkVideoAsWatched(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
 
-	// Convert raw video ID to the format expected by the system (yt:video:ID)
-	videoID := "yt:video:" + rawVideoID
-
-	// Validate video ID format using the dedicated validator
-	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
+	// Create and validate video ID
+	vid, err := videoid.NewFromRaw(rawVideoID)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	videoID := vid.ToFull()
 
 	if h.videoStore == nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Video store not initialized")
@@ -113,13 +112,12 @@ func (h *VideoHandlers) GetVideoSummary(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
 	}
 
-	// Convert raw video ID to the format expected by the system (yt:video:ID)
-	videoID := "yt:video:" + rawVideoID
-
-	// Validate video ID format using the dedicated validator
-	if err := rss.ValidateYouTubeVideoID(videoID); err != nil {
+	// Create and validate video ID
+	vid, err := videoid.NewFromRaw(rawVideoID)
+	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+	videoID := vid.ToFull()
 
 	// Check if summary service is available
 	if h.summaryService == nil {

@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+
+	"youtube-curator-v2/internal/videoid"
 )
 
 // ChannelIDResolver interface for resolving YouTube URLs to channel IDs
@@ -86,20 +88,13 @@ var youtubeVideoIDRegexp = regexp.MustCompile(youtubeVideoIDPattern)
 
 // ValidateYouTubeVideoID checks if a string is a valid YouTube video ID with the "yt:video:" prefix.
 // The actual ID part must be 11 characters long and consist of alphanumeric characters, underscores, and hyphens.
+// Deprecated: Use videoid.ValidateFullVideoID instead
 func ValidateYouTubeVideoID(videoID string) error {
-	// Check if it has the required prefix
-	if !strings.HasPrefix(videoID, youtubeVideoIDPrefix) {
+	err := videoid.ValidateFullVideoID(videoID)
+	if err != nil {
+		// Return the original ValidationError type for backward compatibility
 		return NewInvalidVideoIDError()
 	}
-
-	// Extract the ID part after the prefix
-	idPart := strings.TrimPrefix(videoID, youtubeVideoIDPrefix)
-
-	// Validate the ID part
-	if !youtubeVideoIDRegexp.MatchString(idPart) {
-		return NewInvalidVideoIDError()
-	}
-
 	return nil
 }
 

@@ -140,10 +140,11 @@ export const newsletterAPI = {
 };
 
 // Helper function to extract raw video ID from full format
+// Centralized conversion utility for consistent video ID handling
 function extractRawVideoId(fullVideoId: string): string {
-  // If the video ID starts with 'yt:video:', extract the raw part
-  if (fullVideoId.startsWith('yt:video:')) {
-    return fullVideoId.substring('yt:video:'.length);
+  const prefix = 'yt:video:';
+  if (fullVideoId.startsWith(prefix)) {
+    return fullVideoId.substring(prefix.length);
   }
   // If it's already a raw ID, return as-is
   return fullVideoId;

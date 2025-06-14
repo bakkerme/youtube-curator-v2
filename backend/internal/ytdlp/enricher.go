@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 )
 
 // CommandExecutor defines the interface for executing commands
@@ -39,11 +40,11 @@ type Enricher interface {
 
 // DefaultEnricher implements Enricher using yt-dlp command
 type DefaultEnricher struct {
-	ytdlpPath  string
-	timeout    time.Duration
-	maxRetries int
-	executor   CommandExecutor
-	cacheDir   string
+	ytdlpPath   string
+	timeout     time.Duration
+	maxRetries  int
+	executor    CommandExecutor
+	cacheDir    string
 	enableCache bool
 }
 
@@ -54,10 +55,10 @@ func NewDefaultEnricher() *DefaultEnricher {
 	if cacheDir == "" {
 		cacheDir = "./cache/ytdlp" // Default cache directory
 	}
-	
+
 	// Enable cache by default in development (can be disabled with env var)
 	enableCache := os.Getenv("YTDLP_DISABLE_CACHE") != "true"
-	
+
 	enricher := &DefaultEnricher{
 		ytdlpPath:   "yt-dlp",         // assumes yt-dlp is in PATH
 		timeout:     60 * time.Second, // Increased from 30s to 60s
@@ -66,7 +67,7 @@ func NewDefaultEnricher() *DefaultEnricher {
 		cacheDir:    cacheDir,
 		enableCache: enableCache,
 	}
-	
+
 	// Create cache directory if caching is enabled
 	if enableCache {
 		if err := os.MkdirAll(cacheDir, 0755); err != nil {
@@ -76,7 +77,7 @@ func NewDefaultEnricher() *DefaultEnricher {
 			log.Printf("yt-dlp caching enabled, using directory: %s", cacheDir)
 		}
 	}
-	
+
 	return enricher
 }
 
@@ -127,10 +128,11 @@ type Comment struct {
 // EnrichEntry enriches an RSS entry with yt-dlp data
 func (e *DefaultEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) error {
 	// Extract video ID from entry
-	videoID, err := extractVideoID(entry.ID)
+	vid, err := videoid.NewFromFull(entry.ID)
 	if err != nil {
-		return fmt.Errorf("failed to extract video ID: %w", err)
+		return fmt.Errorf("invalid entry ID format: %s - %w", entry.ID, err)
 	}
+	videoID := vid.ToRaw()
 
 	fmt.Println("Enriching entry", entry.ID)
 
@@ -306,7 +308,7 @@ func (e *DefaultEnricher) loadFromCache(videoID string) (*YtdlpOutput, bool) {
 	}
 
 	cachePath := e.getCachePath(videoID)
-	
+
 	// Check if cache file exists and is readable
 	data, err := os.ReadFile(cachePath)
 	if err != nil {
@@ -332,7 +334,7 @@ func (e *DefaultEnricher) saveToCache(videoID string, data []byte) {
 	}
 
 	cachePath := e.getCachePath(videoID)
-	
+
 	// Write to a temporary file first, then rename for atomic operation
 	tmpPath := cachePath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0644); err != nil {
@@ -371,14 +373,4 @@ func (e *DefaultEnricher) ClearCache() error {
 
 	log.Printf("Cleared yt-dlp cache directory: %s", e.cacheDir)
 	return nil
-}
-
-// extractVideoID extracts YouTube video ID from entry ID
-// Entry ID format is typically "yt:video:VIDEO_ID"
-func extractVideoID(entryID string) (string, error) {
-	parts := strings.Split(entryID, ":")
-	if len(parts) != 3 || parts[0] != "yt" || parts[1] != "video" {
-		return "", fmt.Errorf("invalid entry ID format: %s", entryID)
-	}
-	return parts[2], nil
 }
