@@ -60,8 +60,8 @@ func main() {
 		feedProvider = rss.NewFeedProvider()
 	}
 
-	// Create video store with 24 hour TTL
-	videoStore := store.NewVideoStore(24 * time.Hour)
+	// Create video store with 24 hour TTL and database persistence
+	videoStore := store.NewVideoStoreWithStore(24*time.Hour, db)
 
 	// Create the channel processor
 	channelProcessor := processor.NewDefaultChannelProcessor(db, feedProvider, videoStore)

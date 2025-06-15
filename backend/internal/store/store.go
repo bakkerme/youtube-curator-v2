@@ -44,6 +44,11 @@ type Store interface {
 	// LLM configuration methods
 	GetLLMConfig() (*LLMConfig, error)
 	SetLLMConfig(config *LLMConfig) error
+
+	// Watched state management methods
+	GetWatchedVideos() ([]string, error)
+	SetVideoWatched(videoID string) error
+	IsVideoWatched(videoID string) (bool, error)
 }
 
 // SMTPConfig holds SMTP configuration
@@ -343,4 +348,77 @@ func (s *BadgerStore) SetLLMConfig(config *LLMConfig) error {
 		}
 		return txn.Set(key, configBytes)
 	})
+}
+
+// GetWatchedVideos retrieves the list of all watched video IDs
+func (s *BadgerStore) GetWatchedVideos() ([]string, error) {
+	var watchedVideos []string
+	key := []byte("watched_videos")
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			return nil // No watched videos yet
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get watched videos: %w", err)
+		}
+		return item.Value(func(val []byte) error {
+			if len(val) == 0 {
+				return nil
+			}
+			return json.Unmarshal(val, &watchedVideos)
+		})
+	})
+	return watchedVideos, err
+}
+
+// SetVideoWatched marks a video as watched by adding it to the watched videos list
+func (s *BadgerStore) SetVideoWatched(videoID string) error {
+	key := []byte("watched_videos")
+	return s.db.Update(func(txn *badger.Txn) error {
+		var watchedVideos []string
+		item, err := txn.Get(key)
+		if err != nil && err != badger.ErrKeyNotFound {
+			return fmt.Errorf("failed to get existing watched videos: %w", err)
+		}
+		if err == nil {
+			err = item.Value(func(val []byte) error {
+				if len(val) == 0 {
+					return nil
+				}
+				return json.Unmarshal(val, &watchedVideos)
+			})
+			if err != nil {
+				return err
+			}
+		}
+		// Check if video is already marked as watched
+		for _, existingID := range watchedVideos {
+			if existingID == videoID {
+				return nil // Already watched, no-op
+			}
+		}
+		// Add new watched video
+		watchedVideos = append(watchedVideos, videoID)
+		watchedBytes, err := json.Marshal(watchedVideos)
+		if err != nil {
+			return fmt.Errorf("failed to marshal watched videos: %w", err)
+		}
+		return txn.Set(key, watchedBytes)
+	})
+}
+
+// IsVideoWatched checks if a video is marked as watched
+func (s *BadgerStore) IsVideoWatched(videoID string) (bool, error) {
+	watchedVideos, err := s.GetWatchedVideos()
+	if err != nil {
+		return false, err
+	}
+	for _, id := range watchedVideos {
+		if id == videoID {
+			return true, nil
+		}
+	}
+	return false, nil
 }

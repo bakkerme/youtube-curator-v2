@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 )
 
 // MockCommandExecutor is a mock implementation of CommandExecutor for testing
@@ -95,18 +96,22 @@ func TestExtractVideoID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := extractVideoID(tt.entryID)
+			vid, err := videoid.NewFromFull(tt.entryID)
+			var result string
+			if err == nil {
+				result = vid.ToRaw()
+			}
 
 			if tt.wantErr && err == nil {
-				t.Errorf("extractVideoID() expected error but got none")
+				t.Errorf("videoid.NewFromFull() expected error but got none")
 			}
 
 			if !tt.wantErr && err != nil {
-				t.Errorf("extractVideoID() unexpected error: %v", err)
+				t.Errorf("videoid.NewFromFull() unexpected error: %v", err)
 			}
 
 			if result != tt.expected {
-				t.Errorf("extractVideoID() = %v, want %v", result, tt.expected)
+				t.Errorf("videoid.NewFromFull().ToRaw() = %v, want %v", result, tt.expected)
 			}
 		})
 	}
@@ -125,7 +130,7 @@ func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 		t.Error("Expected error for invalid video ID format")
 	}
 
-	if !strings.Contains(err.Error(), "failed to extract video ID") {
+	if !strings.Contains(err.Error(), "invalid entry ID format") {
 		t.Errorf("Expected error about video ID extraction, got: %v", err)
 	}
 }
