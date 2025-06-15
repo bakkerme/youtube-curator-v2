@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
-	"youtube-curator-v2/internal/videoid"
 )
 
 // MockCommandExecutor is a mock implementation of CommandExecutor for testing
