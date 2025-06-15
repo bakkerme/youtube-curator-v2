@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 )
 
 // MockEnricher is a mock implementation of Enricher for testing
@@ -25,11 +26,12 @@ func (m *MockEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) error 
 		return fmt.Errorf("mock enricher configured to fail")
 	}
 
-	// Extract video ID for mock data
-	videoID, err := extractVideoID(entry.ID)
+	// Extract video ID for mock data using videoid package
+	vid, err := videoid.NewFromFull(entry.ID)
 	if err != nil {
-		return err
+		return fmt.Errorf("invalid entry ID format: %s - %w", entry.ID, err)
 	}
+	videoID := vid.ToRaw()
 
 	// Add mock enhanced metadata
 	entry.Duration = 300 // 5 minutes

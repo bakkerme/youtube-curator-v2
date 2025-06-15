@@ -9,7 +9,17 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 )
+
+// extractVideoID extracts the video ID from a YouTube entry ID
+func extractVideoID(entryID string) (string, error) {
+	vid, err := videoid.NewFromFull(entryID)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract video ID: %w", err)
+	}
+	return vid.ToRaw(), nil
+}
 
 // MockCommandExecutor is a mock implementation of CommandExecutor for testing
 type MockCommandExecutor struct {
@@ -125,8 +135,8 @@ func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 		t.Error("Expected error for invalid video ID format")
 	}
 
-	if !strings.Contains(err.Error(), "failed to extract video ID") {
-		t.Errorf("Expected error about video ID extraction, got: %v", err)
+	if !strings.Contains(err.Error(), "invalid entry ID format") {
+		t.Errorf("Expected error about invalid entry ID format, got: %v", err)
 	}
 }
 
