@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
+	"youtube-curator-v2/internal/videoid"
 )
 
 // MockCommandExecutor is a mock implementation of CommandExecutor for testing
@@ -59,7 +60,6 @@ func (m *MockCommandExecutor) Execute(ctx context.Context, name string, args ...
 
 	return json.Marshal(mockData)
 }
-
 
 func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 	mockExecutor := &MockCommandExecutor{}

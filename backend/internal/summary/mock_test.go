@@ -93,3 +93,6 @@ func (m *mockStore) GetSMTPConfig() (*store.SMTPConfig, error)                  
 func (m *mockStore) SetSMTPConfig(config *store.SMTPConfig) error                        { return nil }
 func (m *mockStore) GetLLMConfig() (*store.LLMConfig, error)                             { return nil, nil }
 func (m *mockStore) SetLLMConfig(config *store.LLMConfig) error                          { return nil }
+func (m *mockStore) GetWatchedVideos() ([]string, error)                           { return nil, nil }
+func (m *mockStore) SetVideoWatched(videoID string) error                           { return nil }
+func (m *mockStore) IsVideoWatched(videoID string) (bool, error)                    { return false, nil }

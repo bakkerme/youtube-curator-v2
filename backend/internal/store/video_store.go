@@ -20,6 +20,7 @@ type VideoStore struct {
 	mutex           sync.RWMutex
 	ttl             time.Duration
 	lastRefreshedAt time.Time
+	store           Store // Reference to persistent store for watched state
 }
 
 // NewVideoStore creates a new in-memory video store with the specified TTL
@@ -28,12 +29,35 @@ func NewVideoStore(ttl time.Duration) *VideoStore {
 		videos:          make(map[string]VideoEntry),
 		ttl:             ttl,
 		lastRefreshedAt: time.Time{},
+		store:           nil, // Will be set later via SetStore method
 	}
 
 	// Start cleanup goroutine
 	go store.cleanupExpired()
 
 	return store
+}
+
+// NewVideoStoreWithStore creates a new in-memory video store with persistent store reference
+func NewVideoStoreWithStore(ttl time.Duration, store Store) *VideoStore {
+	vs := &VideoStore{
+		videos:          make(map[string]VideoEntry),
+		ttl:             ttl,
+		lastRefreshedAt: time.Time{},
+		store:           store,
+	}
+
+	// Start cleanup goroutine
+	go vs.cleanupExpired()
+
+	return vs
+}
+
+// SetStore sets the persistent store reference for watched state persistence
+func (vs *VideoStore) SetStore(store Store) {
+	vs.mutex.Lock()
+	defer vs.mutex.Unlock()
+	vs.store = store
 }
 
 // AddVideo adds or updates a video in the store
@@ -45,6 +69,13 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
 	var watched bool = false
 	if existingVideo, exists := vs.videos[entry.ID]; exists {
 		watched = existingVideo.Watched
+	} else if vs.store != nil {
+		// If video doesn't exist in memory, check persistent store for watched state
+		isWatched, err := vs.store.IsVideoWatched(entry.ID)
+		if err == nil {
+			watched = isWatched
+		}
+		// Note: If there's an error checking persistent store, we default to unwatched (false)
 	}
 
 	vs.videos[entry.ID] = VideoEntry{
@@ -119,5 +150,12 @@ func (vs *VideoStore) MarkVideoAsWatched(videoID string) {
 	if video, ok := vs.videos[videoID]; ok {
 		video.Watched = true
 		vs.videos[videoID] = video
+	}
+
+	// Persist watched state to database if store is available
+	if vs.store != nil {
+		// Note: We don't handle the error here to maintain the original method signature
+		// In a production system, you might want to log the error or return it
+		vs.store.SetVideoWatched(videoID)
 	}
 }
