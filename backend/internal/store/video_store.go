@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 	"time"
 	"youtube-curator-v2/internal/rss"
@@ -61,7 +62,7 @@ func (vs *VideoStore) SetStore(store Store) {
 }
 
 // AddVideo adds or updates a video in the store
-func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
+func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) error {
 	vs.mutex.Lock()
 	defer vs.mutex.Unlock()
 
@@ -72,10 +73,10 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
 	} else if vs.store != nil {
 		// If video doesn't exist in memory, check persistent store for watched state
 		isWatched, err := vs.store.IsVideoWatched(entry.ID)
-		if err == nil {
-			watched = isWatched
+		if err != nil {
+			return fmt.Errorf("failed to check watched state for video %s: %w", entry.ID, err)
 		}
-		// Note: If there's an error checking persistent store, we default to unwatched (false)
+		watched = isWatched
 	}
 
 	vs.videos[entry.ID] = VideoEntry{
@@ -84,6 +85,7 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) {
 		CachedAt:  time.Now(),
 		Watched:   watched,
 	}
+	return nil
 }
 
 // GetAllVideos returns all non-expired videos
@@ -143,7 +145,7 @@ func (vs *VideoStore) GetLastRefreshedAt() time.Time {
 }
 
 // MarkVideoAsWatched sets the Watched flag to true for the video with the given ID
-func (vs *VideoStore) MarkVideoAsWatched(videoID string) {
+func (vs *VideoStore) MarkVideoAsWatched(videoID string) error {
 	vs.mutex.Lock()
 	defer vs.mutex.Unlock()
 
@@ -154,8 +156,9 @@ func (vs *VideoStore) MarkVideoAsWatched(videoID string) {
 
 	// Persist watched state to database if store is available
 	if vs.store != nil {
-		// Note: We don't handle the error here to maintain the original method signature
-		// In a production system, you might want to log the error or return it
-		vs.store.SetVideoWatched(videoID)
+		if err := vs.store.SetVideoWatched(videoID); err != nil {
+			return fmt.Errorf("failed to persist watched state for video %s: %w", videoID, err)
+		}
 	}
+	return nil
 }
