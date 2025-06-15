@@ -104,3 +104,24 @@ jobs:
           frontend/test-results/
           frontend/playwright-report/
         retention-days: 14
+
+  # This job ensures that all critical tests (backend + frontend) pass
+  # before allowing Docker images to be built
+  all-tests-passed:
+    name: All Tests Passed
+    runs-on: ubuntu-latest
+    needs: [test, test-frontend]
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        if [[ "${{ needs.test.result }}" != "success" ]]; then
+          echo "Backend tests failed: ${{ needs.test.result }}"
+          exit 1
+        fi
+        if [[ "${{ needs.test-frontend.result }}" != "success" ]]; then
+          echo "Frontend tests failed: ${{ needs.test-frontend.result }}"
+          exit 1
+        fi
+        echo "All critical tests passed successfully!"
