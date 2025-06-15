@@ -29,7 +29,7 @@ func (m *MockEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) error 
 	// Extract video ID for mock data
 	vid, err := videoid.NewFromFull(entry.ID)
 	if err != nil {
-		return fmt.Errorf("invalid entry ID format: %s - %w", entry.ID, err)
+		return fmt.Errorf("failed to extract video ID from entry ID %s: %w", entry.ID, err)
 	}
 	videoID := vid.ToRaw()
 
