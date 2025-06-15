@@ -358,4 +358,20 @@ describe('VideoCard', () => {
     // Verify the content container has flexbox classes for bottom positioning
     expect(contentContainer).toHaveClass('flex', 'flex-col', 'justify-between', 'flex-1');
   });
+
+  it('should use 16:9 aspect ratio for video thumbnail', () => {
+    // Act
+    render(
+      <VideoCard 
+        video={mockVideoEntry} 
+        channels={[mockChannel]} 
+      />,
+      { wrapper: TestWrapper }
+    );
+
+    // Assert - Find the thumbnail container
+    const thumbnailContainer = screen.getByRole('img').closest('.aspect-video');
+    expect(thumbnailContainer).toBeInTheDocument();
+    expect(thumbnailContainer).toHaveClass('aspect-video');
+  });
 });
