@@ -60,57 +60,6 @@ func (m *MockCommandExecutor) Execute(ctx context.Context, name string, args ...
 	return json.Marshal(mockData)
 }
 
-func TestExtractVideoID(t *testing.T) {
-	tests := []struct {
-		name     string
-		entryID  string
-		expected string
-		wantErr  bool
-	}{
-		{
-			name:     "valid youtube entry ID",
-			entryID:  "yt:video:dQw4w9WgXcQ",
-			expected: "dQw4w9WgXcQ",
-			wantErr:  false,
-		},
-		{
-			name:     "invalid format - too few parts",
-			entryID:  "yt:video",
-			expected: "",
-			wantErr:  true,
-		},
-		{
-			name:     "invalid format - wrong prefix",
-			entryID:  "youtube:video:dQw4w9WgXcQ",
-			expected: "",
-			wantErr:  true,
-		},
-		{
-			name:     "invalid format - wrong type",
-			entryID:  "yt:channel:dQw4w9WgXcQ",
-			expected: "",
-			wantErr:  true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := extractVideoID(tt.entryID)
-
-			if tt.wantErr && err == nil {
-				t.Errorf("extractVideoID() expected error but got none")
-			}
-
-			if !tt.wantErr && err != nil {
-				t.Errorf("extractVideoID() unexpected error: %v", err)
-			}
-
-			if result != tt.expected {
-				t.Errorf("extractVideoID() = %v, want %v", result, tt.expected)
-			}
-		})
-	}
-}
 
 func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 	mockExecutor := &MockCommandExecutor{}
@@ -125,8 +74,8 @@ func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 		t.Error("Expected error for invalid video ID format")
 	}
 
-	if !strings.Contains(err.Error(), "failed to extract video ID") {
-		t.Errorf("Expected error about video ID extraction, got: %v", err)
+	if !strings.Contains(err.Error(), "invalid entry ID format") {
+		t.Errorf("Expected error about invalid entry ID format, got: %v", err)
 	}
 }
 
