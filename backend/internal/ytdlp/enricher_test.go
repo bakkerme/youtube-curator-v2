@@ -9,17 +9,7 @@ import (
 	"time"
 
 	"youtube-curator-v2/internal/rss"
-	"youtube-curator-v2/internal/videoid"
 )
-
-// extractVideoID extracts the video ID from a YouTube entry ID
-func extractVideoID(entryID string) (string, error) {
-	vid, err := videoid.NewFromFull(entryID)
-	if err != nil {
-		return "", fmt.Errorf("failed to extract video ID: %w", err)
-	}
-	return vid.ToRaw(), nil
-}
 
 // MockCommandExecutor is a mock implementation of CommandExecutor for testing
 type MockCommandExecutor struct {
