@@ -60,7 +60,6 @@ func (m *MockCommandExecutor) Execute(ctx context.Context, name string, args ...
 	return json.Marshal(mockData)
 }
 
-
 func TestEnrichEntry_InvalidVideoID(t *testing.T) {
 	mockExecutor := &MockCommandExecutor{}
 	enricher := NewDefaultEnricherWithExecutor(mockExecutor)

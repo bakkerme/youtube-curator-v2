@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -56,7 +58,10 @@ func (h *VideoHandlers) GetVideos(c echo.Context) error {
 			// Get the most recent video (first entry)
 			if len(feed.Entries) > 0 {
 				mostRecentVideo := feed.Entries[0]
-				h.videoStore.AddVideo(channel.ID, mostRecentVideo)
+				if err := h.videoStore.AddVideo(channel.ID, mostRecentVideo); err != nil {
+					log.Printf("Failed to add video %s to store: %v", mostRecentVideo.ID, err)
+					// Continue processing other channels despite this error
+				}
 			}
 		}
 
@@ -94,14 +99,10 @@ func (h *VideoHandlers) MarkVideoAsWatched(c echo.Context) error {
 	}
 
 	// Call the store function to mark the video as watched.
-	// Note: The current videoStore.MarkVideoAsWatched doesn't return an error or status
-	// if the video is not found. It simply does nothing in that case.
-	// For a more robust API, the store method could be enhanced to return a boolean or error.
-	h.videoStore.MarkVideoAsWatched(videoID)
+	if err := h.videoStore.MarkVideoAsWatched(videoID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to mark video as watched: %v", err))
+	}
 
-	// Since the store method doesn't indicate if the video was found,
-	// we will assume success if no other errors occurred.
-	// A better approach would be for MarkVideoAsWatched to return a status.
 	return c.NoContent(http.StatusNoContent) // HTTP 204 No Content is suitable for successful actions with no response body
 }
 
