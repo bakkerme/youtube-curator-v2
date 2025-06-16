@@ -73,10 +73,10 @@ export default function WatchPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Video player - Responsive scaling based on screen height */}
+      {/* Video player - 16:9 aspect ratio */}
       <div className="relative">
         {youtubeVideoId ? (
-          <div className="relative" style={{ height: 'min(56.25vw, 70vh)' }}>
+          <div className="relative aspect-video">
             <iframe
               src={`https://www.youtube.com/embed/${youtubeVideoId}`}
               title={video.title}
@@ -87,7 +87,7 @@ export default function WatchPage() {
             ></iframe>
           </div>
         ) : (
-          <div className="relative bg-gray-200 dark:bg-gray-700 flex items-center justify-center" style={{ height: 'min(56.25vw, 70vh)' }}>
+          <div className="relative aspect-video bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
             <p className="text-gray-500 dark:text-gray-400">Unable to embed video</p>
           </div>
         )}
