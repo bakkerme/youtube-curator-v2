@@ -157,4 +157,27 @@ describe('WatchPage', () => {
     // Title should remain unchanged when video is not found
     expect(document.title).toBe('Curator');
   });
+
+  it('should render video player with 16:9 aspect ratio', async () => {
+    // Mock API responses
+    (videoAPI.getAll as jest.Mock).mockResolvedValue({
+      videos: [mockVideo],
+      lastRefreshedAt: new Date().toISOString(),
+    });
+    (channelAPI.getAll as jest.Mock).mockResolvedValue([mockChannel]);
+
+    render(
+      <TestWrapper>
+        <WatchPage />
+      </TestWrapper>
+    );
+
+    // Wait for the video to load
+    await screen.findByTitle('Test Video Title');
+
+    // Check that the video player container has the correct aspect ratio class
+    const videoContainer = screen.getByTitle('Test Video Title').closest('.aspect-video');
+    expect(videoContainer).toBeInTheDocument();
+    expect(videoContainer).toHaveClass('aspect-video');
+  });
 });

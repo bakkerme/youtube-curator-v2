@@ -160,6 +160,7 @@ func (e *DefaultEnricher) EnrichEntry(ctx context.Context, entry *rss.Entry) err
 			// "--write-comments",
 			"--write-auto-subs",
 			"--sub-langs", "en",
+			"--sub-format", "vtt",
 			fmt.Sprintf("https://www.youtube.com/watch?v=%s", videoID),
 		}
 

@@ -84,4 +84,19 @@ describe('RootLayout Navigation', () => {
 
     expect(screen.getByTestId('test-content')).toBeInTheDocument();
   });
+
+  it('renders footer with GitHub link', () => {
+    render(
+      <RootLayout>
+        <div>Test content</div>
+      </RootLayout>
+    );
+
+    // Check that the footer is present
+    const githubLink = screen.getByRole('link', { name: /youtube curator v2/i });
+    expect(githubLink).toBeInTheDocument();
+    expect(githubLink).toHaveAttribute('href', 'https://github.com/bakkerme/youtube-curator-v2');
+    expect(githubLink).toHaveAttribute('target', '_blank');
+    expect(githubLink).toHaveAttribute('rel', 'noopener noreferrer');
+  });
 });

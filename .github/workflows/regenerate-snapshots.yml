@@ -1,0 +1,158 @@
+name: Regenerate Snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to regenerate snapshots on'
+        required: true
+        type: string
+
+jobs:
+  regenerate-snapshots:
+    name: Regenerate UI Snapshots
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run: 
+        working-directory: ./frontend
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.branch }}
+        token: ${{ secrets.GITHUB_TOKEN }}
+        # Ensure full git history for proper change detection
+        fetch-depth: 0
+
+    - name: Configure git
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        # Ensure git tracks changes properly
+        git status
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: './frontend/package-lock.json'
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Install Playwright browsers
+      run: npx playwright install chromium --with-deps
+
+    - name: Regenerate snapshots
+      run: |
+        echo "=== Before running tests ==="
+        ls -la tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -5
+        
+        echo "=== Removing existing snapshots to force regeneration ==="
+        rm -f tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/*.png
+        
+        echo "=== Running snapshot update ==="
+        npm run test:screenshots:update
+        
+        echo "=== After running tests ==="
+        ls -la tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -5
+        
+        echo "=== Exit code: $? ==="
+      env:
+        # Enable screenshot generation mode - generates without comparison
+        DISABLE_VISUAL_REGRESSION: true
+        # Disable development tools for clean screenshots
+        NEXT_PUBLIC_DISABLE_DEVTOOLS: true
+
+    - name: Debug filesystem state
+      working-directory: .
+      run: |
+        echo "=== Current working directory ==="
+        pwd
+        
+        echo "=== Git status before check ==="
+        git status --porcelain
+        
+        echo "=== Git status verbose ==="
+        git status
+        
+        echo "=== List all snapshot files ==="
+        find . -name "*.png" -path "*/tests/ui-screenshots/*" | head -20
+        
+        echo "=== Check gitignore patterns ==="
+        git check-ignore -v frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/*.png | head -10 || echo "No ignore patterns matched"
+        
+        echo "=== File timestamps ==="
+        ls -la frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -10
+        
+        echo "=== Git diff output ==="
+        git diff --name-status
+        
+        echo "=== Git diff cached ==="
+        git diff --cached --name-status
+
+    - name: Check for changes
+      id: git-check
+      working-directory: .
+      run: |
+        echo "=== Checking for changes ==="
+        
+        # First, ensure we're tracking the right files
+        git add frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ || echo "No snapshot files to add"
+        git add frontend/test-results/ || echo "No test-results to add"
+        git add frontend/playwright-report/ || echo "No playwright-report to add"
+        
+        # Check git status from repository root
+        echo "=== Git status after adding files ==="
+        git status --porcelain
+        
+        echo "=== Git diff after staging ==="
+        git diff --cached --name-status
+        
+        # Check for any changes (staged or unstaged)
+        if [ -z "$(git status --porcelain)" ]; then
+          echo "changes=false" >> $GITHUB_OUTPUT
+          echo "No changes detected"
+        else
+          echo "changes=true" >> $GITHUB_OUTPUT
+          echo "Changes detected:"
+          git status --short
+        fi
+
+    - name: Commit and push changes
+      if: steps.git-check.outputs.changes == 'true'
+      working-directory: .
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        # Add all changes from repository root
+        git add frontend/
+        git status --short
+        git commit -m "Regenerate UI snapshots
+
+        Generated via GitHub Action on branch: ${{ inputs.branch }}"
+        git push
+
+    - name: Upload screenshots as artifacts
+      if: steps.git-check.outputs.changes == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: regenerated-snapshots
+        path: |
+          frontend/test-results/
+          frontend/playwright-report/
+          frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/
+        retention-days: 14
+
+    - name: Summary
+      run: |
+        if [[ "${{ steps.git-check.outputs.changes }}" == "true" ]]; then
+          echo "✅ Snapshots regenerated and committed to branch: ${{ inputs.branch }}"
+        else
+          echo "ℹ️ No changes detected - snapshots are already up to date"
+        fi

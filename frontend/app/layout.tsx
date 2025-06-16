@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import Link from "next/link";
-import { Bell, Home, Settings, FileText } from "lucide-react";
+import { Bell, Home, Settings, FileText, Github } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Curator",
@@ -18,7 +18,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased font-ui">
         <Providers>
-          <div className="min-h-screen bg-background">
+          <div className="min-h-screen bg-background flex flex-col">
             {/* Navigation Header */}
             <header className="border-b">
               <div className="container mx-auto px-4">
@@ -55,9 +55,26 @@ export default function RootLayout({
             </header>
             
             {/* Main Content */}
-            <main className="container mx-auto px-4 py-8">
+            <main className="container mx-auto px-4 py-8 flex-1">
               {children}
             </main>
+            
+            {/* Footer */}
+            <footer className="border-t mt-auto">
+              <div className="container mx-auto px-4 py-4">
+                <div className="flex items-center justify-center">
+                  <Link 
+                    href="https://github.com/bakkerme/youtube-curator-v2" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                  >
+                    <Github className="w-4 h-4" />
+                    <span className="text-sm">YouTube Curator v2</span>
+                  </Link>
+                </div>
+              </div>
+            </footer>
           </div>
         </Providers>
       </body>
