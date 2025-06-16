@@ -2,6 +2,7 @@ package summary
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -69,6 +70,20 @@ Today we&apos;re going to learn about &quot;Go&quot; programming.`,
 00:00:08.000 --> 00:00:12.000
 Valid content here.`,
 			expected: "Valid content here.",
+		},
+		{
+			name: "M3U8 playlist content",
+			input: `#EXTM3U
+#EXT-X-TARGETDURATION:30
+#EXT-X-VERSION:3
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXTINF:30.000,
+https://www.youtube.com/api/timedtext?v=_WRrNYbs048&lang=en&fmt=vtt
+#EXTINF:30.000,
+https://www.youtube.com/api/timedtext?v=_WRrNYbs048&lang=en&fmt=vtt&begin=30000
+#EXT-X-ENDLIST`,
+			expected: "",
 		},
 	}
 
@@ -155,5 +170,37 @@ func TestFetchSubtitleText404(t *testing.T) {
 	}
 }
 
-// Note: Integration test for generateSummary would require more complex mocking
-// The main functionality is tested through the individual subtitle parsing and fetching tests above
+func TestParseSubtitleContentM3U8Integration(t *testing.T) {
+	// Create a test server that serves VTT subtitle content
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/vtt")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+This is subtitle text from M3U8 segment.
+
+00:00:04.000 --> 00:00:08.000
+Second line of subtitle content.`))
+	}))
+	defer server.Close()
+
+	service := &Service{}
+
+	// M3U8 playlist content that references our test server
+	m3u8Content := fmt.Sprintf(`#EXTM3U
+#EXT-X-TARGETDURATION:30
+#EXT-X-VERSION:3
+#EXT-X-MEDIA-SEQUENCE:0
+#EXT-X-PLAYLIST-TYPE:VOD
+#EXTINF:30.000,
+%s
+#EXT-X-ENDLIST`, server.URL)
+
+	result := service.parseSubtitleContent(m3u8Content)
+	expected := "This is subtitle text from M3U8 segment. Second line of subtitle content."
+	
+	if result != expected {
+		t.Errorf("parseSubtitleContent() with M3U8 = %q, want %q", result, expected)
+	}
+}

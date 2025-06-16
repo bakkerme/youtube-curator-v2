@@ -228,8 +228,107 @@ func (s *Service) fetchSubtitleText(ctx context.Context, subtitleURL string) (st
 	return optimizedText, nil
 }
 
-// parseSubtitleContent parses subtitle content from VTT or SRT format
+// parseSubtitleContent parses subtitle content from VTT, SRT, or M3U8 format
 func (s *Service) parseSubtitleContent(content string) string {
+	// Check if this is an M3U8 playlist file
+	if strings.HasPrefix(strings.TrimSpace(content), "#EXTM3U") {
+		return s.parseM3U8Playlist(content)
+	}
+
+	// For VTT/SRT content, use the dedicated parser
+	return s.parseVTTOrSRTContent(content)
+}
+
+// parseM3U8Playlist parses an M3U8 playlist and fetches subtitle segments
+func (s *Service) parseM3U8Playlist(content string) string {
+	lines := strings.Split(content, "\n")
+	var segmentURLs []string
+
+	// Extract segment URLs from M3U8 playlist
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		// Skip comments and metadata lines
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		
+		// This should be a URL to a subtitle segment
+		if strings.HasPrefix(line, "http") {
+			segmentURLs = append(segmentURLs, line)
+		}
+	}
+
+	// If no segments found, return empty string
+	if len(segmentURLs) == 0 {
+		return ""
+	}
+
+	// For now, fetch only the first segment to avoid complexity
+	// In a full implementation, you might want to fetch all segments
+	ctx := context.Background()
+	
+	segmentContent, err := s.fetchSegmentContent(ctx, segmentURLs[0])
+	if err != nil {
+		// If we can't fetch the segment, return empty string
+		return ""
+	}
+	
+	return segmentContent
+}
+
+// fetchSegmentContent fetches content from a URL without parsing it as M3U8
+func (s *Service) fetchSegmentContent(ctx context.Context, url string) (string, error) {
+	if url == "" {
+		return "", fmt.Errorf("segment URL is empty")
+	}
+
+	// Create HTTP client with timeout
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// Create request with context
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+
+	// Set user agent to avoid potential blocking
+	req.Header.Set("User-Agent", "youtube-curator/1.0")
+
+	// Fetch segment content
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to fetch segment content: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("HTTP request failed with status %d: %s", resp.StatusCode, resp.Status)
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Parse the segment content directly as VTT/SRT (not M3U8)
+	segmentText := s.parseVTTOrSRTContent(string(body))
+
+	if segmentText == "" {
+		return "", fmt.Errorf("no text content found in segment")
+	}
+
+	// Optimize text for token efficiency
+	optimizedText := s.optimizeSubtitleText(segmentText)
+
+	return optimizedText, nil
+}
+
+// parseVTTOrSRTContent parses only VTT or SRT content (not M3U8)
+func (s *Service) parseVTTOrSRTContent(content string) string {
 	// Remove VTT header and timing information
 	// VTT format typically starts with "WEBVTT" and has timing lines like "00:00:01.000 --> 00:00:04.000"
 	// SRT format has numbered blocks with timing lines like "00:00:01,000 --> 00:00:04,000"
