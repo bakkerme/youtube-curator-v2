@@ -37,7 +37,7 @@ jobs:
       run: npx playwright install chromium --with-deps
 
     - name: Regenerate snapshots
-      run: npm run test:screenshots:generate
+      run: npm run test:screenshots:update
       env:
         # Enable screenshot generation mode - generates without comparison
         DISABLE_VISUAL_REGRESSION: true
@@ -65,7 +65,7 @@ jobs:
         git push
 
     - name: Upload screenshots as artifacts
-      if: always()
+      if: steps.git-check.outputs.changes == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: regenerated-snapshots
