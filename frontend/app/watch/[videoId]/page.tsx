@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { videoAPI, channelAPI } from '@/lib/api';
 import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 // Helper function to extract raw video ID from full format
 function extractRawVideoId(fullVideoId: string): string {
@@ -33,6 +34,19 @@ export default function WatchPage() {
   // Find video by comparing raw video IDs
   const video = videosResponse?.videos.find((v) => extractRawVideoId(v.id) === rawVideoId);
   const channel = channels?.find((c) => c.id === video?.channelId);
+
+  // Update window title with video title
+  useEffect(() => {
+    if (video?.title) {
+      const originalTitle = document.title;
+      document.title = `${video.title} - Curator`;
+      
+      // Cleanup: restore original title on unmount
+      return () => {
+        document.title = originalTitle;
+      };
+    }
+  }, [video?.title]);
 
   if (videosLoading || channelsLoading) {
     return (
