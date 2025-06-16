@@ -47,7 +47,7 @@ const mockChannel: Channel = {
 };
 
 const mockVideoEntry: VideoEntry = {
-  id: 'video-123',
+  id: 'yt:video:123',
   channelId: 'channel-1',
   cachedAt: '2024-01-01T12:00:00Z',
   watched: false,
@@ -119,7 +119,7 @@ describe('VideoCard', () => {
     // Arrange
     let apiCalled = false;
     server.use(
-      http.post(`${baseURL}/videos/video-123/watch`, () => {
+      http.post(`${baseURL}/videos/123/watch`, () => {
         apiCalled = true;
         return new HttpResponse(null, { status: 200 });
       })
@@ -143,14 +143,14 @@ describe('VideoCard', () => {
     // Assert
     await waitFor(() => {
       expect(apiCalled).toBe(true);
-      expect(mockCallback).toHaveBeenCalledWith('video-123');
+      expect(mockCallback).toHaveBeenCalledWith('yt:video:123');
     });
   });
 
   it('should optimistically update checkbox state', async () => {
     // Arrange
     server.use(
-      http.post(`${baseURL}/api/videos/video-123/watch`, async () => {
+      http.post(`${baseURL}/videos/123/watch`, async () => {
         // Delay to simulate network request
         await new Promise(resolve => setTimeout(resolve, 100));
         return new HttpResponse(null, { status: 200 });
@@ -188,7 +188,7 @@ describe('VideoCard', () => {
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     
     server.use(
-      http.post(`${baseURL}/videos/video-123/watch`, () => {
+      http.post(`${baseURL}/videos/123/watch`, () => {
         return HttpResponse.json(
           { message: 'Server error' },
           { status: 500 }
@@ -292,7 +292,7 @@ describe('VideoCard', () => {
     expect(thumbnailLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
-  it('should make title clickable and link to YouTube', () => {
+  it('should make title clickable and link to watch page', () => {
     // Act
     render(
       <VideoCard 
@@ -304,9 +304,9 @@ describe('VideoCard', () => {
 
     // Assert
     const titleLink = screen.getByRole('link', { name: /test video title$/i });
-    expect(titleLink).toHaveAttribute('href', 'https://youtube.com/watch?v=test');
-    expect(titleLink).toHaveAttribute('target', '_blank');
-    expect(titleLink).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(titleLink).toHaveAttribute('href', '/watch/123');
+    expect(titleLink).not.toHaveAttribute('target');
+    expect(titleLink).not.toHaveAttribute('rel');
   });
 
   it('should position watched checkbox and buttons correctly', () => {

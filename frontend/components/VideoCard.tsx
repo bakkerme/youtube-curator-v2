@@ -83,16 +83,14 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
       <div className="p-4 flex flex-col justify-between flex-1">
         <div>
           <div className="mb-2">
-            <a
-              href={video.link.href}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href={`/watch/${extractRawVideoId(video.id)}`}
               aria-label={title}
             >
-              <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+              <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                 {title}
               </h3>
-            </a>
+            </Link>
           </div>
           
           <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
