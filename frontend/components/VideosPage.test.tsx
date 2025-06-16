@@ -215,6 +215,130 @@ describe('VideosPage', () => {
     expect(filterButton).toHaveClass('bg-red-600'); // Active state for today
   });
 
+  test('Today Mode includes videos from 10 PM previous day (intelligent today filter)', async () => {
+    // Create a video posted at 10:15 PM yesterday
+    const yesterdayLateNight = new Date(today);
+    yesterdayLateNight.setDate(today.getDate() - 1);
+    yesterdayLateNight.setHours(22, 15, 0, 0); // 10:15 PM yesterday
+
+    // Create a video posted at 9:45 PM yesterday (should NOT be included)
+    const yesterdayEarlierEvening = new Date(today);
+    yesterdayEarlierEvening.setDate(today.getDate() - 1);
+    yesterdayEarlierEvening.setHours(21, 45, 0, 0); // 9:45 PM yesterday
+
+    const mockVideosWithLateNight = [
+      ...mockVideos,
+      {
+        id: 'video-late-night',
+        channelId: 'channel1',
+        watched: false,
+        title: 'Video Posted Late Night Yesterday',
+        link: { href: 'https://example.com/video-late-night', rel: 'alternate' },
+        published: yesterdayLateNight.toISOString(),
+        content: 'Content for late night video',
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { url: 'https://images.example.com/thumb-late.jpg', width: '120', height: '90' },
+          mediaTitle: 'Video Posted Late Night Yesterday',
+          mediaContent: { url: 'https://videos.example.com/content-late.mp4', type: 'video/mp4', width: '640', height: '360' },
+          mediaDescription: 'Description for late night video',
+        },
+        cachedAt: yesterdayLateNight.toISOString(),
+      },
+      {
+        id: 'video-early-evening',
+        channelId: 'channel1',
+        watched: false,
+        title: 'Video Posted Early Evening Yesterday',
+        link: { href: 'https://example.com/video-early-evening', rel: 'alternate' },
+        published: yesterdayEarlierEvening.toISOString(),
+        content: 'Content for early evening video',
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { url: 'https://images.example.com/thumb-early.jpg', width: '120', height: '90' },
+          mediaTitle: 'Video Posted Early Evening Yesterday',
+          mediaContent: { url: 'https://videos.example.com/content-early.mp4', type: 'video/mp4', width: '640', height: '360' },
+          mediaDescription: 'Description for early evening video',
+        },
+        cachedAt: yesterdayEarlierEvening.toISOString(),
+      }
+    ];
+
+    // Mock the API to return videos including the late night one
+    (videoAPI.getAll as jest.Mock).mockResolvedValue({
+      videos: mockVideosWithLateNight,
+      totalCount: mockVideosWithLateNight.length,
+      lastRefresh: today.toISOString(),
+    });
+
+    renderVideosPage();
+
+    // Wait for loading to finish
+    await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
+
+    // Check that today's videos AND the late night video from yesterday are visible
+    expect(screen.getByText('Video Today Channel One')).toBeInTheDocument();
+    expect(screen.getByText('Another Video Today Channel Two')).toBeInTheDocument();
+    expect(screen.getByText('Video Posted Late Night Yesterday')).toBeInTheDocument();
+    
+    // Check that the early evening video from yesterday is NOT visible (posted before 10 PM)
+    expect(screen.queryByText('Video Posted Early Evening Yesterday')).not.toBeInTheDocument();
+    
+    // Check that other yesterday videos are still not visible
+    expect(screen.queryByText('Video Yesterday Channel One')).not.toBeInTheDocument();
+    expect(screen.queryByText('Video Specific Date Channel Two')).not.toBeInTheDocument();
+
+    // Check filter button state is still Today
+    const filterButton = screen.getByTestId('filter-mode-button');
+    expect(filterButton).toHaveTextContent(/Today/i);
+    expect(filterButton).toHaveClass('bg-red-600');
+  });
+
+  test('Today Mode boundary condition - video at exactly 10 PM yesterday is included', async () => {
+    // Create a video posted at exactly 10:00 PM yesterday
+    const yesterdayExactly10PM = new Date(today);
+    yesterdayExactly10PM.setDate(today.getDate() - 1);
+    yesterdayExactly10PM.setHours(22, 0, 0, 0); // Exactly 10:00 PM yesterday
+
+    const mockVideosWithBoundary = [
+      ...mockVideos,
+      {
+        id: 'video-boundary',
+        channelId: 'channel1',
+        watched: false,
+        title: 'Video Posted Exactly 10 PM Yesterday',
+        link: { href: 'https://example.com/video-boundary', rel: 'alternate' },
+        published: yesterdayExactly10PM.toISOString(),
+        content: 'Content for boundary video',
+        author: { name: 'Channel One', uri: 'uri_channel1' },
+        mediaGroup: {
+          mediaThumbnail: { url: 'https://images.example.com/thumb-boundary.jpg', width: '120', height: '90' },
+          mediaTitle: 'Video Posted Exactly 10 PM Yesterday',
+          mediaContent: { url: 'https://videos.example.com/content-boundary.mp4', type: 'video/mp4', width: '640', height: '360' },
+          mediaDescription: 'Description for boundary video',
+        },
+        cachedAt: yesterdayExactly10PM.toISOString(),
+      }
+    ];
+
+    // Mock the API to return videos including the boundary one
+    (videoAPI.getAll as jest.Mock).mockResolvedValue({
+      videos: mockVideosWithBoundary,
+      totalCount: mockVideosWithBoundary.length,
+      lastRefresh: today.toISOString(),
+    });
+
+    renderVideosPage();
+
+    // Wait for loading to finish
+    await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());
+
+    // Check that the video posted at exactly 10 PM yesterday is included
+    expect(screen.getByText('Video Posted Exactly 10 PM Yesterday')).toBeInTheDocument();
+    expect(screen.getByText('Video Today Channel One')).toBeInTheDocument();
+    expect(screen.getByText('Another Video Today Channel Two')).toBeInTheDocument();
+  });
+
   test('"Per Day" mode filters videos for the selected date', async () => {
     renderVideosPage();
     await waitFor(() => expect(screen.queryByText('Loading videos...')).not.toBeInTheDocument());

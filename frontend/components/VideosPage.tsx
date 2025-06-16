@@ -56,6 +56,16 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
     // Parse as local date by appending T00:00:00 (no timezone offset)
     return new Date(dateString + 'T00:00:00');
   }, []);
+
+  // Helper function to get the start time for "intelligent today" filter
+  // Includes videos from 10 PM the previous day in user's local timezone
+  const getIntelligentTodayStartTime = useCallback((): Date => {
+    const now = new Date();
+    const yesterdayAt10PM = new Date(now);
+    yesterdayAt10PM.setDate(now.getDate() - 1);
+    yesterdayAt10PM.setHours(22, 0, 0, 0); // 10:00 PM yesterday
+    return yesterdayAt10PM;
+  }, []);
   
   // Update refs whenever state changes
   useEffect(() => {
@@ -226,10 +236,14 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
 
     // Apply date filtering based on filterMode
     if (filterMode === 'today') {
-      const todayNormalized = normalizeToLocalDate(new Date());
+      // Intelligent today filter: include videos from 10 PM yesterday onwards
+      const intelligentTodayStartTime = getIntelligentTodayStartTime();
+      const todayEndTime = new Date();
+      todayEndTime.setHours(23, 59, 59, 999); // End of today
+      
       dateFilteredVideos = dateFilteredVideos.filter((video: VideoEntry) => {
         const videoDate = new Date(video.published);
-        return normalizeToLocalDate(videoDate).getTime() === todayNormalized.getTime();
+        return videoDate >= intelligentTodayStartTime && videoDate <= todayEndTime;
       });
     } else if (filterMode === 'perDay') {
       if (selectedDate) {
@@ -273,7 +287,7 @@ export default function VideosPage({ enableAutoRefresh = true }: VideosPageProps
     const watched = searchFilteredVideos.filter(video => video.watched);
 
     return { unwatchedVideos: unwatched, watchedVideos: watched };
-  }, [allVideos, channels, searchQuery, filterMode, selectedDate, normalizeToLocalDate, createLocalDateFromString]);
+  }, [allVideos, channels, searchQuery, filterMode, selectedDate, normalizeToLocalDate, createLocalDateFromString, getIntelligentTodayStartTime]);
 
   // Calculate pagination for unwatched videos
   const totalUnwatchedPages = unwatchedVideos.length > 0 ? Math.ceil(unwatchedVideos.length / VIDEOS_PER_PAGE) : 1;
