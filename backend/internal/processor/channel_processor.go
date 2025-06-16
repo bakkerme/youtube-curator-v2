@@ -84,7 +84,10 @@ func (p *DefaultChannelProcessor) ProcessChannelWithOptions(ctx context.Context,
 
 		// Store all videos in the video store (not just new ones)
 		if p.videoStore != nil {
-			p.videoStore.AddVideo(channelID, entryCopy)
+			if err := p.videoStore.AddVideo(channelID, entryCopy); err != nil {
+				log.Printf("Warning: Failed to add video %s to store: %v", entryCopy.ID, err)
+				// Continue processing other videos despite this error
+			}
 		}
 
 		// Check if the video is newer than the last checked timestamp
