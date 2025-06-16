@@ -53,9 +53,6 @@ jobs:
         echo "=== Before running tests ==="
         ls -la tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -5
         
-        echo "=== Removing existing snapshots to force regeneration ==="
-        rm -f tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/*.png
-        
         echo "=== Running snapshot update ==="
         npm run test:screenshots:update
         
