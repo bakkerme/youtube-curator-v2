@@ -22,6 +22,15 @@ jobs:
       with:
         ref: ${{ inputs.branch }}
         token: ${{ secrets.GITHUB_TOKEN }}
+        # Ensure full git history for proper change detection
+        fetch-depth: 0
+
+    - name: Configure git
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
+        # Ensure git tracks changes properly
+        git status
 
     - name: Set up Node.js
       uses: actions/setup-node@v3
@@ -37,20 +46,73 @@ jobs:
       run: npx playwright install chromium --with-deps
 
     - name: Regenerate snapshots
-      run: npm run test:screenshots:update
+      run: |
+        echo "=== Before running tests ==="
+        ls -la tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -5
+        
+        echo "=== Removing existing snapshots to force regeneration ==="
+        rm -f tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/*.png
+        
+        echo "=== Running snapshot update ==="
+        npm run test:screenshots:update
+        
+        echo "=== After running tests ==="
+        ls -la tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -5
+        
+        echo "=== Exit code: $? ==="
       env:
         # Enable screenshot generation mode - generates without comparison
         DISABLE_VISUAL_REGRESSION: true
         # Disable development tools for clean screenshots
         NEXT_PUBLIC_DISABLE_DEVTOOLS: true
 
+    - name: Debug filesystem state
+      working-directory: .
+      run: |
+        echo "=== Current working directory ==="
+        pwd
+        
+        echo "=== Git status before check ==="
+        git status --porcelain
+        
+        echo "=== Git status verbose ==="
+        git status
+        
+        echo "=== List all snapshot files ==="
+        find . -name "*.png" -path "*/tests/ui-screenshots/*" | head -20
+        
+        echo "=== Check gitignore patterns ==="
+        git check-ignore -v frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/*.png | head -10 || echo "No ignore patterns matched"
+        
+        echo "=== File timestamps ==="
+        ls -la frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ | head -10
+        
+        echo "=== Git diff output ==="
+        git diff --name-status
+        
+        echo "=== Git diff cached ==="
+        git diff --cached --name-status
+
     - name: Check for changes
       id: git-check
       working-directory: .
       run: |
+        echo "=== Checking for changes ==="
+        
+        # First, ensure we're tracking the right files
+        git add frontend/tests/ui-screenshots/ui-screenshots.spec.ts-snapshots/ || echo "No snapshot files to add"
+        git add frontend/test-results/ || echo "No test-results to add"
+        git add frontend/playwright-report/ || echo "No playwright-report to add"
+        
         # Check git status from repository root
+        echo "=== Git status after adding files ==="
         git status --porcelain
-        if git diff --quiet && git diff --staged --quiet; then
+        
+        echo "=== Git diff after staging ==="
+        git diff --cached --name-status
+        
+        # Check for any changes (staged or unstaged)
+        if [ -z "$(git status --porcelain)" ]; then
           echo "changes=false" >> $GITHUB_OUTPUT
           echo "No changes detected"
         else
