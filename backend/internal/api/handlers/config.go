@@ -208,3 +208,48 @@ func (h *ConfigHandlers) SetLLMConfig(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, response)
 }
+
+// GetNewsletterConfig handles GET /api/config/newsletter
+func (h *ConfigHandlers) GetNewsletterConfig(c echo.Context) error {
+	config, err := h.store.GetNewsletterConfig()
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve newsletter configuration")
+	}
+
+	// If no config exists, return default (enabled)
+	if config == nil {
+		return c.JSON(http.StatusOK, types.NewsletterConfigResponse{
+			Enabled: true,
+		})
+	}
+
+	response := types.NewsletterConfigResponse{
+		Enabled: config.Enabled,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}
+
+// SetNewsletterConfig handles PUT /api/config/newsletter
+func (h *ConfigHandlers) SetNewsletterConfig(c echo.Context) error {
+	var req types.NewsletterConfigRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "Invalid request body")
+	}
+
+	// Create newsletter config
+	newsletterConfig := &store.NewsletterConfig{
+		Enabled: req.Enabled,
+	}
+
+	// Save to store
+	if err := h.store.SetNewsletterConfig(newsletterConfig); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save newsletter configuration")
+	}
+
+	response := types.NewsletterConfigResponse{
+		Enabled: req.Enabled,
+	}
+
+	return c.JSON(http.StatusOK, response)
+}

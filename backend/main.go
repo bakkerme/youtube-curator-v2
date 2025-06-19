@@ -128,17 +128,35 @@ func main() {
 			return
 		}
 	} else {
-		// Use robfig/cron for scheduling if CronSchedule is set
-		fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
-		c := cron.New()
-		_, err = c.AddFunc(cfg.CronSchedule, func() {
-			checkForNewVideos(cfg, emailSender, channelProcessor, db)
-		})
+		// Check newsletter configuration to see if cron should be enabled
+		newsletterConfig, err := db.GetNewsletterConfig()
 		if err != nil {
-			log.Fatalf("Failed to add cron job: %v", err)
+			log.Printf("Warning: Failed to get newsletter configuration: %v", err)
 		}
-		c.Start()
-		select {} // Block forever
+		
+		// If newsletter is disabled, skip cron but keep API running
+		if newsletterConfig != nil && !newsletterConfig.Enabled {
+			fmt.Println("Newsletter is disabled in configuration: Skipping scheduler.")
+			if cfg.EnableAPI {
+				fmt.Println("API server is running. Use Ctrl+C to stop.")
+				select {} // Block forever to keep API server running
+			} else {
+				fmt.Println("No API server enabled. Exiting.")
+				return
+			}
+		} else {
+			// Use robfig/cron for scheduling if CronSchedule is set
+			fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
+			c := cron.New()
+			_, err = c.AddFunc(cfg.CronSchedule, func() {
+				checkForNewVideos(cfg, emailSender, channelProcessor, db)
+			})
+			if err != nil {
+				log.Fatalf("Failed to add cron job: %v", err)
+			}
+			c.Start()
+			select {} // Block forever
+		}
 	}
 }
 

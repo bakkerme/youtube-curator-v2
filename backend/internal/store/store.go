@@ -45,6 +45,10 @@ type Store interface {
 	GetLLMConfig() (*LLMConfig, error)
 	SetLLMConfig(config *LLMConfig) error
 
+	// Newsletter configuration methods
+	GetNewsletterConfig() (*NewsletterConfig, error)
+	SetNewsletterConfig(config *NewsletterConfig) error
+
 	// Watched state management methods
 	GetWatchedVideos() ([]string, error)
 	SetVideoWatched(videoID string) error
@@ -65,6 +69,11 @@ type LLMConfig struct {
 	EndpointURL string `json:"endpointUrl"` // LLM API endpoint URL
 	APIKey      string `json:"apiKey"`      // API key for the LLM service
 	Model       string `json:"model"`       // Model name to use (e.g., "gpt-3.5-turbo")
+}
+
+// NewsletterConfig holds newsletter configuration
+type NewsletterConfig struct {
+	Enabled bool `json:"enabled"` // Whether the newsletter cron is enabled
 }
 
 // BadgerStore handles database operations
@@ -345,6 +354,45 @@ func (s *BadgerStore) SetLLMConfig(config *LLMConfig) error {
 		configBytes, err := json.Marshal(config)
 		if err != nil {
 			return fmt.Errorf("failed to marshal LLM configuration: %w", err)
+		}
+		return txn.Set(key, configBytes)
+	})
+}
+
+// GetNewsletterConfig retrieves the newsletter configuration
+func (s *BadgerStore) GetNewsletterConfig() (*NewsletterConfig, error) {
+	var config NewsletterConfig
+	key := []byte("newsletter_config")
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			// Default to enabled if no configuration exists
+			config.Enabled = true
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get newsletter configuration: %w", err)
+		}
+		return item.Value(func(val []byte) error {
+			return json.Unmarshal(val, &config)
+		})
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+
+	return &config, nil
+}
+
+// SetNewsletterConfig stores the newsletter configuration
+func (s *BadgerStore) SetNewsletterConfig(config *NewsletterConfig) error {
+	key := []byte("newsletter_config")
+	return s.db.Update(func(txn *badger.Txn) error {
+		configBytes, err := json.Marshal(config)
+		if err != nil {
+			return fmt.Errorf("failed to marshal newsletter configuration: %w", err)
 		}
 		return txn.Set(key, configBytes)
 	})
