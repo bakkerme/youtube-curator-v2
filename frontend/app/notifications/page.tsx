@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { newsletterAPI, channelAPI, configAPI } from '@/lib/api';
-import { Channel, SMTPConfigRequest, LLMConfigRequest, RunNewsletterRequest } from '@/lib/types';
+import { Channel, SMTPConfigRequest, LLMConfigRequest, RunNewsletterRequest, NewsletterConfigRequest } from '@/lib/types';
 
 export default function NotificationsPage() {
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -37,10 +37,19 @@ export default function NotificationsPage() {
   const [llmResult, setLLMResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [llmApiKeySet, setLLMApiKeySet] = useState(false);
 
+  // Newsletter Configuration State
+  const [newsletterConfig, setNewsletterConfig] = useState<NewsletterConfigRequest>({
+    enabled: true
+  });
+  const [isLoadingNewsletter, setIsLoadingNewsletter] = useState(true);
+  const [isSavingNewsletter, setIsSavingNewsletter] = useState(false);
+  const [newsletterResult, setNewsletterResult] = useState<{ type: 'success' | 'error', message: string } | null>(null);
+
   useEffect(() => {
     loadChannels();
     loadSMTPConfig();
     loadLLMConfig();
+    loadNewsletterConfig();
   }, []);
 
   const loadChannels = async () => {
@@ -85,6 +94,19 @@ export default function NotificationsPage() {
       console.error('Failed to load LLM configuration:', error);
     } finally {
       setIsLoadingLLM(false);
+    }
+  };
+
+  const loadNewsletterConfig = async () => {
+    try {
+      const data = await configAPI.getNewsletter();
+      setNewsletterConfig({
+        enabled: data.enabled
+      });
+    } catch (error) {
+      console.error('Failed to load newsletter configuration:', error);
+    } finally {
+      setIsLoadingNewsletter(false);
     }
   };
 
@@ -154,6 +176,27 @@ export default function NotificationsPage() {
       });
     } finally {
       setIsSavingLLM(false);
+    }
+  };
+
+  const handleSaveNewsletter = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingNewsletter(true);
+    setNewsletterResult(null);
+
+    try {
+      await configAPI.setNewsletter(newsletterConfig);
+      setNewsletterResult({ 
+        type: 'success', 
+        message: `Newsletter ${newsletterConfig.enabled ? 'enabled' : 'disabled'} successfully!` 
+      });
+    } catch (error) {
+      setNewsletterResult({ 
+        type: 'error', 
+        message: error instanceof Error ? error.message : 'Failed to save newsletter configuration' 
+      });
+    } finally {
+      setIsSavingNewsletter(false);
     }
   };
 
@@ -289,6 +332,126 @@ export default function NotificationsPage() {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Newsletter Configuration */}
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm mb-6">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-xl font-semibold mb-2">Newsletter Schedule</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Control whether the automatic newsletter scheduler runs. When disabled, the scheduled 
+            checks for new videos are paused, but you can still use the manual trigger above.
+          </p>
+        </div>
+        <div className="p-6">
+          {isLoadingNewsletter ? (
+            <div className="flex justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveNewsletter} className="space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${newsletterConfig.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <h3 className="text-lg font-medium">
+                      Newsletter Scheduler is {newsletterConfig.enabled ? 'Enabled' : 'Disabled'}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    {newsletterConfig.enabled 
+                      ? 'The system will automatically check for new videos on schedule and send email notifications.'
+                      : 'Automatic checks are paused. The manual newsletter trigger above will still work.'
+                    }
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={newsletterConfig.enabled}
+                      onChange={(e) => setNewsletterConfig({ enabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {!newsletterConfig.enabled && (
+                <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-700 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <svg className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div>
+                      <h4 className="font-medium text-yellow-800 dark:text-yellow-200">Newsletter Scheduler Disabled</h4>
+                      <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-1">
+                        You won&apos;t receive automatic email notifications when new videos are published. 
+                        You can still use the manual newsletter trigger above and configure SMTP settings below.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {newsletterResult && (
+                <div className={`p-4 rounded-md border ${
+                  newsletterResult.type === 'success' 
+                    ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' 
+                    : 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                }`}>
+                  <div className="flex items-start gap-3">
+                    {newsletterResult.type === 'success' ? (
+                      <svg className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                    )}
+                    <div>
+                      <p className={`${
+                        newsletterResult.type === 'success' 
+                          ? 'text-green-700 dark:text-green-300' 
+                          : 'text-red-700 dark:text-red-300'
+                      }`}>
+                        {newsletterResult.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isSavingNewsletter}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              >
+                {isSavingNewsletter ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Configuration'
+                )}
+              </button>
+            </form>
           )}
         </div>
       </div>

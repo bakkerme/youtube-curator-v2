@@ -706,6 +706,73 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /config/newsletter:
+    get:
+      summary: Get newsletter configuration
+      description: Retrieve the current newsletter configuration, including whether the automatic newsletter scheduler is enabled
+      tags:
+        - Configuration
+      responses:
+        '200':
+          description: Successfully retrieved newsletter configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsletterConfigResponse'
+              example:
+                enabled: true
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Set newsletter configuration
+      description: |
+        Configure newsletter settings. When disabled, the automatic newsletter scheduler will not run,
+        but SMTP settings remain accessible and manual newsletter triggers will still work.
+      tags:
+        - Configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewsletterConfigRequest'
+            examples:
+              enable_newsletter:
+                summary: Enable newsletter scheduler
+                value:
+                  enabled: true
+              disable_newsletter:
+                summary: Disable newsletter scheduler
+                value:
+                  enabled: false
+      responses:
+        '200':
+          description: Newsletter configuration successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NewsletterConfigResponse'
+              example:
+                enabled: true
+        '400':
+          description: Bad request - invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                message: "Invalid request body"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     ChannelResponse:
@@ -1245,6 +1312,26 @@ components:
         apiKeySet:
           type: boolean
           description: Whether an API key is configured (actual key is never returned)
+          example: true
+
+    NewsletterConfigRequest:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: Whether the automatic newsletter scheduler should be enabled
+          example: true
+
+    NewsletterConfigResponse:
+      type: object
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: Whether the automatic newsletter scheduler is enabled
           example: true
 
 tags:

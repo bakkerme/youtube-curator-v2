@@ -48,6 +48,8 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	api.PUT("/config/smtp", configHandlers.SetSMTPConfig)
 	api.GET("/config/llm", configHandlers.GetLLMConfig)
 	api.PUT("/config/llm", configHandlers.SetLLMConfig)
+	api.GET("/config/newsletter", configHandlers.GetNewsletterConfig)
+	api.PUT("/config/newsletter", configHandlers.SetNewsletterConfig)
 
 	// Newsletter endpoints
 	api.POST("/newsletter/run", newsletterHandlers.RunNewsletter)

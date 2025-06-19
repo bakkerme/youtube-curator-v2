@@ -128,6 +128,11 @@ type LLMConfigResponse struct {
 	APIKeySet   bool   `json:"apiKeySet"`
 }
 
+// NewsletterConfigResponse represents newsletter configuration in API responses
+type NewsletterConfigResponse struct {
+	Enabled bool `json:"enabled"`
+}
+
 // VideoSummaryResponse represents a video summary in API responses
 type VideoSummaryResponse struct {
 	VideoID        string `json:"videoId"`

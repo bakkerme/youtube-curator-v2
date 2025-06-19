@@ -28,6 +28,11 @@ type LLMConfigRequest struct {
 	Model       string `json:"model" validate:"required"`
 }
 
+// NewsletterConfigRequest represents a request to update newsletter configuration
+type NewsletterConfigRequest struct {
+	Enabled bool `json:"enabled"`
+}
+
 // ImportChannelsRequest represents a request to import multiple channels
 type ImportChannelsRequest struct {
 	Channels []ChannelImport `json:"channels" validate:"required"`
