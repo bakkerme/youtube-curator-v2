@@ -145,17 +145,23 @@ func main() {
 				return
 			}
 		} else {
-			// Use robfig/cron for scheduling if CronSchedule is set
-			fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
-			c := cron.New()
-			_, err = c.AddFunc(cfg.CronSchedule, func() {
-				checkForNewVideos(cfg, emailSender, channelProcessor, db)
-			})
-			if err != nil {
-				log.Fatalf("Failed to add cron job: %v", err)
+			// Check if CronSchedule is set before starting cron
+			if cfg.CronSchedule == "" {
+				fmt.Println("No cron schedule configured. API server is running. Use Ctrl+C to stop.")
+				select {} // Block forever to keep API server running
+			} else {
+				// Use robfig/cron for scheduling if CronSchedule is set
+				fmt.Printf("Starting cron scheduler with schedule: %s\n", cfg.CronSchedule)
+				c := cron.New()
+				_, err = c.AddFunc(cfg.CronSchedule, func() {
+					checkForNewVideos(cfg, emailSender, channelProcessor, db)
+				})
+				if err != nil {
+					log.Fatalf("Failed to add cron job: %v", err)
+				}
+				c.Start()
+				select {} // Block forever
 			}
-			c.Start()
-			select {} // Block forever
 		}
 	}
 }

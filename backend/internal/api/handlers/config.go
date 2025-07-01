@@ -216,13 +216,6 @@ func (h *ConfigHandlers) GetNewsletterConfig(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to retrieve newsletter configuration")
 	}
 
-	// If no config exists, return default (enabled)
-	if config == nil {
-		return c.JSON(http.StatusOK, types.NewsletterConfigResponse{
-			Enabled: true,
-		})
-	}
-
 	response := types.NewsletterConfigResponse{
 		Enabled: config.Enabled,
 	}

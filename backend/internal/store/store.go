@@ -8,6 +8,16 @@ import (
 	badger "github.com/dgraph-io/badger/v3"
 )
 
+// Configuration key constants
+const (
+	newsletterConfigKey = "newsletter_config"
+	smtpConfigKey      = "smtp_config"
+	llmConfigKey       = "llm_config"
+	checkIntervalKey   = "check_interval"
+	channelsKey        = "channels"
+	watchedVideosKey   = "watched_videos"
+)
+
 // Package store provides a Store interface for database operations, with both a BadgerDB-backed implementation (BadgerStore)
 // and an in-memory mock implementation (MockStore) for testing. Use dependency injection to pass the Store interface
 // to components, enabling easy unit testing without a real database.
@@ -158,7 +168,7 @@ func (s *BadgerStore) SetLastCheckedTimestamp(channelID string, timestamp time.T
 // GetChannels retrieves the list of all configured channels
 func (s *BadgerStore) GetChannels() ([]Channel, error) {
 	var channels []Channel
-	key := []byte("channels")
+	key := []byte(channelsKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -180,7 +190,7 @@ func (s *BadgerStore) GetChannels() ([]Channel, error) {
 
 // AddChannel adds a new channel to the list of configured channels
 func (s *BadgerStore) AddChannel(channel Channel) error {
-	key := []byte("channels")
+	key := []byte(channelsKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		var channels []Channel
 		item, err := txn.Get(key)
@@ -216,7 +226,7 @@ func (s *BadgerStore) AddChannel(channel Channel) error {
 
 // RemoveChannel removes a channel from the list of configured channels
 func (s *BadgerStore) RemoveChannel(channelID string) error {
-	key := []byte("channels")
+	key := []byte(channelsKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		var channels []Channel
 		item, err := txn.Get(key)
@@ -253,7 +263,7 @@ func (s *BadgerStore) RemoveChannel(channelID string) error {
 // GetCheckInterval retrieves the configured check interval
 func (s *BadgerStore) GetCheckInterval() (time.Duration, error) {
 	var interval time.Duration
-	key := []byte("check_interval")
+	key := []byte(checkIntervalKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -279,7 +289,7 @@ func (s *BadgerStore) GetCheckInterval() (time.Duration, error) {
 
 // SetCheckInterval stores the check interval configuration
 func (s *BadgerStore) SetCheckInterval(interval time.Duration) error {
-	key := []byte("check_interval")
+	key := []byte(checkIntervalKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		return txn.Set(key, []byte(interval.String()))
 	})
@@ -288,7 +298,7 @@ func (s *BadgerStore) SetCheckInterval(interval time.Duration) error {
 // GetSMTPConfig retrieves the SMTP configuration
 func (s *BadgerStore) GetSMTPConfig() (*SMTPConfig, error) {
 	var config SMTPConfig
-	key := []byte("smtp_config")
+	key := []byte(smtpConfigKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -307,7 +317,7 @@ func (s *BadgerStore) GetSMTPConfig() (*SMTPConfig, error) {
 
 // SetSMTPConfig stores the SMTP configuration
 func (s *BadgerStore) SetSMTPConfig(config *SMTPConfig) error {
-	key := []byte("smtp_config")
+	key := []byte(smtpConfigKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		configBytes, err := json.Marshal(config)
 		if err != nil {
@@ -320,7 +330,7 @@ func (s *BadgerStore) SetSMTPConfig(config *SMTPConfig) error {
 // GetLLMConfig retrieves the LLM configuration
 func (s *BadgerStore) GetLLMConfig() (*LLMConfig, error) {
 	var config LLMConfig
-	key := []byte("llm_config")
+	key := []byte(llmConfigKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -349,7 +359,7 @@ func (s *BadgerStore) GetLLMConfig() (*LLMConfig, error) {
 
 // SetLLMConfig stores the LLM configuration
 func (s *BadgerStore) SetLLMConfig(config *LLMConfig) error {
-	key := []byte("llm_config")
+	key := []byte(llmConfigKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		configBytes, err := json.Marshal(config)
 		if err != nil {
@@ -362,7 +372,7 @@ func (s *BadgerStore) SetLLMConfig(config *LLMConfig) error {
 // GetNewsletterConfig retrieves the newsletter configuration
 func (s *BadgerStore) GetNewsletterConfig() (*NewsletterConfig, error) {
 	var config NewsletterConfig
-	key := []byte("newsletter_config")
+	key := []byte(newsletterConfigKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -388,7 +398,7 @@ func (s *BadgerStore) GetNewsletterConfig() (*NewsletterConfig, error) {
 
 // SetNewsletterConfig stores the newsletter configuration
 func (s *BadgerStore) SetNewsletterConfig(config *NewsletterConfig) error {
-	key := []byte("newsletter_config")
+	key := []byte(newsletterConfigKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		configBytes, err := json.Marshal(config)
 		if err != nil {
@@ -401,7 +411,7 @@ func (s *BadgerStore) SetNewsletterConfig(config *NewsletterConfig) error {
 // GetWatchedVideos retrieves the list of all watched video IDs
 func (s *BadgerStore) GetWatchedVideos() ([]string, error) {
 	var watchedVideos []string
-	key := []byte("watched_videos")
+	key := []byte(watchedVideosKey)
 
 	err := s.db.View(func(txn *badger.Txn) error {
 		item, err := txn.Get(key)
@@ -423,7 +433,7 @@ func (s *BadgerStore) GetWatchedVideos() ([]string, error) {
 
 // SetVideoWatched marks a video as watched by adding it to the watched videos list
 func (s *BadgerStore) SetVideoWatched(videoID string) error {
-	key := []byte("watched_videos")
+	key := []byte(watchedVideosKey)
 	return s.db.Update(func(txn *badger.Txn) error {
 		var watchedVideos []string
 		item, err := txn.Get(key)
