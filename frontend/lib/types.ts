@@ -59,6 +59,14 @@ export interface LLMConfigResponse {
   apiKeySet: boolean;
 }
 
+export interface NewsletterConfigRequest {
+  enabled: boolean;
+}
+
+export interface NewsletterConfigResponse {
+  enabled: boolean;
+}
+
 export interface ApiError {
   message: string;
 }

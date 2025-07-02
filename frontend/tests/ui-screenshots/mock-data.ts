@@ -119,6 +119,12 @@ export const mockSMTPConfig: SMTPConfigResponse = {
   passwordSet: true,
 };
 
+export const mockLLMConfig = {
+  endpoint: 'https://localhost/v1',
+  model: 'gpt-4',
+  apikey: 'your-api-key-here',
+};
+
 export const emptyMockData = {
   videos: [],
   channels: [],

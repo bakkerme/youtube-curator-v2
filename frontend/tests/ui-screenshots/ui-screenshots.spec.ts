@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { mockVideoEntries, mockChannels, mockSMTPConfig, emptyMockData } from './mock-data';
+import { mockVideoEntries, mockChannels, mockSMTPConfig, mockLLMConfig, emptyMockData } from './mock-data';
 import * as path from 'path';
 
 // Configuration: set DISABLE_VISUAL_REGRESSION=true to generate screenshots without comparison
@@ -35,6 +35,10 @@ test.describe('UI Screenshots for PR Review', () => {
 
     await page.route('**/localhost:8080/api/config/smtp*', async (route) => {
       await route.fulfill({ json: mockSMTPConfig });
+    });
+
+    await page.route('**/localhost:8080/api/config/llm*', async (route) => {
+      await route.fulfill({ json: mockLLMConfig });
     });
 
     await page.route('**/localhost:8080/api/newsletter/run*', async (route) => {

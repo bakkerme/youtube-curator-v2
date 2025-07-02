@@ -12,7 +12,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 5 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
@@ -59,15 +59,10 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: process.env.CI 
-      ? 'npm run build && npm run start'
-      : 'NEXT_PUBLIC_DISABLE_DEVTOOLS=true npm run dev',
+    command: 'npm run build && npm run start',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
-    env: {
-      NEXT_PUBLIC_DISABLE_DEVTOOLS: 'true',
-    },
   },
 
   /* Output folder for screenshots */

@@ -59,7 +59,9 @@ const mockChannels: Channel[] = [
   { id: 'channel2', title: 'Channel Two' },
 ];
 
-const today = new Date();
+// Use a fixed date to ensure test consistency across timezones and timing
+const FIXED_TEST_DATE = new Date('2024-07-15T14:30:00.000Z'); // Fixed UTC date/time
+const today = new Date(FIXED_TEST_DATE);
 const yesterday = new Date(today);
 yesterday.setDate(today.getDate() - 1);
 const specificPastDate = new Date('2023-03-15T12:00:00'); // Ensure specific time for consistency
@@ -137,7 +139,7 @@ const mockVideos: VideoEntry[] = [
 
 const mockVideoAPIResponse: VideosAPIResponse = { // Used for most tests
   videos: mockVideos,
-  lastRefresh: new Date().toISOString(),
+  lastRefresh: FIXED_TEST_DATE.toISOString(),
   totalCount: mockVideos.length,
 };
 
@@ -148,12 +150,13 @@ const renderVideosPage = () => render(<VideosPage enableAutoRefresh={false} />);
 
 describe('VideosPage', () => {
   beforeAll(() => {
-    // Mock timers to prevent auto-refresh intervals from interfering with tests
-    jest.useFakeTimers();
+    // Mock timers and system time to prevent auto-refresh intervals and ensure consistent dates
+    jest.useFakeTimers('modern');
+    jest.setSystemTime(FIXED_TEST_DATE);
   });
 
   afterAll(() => {
-    // Restore real timers after all tests
+    // Restore real timers and system time after all tests
     jest.useRealTimers();
   });
 
@@ -178,7 +181,6 @@ describe('VideosPage', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
-    jest.clearAllTimers();
     resetOriginalTitle();
   });
 
@@ -216,14 +218,14 @@ describe('VideosPage', () => {
   });
 
   test('Today Mode includes videos from 10 PM previous day (intelligent today filter)', async () => {
-    // Create a video posted at 10:15 PM yesterday
-    const yesterdayLateNight = new Date(today);
-    yesterdayLateNight.setDate(today.getDate() - 1);
+    // Create a video posted at 10:15 PM yesterday (using fixed test date)
+    const yesterdayLateNight = new Date(FIXED_TEST_DATE);
+    yesterdayLateNight.setDate(FIXED_TEST_DATE.getDate() - 1);
     yesterdayLateNight.setHours(22, 15, 0, 0); // 10:15 PM yesterday
 
     // Create a video posted at 9:45 PM yesterday (should NOT be included)
-    const yesterdayEarlierEvening = new Date(today);
-    yesterdayEarlierEvening.setDate(today.getDate() - 1);
+    const yesterdayEarlierEvening = new Date(FIXED_TEST_DATE);
+    yesterdayEarlierEvening.setDate(FIXED_TEST_DATE.getDate() - 1);
     yesterdayEarlierEvening.setHours(21, 45, 0, 0); // 9:45 PM yesterday
 
     const mockVideosWithLateNight = [
@@ -268,7 +270,7 @@ describe('VideosPage', () => {
     (videoAPI.getAll as jest.Mock).mockResolvedValue({
       videos: mockVideosWithLateNight,
       totalCount: mockVideosWithLateNight.length,
-      lastRefresh: today.toISOString(),
+      lastRefresh: FIXED_TEST_DATE.toISOString(),
     });
 
     renderVideosPage();
@@ -295,9 +297,9 @@ describe('VideosPage', () => {
   });
 
   test('Today Mode boundary condition - video at exactly 10 PM yesterday is included', async () => {
-    // Create a video posted at exactly 10:00 PM yesterday
-    const yesterdayExactly10PM = new Date(today);
-    yesterdayExactly10PM.setDate(today.getDate() - 1);
+    // Create a video posted at exactly 10:00 PM yesterday (using fixed test date)
+    const yesterdayExactly10PM = new Date(FIXED_TEST_DATE);
+    yesterdayExactly10PM.setDate(FIXED_TEST_DATE.getDate() - 1);
     yesterdayExactly10PM.setHours(22, 0, 0, 0); // Exactly 10:00 PM yesterday
 
     const mockVideosWithBoundary = [
@@ -325,7 +327,7 @@ describe('VideosPage', () => {
     (videoAPI.getAll as jest.Mock).mockResolvedValue({
       videos: mockVideosWithBoundary,
       totalCount: mockVideosWithBoundary.length,
-      lastRefresh: today.toISOString(),
+      lastRefresh: FIXED_TEST_DATE.toISOString(),
     });
 
     renderVideosPage();
@@ -419,9 +421,9 @@ describe('VideosPage', () => {
       dateInput = screen.getByTestId('date-filter-input');
       expect(dateInput).toBeVisible();
     });
-    // Assert that the date input defaults to yesterday's date
-    const yesterdayForDateValue = new Date();
-    yesterdayForDateValue.setDate(yesterdayForDateValue.getDate() - 1);
+    // Assert that the date input defaults to yesterday's date (using fixed test date)
+    const yesterdayForDateValue = new Date(FIXED_TEST_DATE);
+    yesterdayForDateValue.setDate(FIXED_TEST_DATE.getDate() - 1);
     const year = yesterdayForDateValue.getFullYear();
     const month = String(yesterdayForDateValue.getMonth() + 1).padStart(2, '0');
     const day = String(yesterdayForDateValue.getDate()).padStart(2, '0');
@@ -575,7 +577,7 @@ describe('VideosPage', () => {
     test('correctly paginates filtered videos and handles page navigation', async () => {
       const paginatedVideoResponse: VideosAPIResponse = {
         videos: paginatedMockVideos,
-        lastRefresh: new Date().toISOString(),
+        lastRefresh: FIXED_TEST_DATE.toISOString(),
         totalCount: paginatedMockVideos.length,
       };
       (videoAPI.getAll as jest.Mock).mockResolvedValue(paginatedVideoResponse);
@@ -653,8 +655,8 @@ describe('VideosPage', () => {
   });
 
   test('handles refresh button click and updates videos', async () => {
-    const initialTimestamp = new Date().toISOString();
-    const refreshedTimestamp = new Date(new Date().getTime() + 1000).toISOString(); // Ensure different timestamp
+    const initialTimestamp = FIXED_TEST_DATE.toISOString();
+    const refreshedTimestamp = new Date(FIXED_TEST_DATE.getTime() + 1000).toISOString(); // Ensure different timestamp
 
     const mockInitialVideoEntry: VideoEntry[] = [{
       channelId: 'channel1',
@@ -763,8 +765,8 @@ describe('VideosPage', () => {
   });
 
   test('updates UI when video is marked as watched without refetching from API', async () => {
-    // Arrange - Setup mock videos with one unwatched video (using today's date)
-    const today = new Date().toISOString();
+    // Arrange - Setup mock videos with one unwatched video (using fixed test date)
+    const today = FIXED_TEST_DATE.toISOString();
     const mockUnwatchedVideo: VideoEntry = {
       id: 'test-video-1',
       channelId: 'channel-1',
@@ -852,7 +854,7 @@ describe('VideosPage', () => {
 
   test('watched videos accordion is collapsed by default and can be toggled', async () => {
     // Arrange - Setup mock videos with watched videos
-    const today = new Date().toISOString();
+    const today = FIXED_TEST_DATE.toISOString();
     const mockWatchedVideo: VideoEntry = {
       id: 'watched-video-1',
       channelId: 'channel-1',
@@ -920,8 +922,8 @@ describe('VideosPage', () => {
     const originalTitle = 'Test Original Title';
     document.title = originalTitle;
 
-    // Get today's date for videos to pass the "today" filter
-    const today = new Date();
+    // Get today's date for videos to pass the "today" filter (using fixed test date)
+    const today = new Date(FIXED_TEST_DATE);
     const todayISOString = today.toISOString();
 
     const mockInitialVideoEntry: VideoEntry[] = [{
