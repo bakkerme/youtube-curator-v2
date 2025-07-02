@@ -106,6 +106,58 @@ func (h *VideoHandlers) MarkVideoAsWatched(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent) // HTTP 204 No Content is suitable for successful actions with no response body
 }
 
+// SetVideoToWatch handles POST /api/videos/:videoId/towatch
+func (h *VideoHandlers) SetVideoToWatch(c echo.Context) error {
+	rawVideoID := c.Param("videoId")
+	if rawVideoID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
+	}
+
+	// Create and validate video ID
+	vid, err := videoid.NewFromRaw(rawVideoID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	videoID := vid.ToFull()
+
+	if h.videoStore == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Video store not initialized")
+	}
+
+	// Call the store function to mark the video as to-watch
+	if err := h.videoStore.SetVideoToWatch(videoID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to set video to watch: %v", err))
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// UnsetVideoToWatch handles DELETE /api/videos/:videoId/towatch
+func (h *VideoHandlers) UnsetVideoToWatch(c echo.Context) error {
+	rawVideoID := c.Param("videoId")
+	if rawVideoID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "Video ID is required")
+	}
+
+	// Create and validate video ID
+	vid, err := videoid.NewFromRaw(rawVideoID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	videoID := vid.ToFull()
+
+	if h.videoStore == nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "Video store not initialized")
+	}
+
+	// Call the store function to unset the video from to-watch
+	if err := h.videoStore.UnsetVideoToWatch(videoID); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to unset video to watch: %v", err))
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
 // GetVideoSummary handles GET /api/videos/:videoId/summary
 func (h *VideoHandlers) GetVideoSummary(c echo.Context) error {
 	rawVideoID := c.Param("videoId")

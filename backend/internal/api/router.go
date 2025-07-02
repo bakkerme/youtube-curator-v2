@@ -56,6 +56,8 @@ func SetupRouter(store store.Store, feedProvider rss.FeedProvider, emailSender e
 	api.GET("/videos", videoHandlers.GetVideos)
 	api.POST("/videos/:videoId/watch", videoHandlers.MarkVideoAsWatched)
 	api.GET("/videos/:videoId/summary", videoHandlers.GetVideoSummary)
+	api.POST("/videos/:videoId/towatch", videoHandlers.SetVideoToWatch)
+	api.DELETE("/videos/:videoId/towatch", videoHandlers.UnsetVideoToWatch)
 
 	return e
 }

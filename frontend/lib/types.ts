@@ -114,6 +114,7 @@ export interface VideoEntry {
   channelId: string;
   cachedAt: string;
   watched: boolean;
+  toWatch: boolean;
   title: string;
   link: Link;
   published: string;

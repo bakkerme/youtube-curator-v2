@@ -13,6 +13,7 @@ type VideoEntry struct {
 	ChannelID string    `json:"channelId"`
 	CachedAt  time.Time `json:"cachedAt"`
 	Watched   bool      `json:"watched"`
+	ToWatch   bool      `json:"toWatch"`
 }
 
 // VideoStore provides in-memory storage for videos with TTL
@@ -66,10 +67,12 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) error {
 	vs.mutex.Lock()
 	defer vs.mutex.Unlock()
 
-	// Check if video already exists and preserve its watched state
+	// Check if video already exists and preserve its watched and toWatch states
 	var watched bool = false
+	var toWatch bool = false
 	if existingVideo, exists := vs.videos[entry.ID]; exists {
 		watched = existingVideo.Watched
+		toWatch = existingVideo.ToWatch
 	} else if vs.store != nil {
 		// If video doesn't exist in memory, check persistent store for watched state
 		isWatched, err := vs.store.IsVideoWatched(entry.ID)
@@ -77,6 +80,13 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) error {
 			return fmt.Errorf("failed to check watched state for video %s: %w", entry.ID, err)
 		}
 		watched = isWatched
+		
+		// Check persistent store for toWatch state
+		isToWatch, err := vs.store.IsVideoToWatch(entry.ID)
+		if err != nil {
+			return fmt.Errorf("failed to check toWatch state for video %s: %w", entry.ID, err)
+		}
+		toWatch = isToWatch
 	}
 
 	vs.videos[entry.ID] = VideoEntry{
@@ -84,6 +94,7 @@ func (vs *VideoStore) AddVideo(channelID string, entry rss.Entry) error {
 		ChannelID: channelID,
 		CachedAt:  time.Now(),
 		Watched:   watched,
+		ToWatch:   toWatch,
 	}
 	return nil
 }
@@ -158,6 +169,44 @@ func (vs *VideoStore) MarkVideoAsWatched(videoID string) error {
 	if vs.store != nil {
 		if err := vs.store.SetVideoWatched(videoID); err != nil {
 			return fmt.Errorf("failed to persist watched state for video %s: %w", videoID, err)
+		}
+	}
+	return nil
+}
+
+// SetVideoToWatch sets the ToWatch flag to true for the video with the given ID
+func (vs *VideoStore) SetVideoToWatch(videoID string) error {
+	vs.mutex.Lock()
+	defer vs.mutex.Unlock()
+
+	if video, ok := vs.videos[videoID]; ok {
+		video.ToWatch = true
+		vs.videos[videoID] = video
+	}
+
+	// Persist toWatch state to database if store is available
+	if vs.store != nil {
+		if err := vs.store.SetVideoToWatch(videoID); err != nil {
+			return fmt.Errorf("failed to persist toWatch state for video %s: %w", videoID, err)
+		}
+	}
+	return nil
+}
+
+// UnsetVideoToWatch sets the ToWatch flag to false for the video with the given ID
+func (vs *VideoStore) UnsetVideoToWatch(videoID string) error {
+	vs.mutex.Lock()
+	defer vs.mutex.Unlock()
+
+	if video, ok := vs.videos[videoID]; ok {
+		video.ToWatch = false
+		vs.videos[videoID] = video
+	}
+
+	// Remove from toWatch list in database if store is available
+	if vs.store != nil {
+		if err := vs.store.UnsetVideoToWatch(videoID); err != nil {
+			return fmt.Errorf("failed to remove toWatch state for video %s: %w", videoID, err)
 		}
 	}
 	return nil

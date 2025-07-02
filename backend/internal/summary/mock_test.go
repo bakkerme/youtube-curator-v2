@@ -96,3 +96,7 @@ func (m *mockStore) SetLLMConfig(config *store.LLMConfig) error                 
 func (m *mockStore) GetWatchedVideos() ([]string, error)                           { return nil, nil }
 func (m *mockStore) SetVideoWatched(videoID string) error                           { return nil }
 func (m *mockStore) IsVideoWatched(videoID string) (bool, error)                    { return false, nil }
+func (m *mockStore) GetToWatchVideos() ([]string, error)                           { return nil, nil }
+func (m *mockStore) SetVideoToWatch(videoID string) error                           { return nil }
+func (m *mockStore) UnsetVideoToWatch(videoID string) error                         { return nil }
+func (m *mockStore) IsVideoToWatch(videoID string) (bool, error)                    { return false, nil }

@@ -201,6 +201,20 @@ export const videoAPI = {
       return data;
     });
   },
+
+  setToWatch: async (videoId: string): Promise<void> => {
+    return makeRequest(async () => {
+      const rawVideoId = extractRawVideoId(videoId);
+      await api.post(`/videos/${rawVideoId}/towatch`);
+    });
+  },
+
+  unsetToWatch: async (videoId: string): Promise<void> => {
+    return makeRequest(async () => {
+      const rawVideoId = extractRawVideoId(videoId);
+      await api.delete(`/videos/${rawVideoId}/towatch`);
+    });
+  },
 };
 
 export default api;
