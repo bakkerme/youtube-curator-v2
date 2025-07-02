@@ -5,6 +5,8 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/ui-screenshots',
+  /* Global setup to check port availability */
+  globalSetup: require.resolve('./tests/global-setup.ts'),
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
