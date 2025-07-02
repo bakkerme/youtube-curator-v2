@@ -79,6 +79,7 @@ type VideoResponse struct {
 	ChannelID  string                  `json:"channelId"`
 	CachedAt   time.Time               `json:"cachedAt"`
 	Watched    bool                    `json:"watched"`
+	ToWatch    bool                    `json:"toWatch"`
 	Title      string                  `json:"title"`
 	Link       VideoLinkResponse       `json:"link"`
 	Published  time.Time               `json:"published"`

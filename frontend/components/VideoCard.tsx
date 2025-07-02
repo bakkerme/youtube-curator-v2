@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'; // Import useState and useEffect
 import { formatDistanceToNow } from 'date-fns';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Star } from 'lucide-react';
 
 // Helper function to extract raw video ID from full format
 function extractRawVideoId(fullVideoId: string): string {
@@ -23,11 +24,17 @@ interface VideoCardProps {
 
 export default function VideoCard({ video, channels, onWatchedStatusChange }: VideoCardProps) {
   const [isChecked, setIsChecked] = useState(video.watched);
+  const [isToWatch, setIsToWatch] = useState(video.toWatch);
 
   // Effect to synchronize isChecked with prop changes
   useEffect(() => {
     setIsChecked(video.watched);
   }, [video.watched]);
+
+  // Effect to synchronize isToWatch with prop changes
+  useEffect(() => {
+    setIsToWatch(video.toWatch);
+  }, [video.toWatch]);
 
   const handleCheckboxChange = async () => {
     const originalCheckedState = isChecked;
@@ -41,6 +48,25 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
     } catch (error) {
       console.error('Failed to mark video as watched:', error);
       setIsChecked(originalCheckedState); // Revert on error
+    }
+  };
+
+  const handleToWatchToggle = async () => {
+    const originalToWatchState = isToWatch;
+    setIsToWatch(!originalToWatchState); // Optimistic update
+
+    try {
+      if (originalToWatchState) {
+        await videoAPI.unsetToWatch(video.id);
+      } else {
+        await videoAPI.setToWatch(video.id);
+      }
+      if (onWatchedStatusChange) {
+        onWatchedStatusChange(video.id); // Notify parent of change
+      }
+    } catch (error) {
+      console.error('Failed to toggle to watch status:', error);
+      setIsToWatch(originalToWatchState); // Revert on error
     }
   };
   
@@ -103,6 +129,16 @@ export default function VideoCard({ video, channels, onWatchedStatusChange }: Vi
         <div className="mt-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex space-x-2">
+              <button
+                onClick={handleToWatchToggle}
+                className="inline-flex items-center justify-center p-1.5 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md transition-colors"
+                aria-label={isToWatch ? "Remove from watch list" : "Add to watch list"}
+              >
+                <Star 
+                  size={18} 
+                  className={isToWatch ? "fill-yellow-500 text-yellow-500" : "text-gray-600 dark:text-gray-400"}
+                />
+              </button>
               <Link
                 href={`/watch/${extractRawVideoId(video.id)}`}
                 className="inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors whitespace-nowrap"

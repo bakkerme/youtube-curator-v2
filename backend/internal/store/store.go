@@ -63,6 +63,12 @@ type Store interface {
 	GetWatchedVideos() ([]string, error)
 	SetVideoWatched(videoID string) error
 	IsVideoWatched(videoID string) (bool, error)
+	
+	// ToWatch state management methods
+	GetToWatchVideos() ([]string, error)
+	SetVideoToWatch(videoID string) error
+	UnsetVideoToWatch(videoID string) error
+	IsVideoToWatch(videoID string) (bool, error)
 }
 
 // SMTPConfig holds SMTP configuration
@@ -474,6 +480,119 @@ func (s *BadgerStore) IsVideoWatched(videoID string) (bool, error) {
 		return false, err
 	}
 	for _, id := range watchedVideos {
+		if id == videoID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// GetToWatchVideos retrieves the list of all to-watch video IDs
+func (s *BadgerStore) GetToWatchVideos() ([]string, error) {
+	var toWatchVideos []string
+	key := []byte("to_watch_videos")
+
+	err := s.db.View(func(txn *badger.Txn) error {
+		item, err := txn.Get(key)
+		if err == badger.ErrKeyNotFound {
+			return nil // No to-watch videos yet
+		}
+		if err != nil {
+			return fmt.Errorf("failed to get to-watch videos: %w", err)
+		}
+		return item.Value(func(val []byte) error {
+			if len(val) == 0 {
+				return nil
+			}
+			return json.Unmarshal(val, &toWatchVideos)
+		})
+	})
+	return toWatchVideos, err
+}
+
+// SetVideoToWatch marks a video as to-watch by adding it to the to-watch videos list
+func (s *BadgerStore) SetVideoToWatch(videoID string) error {
+	key := []byte("to_watch_videos")
+	return s.db.Update(func(txn *badger.Txn) error {
+		var toWatchVideos []string
+		item, err := txn.Get(key)
+		if err != nil && err != badger.ErrKeyNotFound {
+			return fmt.Errorf("failed to get existing to-watch videos: %w", err)
+		}
+		if err == nil {
+			err = item.Value(func(val []byte) error {
+				if len(val) == 0 {
+					return nil
+				}
+				return json.Unmarshal(val, &toWatchVideos)
+			})
+			if err != nil {
+				return err
+			}
+		}
+		// Check if video is already marked as to-watch
+		for _, existingID := range toWatchVideos {
+			if existingID == videoID {
+				return nil // Already to-watch, no-op
+			}
+		}
+		// Add new to-watch video
+		toWatchVideos = append(toWatchVideos, videoID)
+		toWatchBytes, err := json.Marshal(toWatchVideos)
+		if err != nil {
+			return fmt.Errorf("failed to marshal to-watch videos: %w", err)
+		}
+		return txn.Set(key, toWatchBytes)
+	})
+}
+
+// UnsetVideoToWatch removes a video from the to-watch list
+func (s *BadgerStore) UnsetVideoToWatch(videoID string) error {
+	key := []byte("to_watch_videos")
+	return s.db.Update(func(txn *badger.Txn) error {
+		var toWatchVideos []string
+		item, err := txn.Get(key)
+		if err != nil && err != badger.ErrKeyNotFound {
+			return fmt.Errorf("failed to get existing to-watch videos: %w", err)
+		}
+		if err == nil {
+			err = item.Value(func(val []byte) error {
+				if len(val) == 0 {
+					return nil
+				}
+				return json.Unmarshal(val, &toWatchVideos)
+			})
+			if err != nil {
+				return err
+			}
+		}
+		// Remove video from list
+		var updatedVideos []string
+		for _, existingID := range toWatchVideos {
+			if existingID != videoID {
+				updatedVideos = append(updatedVideos, existingID)
+			}
+		}
+		// If nothing changed, return early
+		if len(updatedVideos) == len(toWatchVideos) {
+			return nil
+		}
+		// Save updated list
+		toWatchBytes, err := json.Marshal(updatedVideos)
+		if err != nil {
+			return fmt.Errorf("failed to marshal to-watch videos: %w", err)
+		}
+		return txn.Set(key, toWatchBytes)
+	})
+}
+
+// IsVideoToWatch checks if a video is marked as to-watch
+func (s *BadgerStore) IsVideoToWatch(videoID string) (bool, error) {
+	toWatchVideos, err := s.GetToWatchVideos()
+	if err != nil {
+		return false, err
+	}
+	for _, id := range toWatchVideos {
 		if id == videoID {
 			return true, nil
 		}

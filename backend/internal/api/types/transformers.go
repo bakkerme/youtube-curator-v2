@@ -50,6 +50,7 @@ func TransformVideoEntry(videoEntry store.VideoEntry) VideoResponse {
 		ChannelID:  videoEntry.ChannelID,
 		CachedAt:   videoEntry.CachedAt,
 		Watched:    videoEntry.Watched,
+		ToWatch:    videoEntry.ToWatch,
 		Title:      entry.Title,
 		Link:       transformVideoLink(entry.Link),
 		Published:  entry.Published,
