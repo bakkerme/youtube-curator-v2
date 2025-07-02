@@ -285,3 +285,61 @@ func (mr *MockStoreMockRecorder) SetVideoWatched(videoID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetVideoWatched", reflect.TypeOf((*MockStore)(nil).SetVideoWatched), videoID)
 }
+
+// GetToWatchVideos mocks base method.
+func (m *MockStore) GetToWatchVideos() ([]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetToWatchVideos")
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetToWatchVideos indicates an expected call of GetToWatchVideos.
+func (mr *MockStoreMockRecorder) GetToWatchVideos() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetToWatchVideos", reflect.TypeOf((*MockStore)(nil).GetToWatchVideos))
+}
+
+// SetVideoToWatch mocks base method.
+func (m *MockStore) SetVideoToWatch(videoID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetVideoToWatch", videoID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetVideoToWatch indicates an expected call of SetVideoToWatch.
+func (mr *MockStoreMockRecorder) SetVideoToWatch(videoID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetVideoToWatch", reflect.TypeOf((*MockStore)(nil).SetVideoToWatch), videoID)
+}
+
+// UnsetVideoToWatch mocks base method.
+func (m *MockStore) UnsetVideoToWatch(videoID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UnsetVideoToWatch", videoID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UnsetVideoToWatch indicates an expected call of UnsetVideoToWatch.
+func (mr *MockStoreMockRecorder) UnsetVideoToWatch(videoID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnsetVideoToWatch", reflect.TypeOf((*MockStore)(nil).UnsetVideoToWatch), videoID)
+}
+
+// IsVideoToWatch mocks base method.
+func (m *MockStore) IsVideoToWatch(videoID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsVideoToWatch", videoID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsVideoToWatch indicates an expected call of IsVideoToWatch.
+func (mr *MockStoreMockRecorder) IsVideoToWatch(videoID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsVideoToWatch", reflect.TypeOf((*MockStore)(nil).IsVideoToWatch), videoID)
+}
